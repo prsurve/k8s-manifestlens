@@ -4,38 +4,29 @@ Explains Kubernetes YAML in plain English and flags risky settings. Local-first 
 
 **Audience:** DevOps beginners, students, platform teams onboarding new engineers.
 
-## Planned features
+**Try it in your browser: <https://manifestlens-one.vercel.app>**. Paste a manifest and nothing leaves
+your machine.
 
-- Line-by-line explanations of any manifest
-- Security and best-practice hints (missing limits, root containers, `latest` tags)
-- "Why does this field exist?" links to the official docs
-- Diff mode: explain what a change will do to the cluster
-- Fully offline, using a bundled rules engine
+## What it does
 
-## Status
-
-Milestones 1 to 3:
-
-- `manifestlens explain <file>` explains a manifest line by line. Pod, Deployment and Service have
-  plain-English text written by hand. 22 more kinds (StatefulSet, DaemonSet, Job, CronJob, Ingress,
-  ConfigMap, Secret, RBAC and others) are explained from a dataset generated from the Kubernetes OpenAPI
-  spec, bundled so it works offline.
-- `manifestlens check <file>` flags risky settings with 16 starter rules written as plain YAML. See
+- **Explain.** `manifestlens explain <file>` explains a manifest line by line and links each field to the
+  official Kubernetes docs. Pod, Deployment and Service have plain-English text written by hand. 22 more
+  kinds (StatefulSet, DaemonSet, Job, CronJob, Ingress, ConfigMap, Secret, RBAC and others) are explained
+  from a dataset generated from the Kubernetes OpenAPI spec, bundled so it works offline.
+- **Check.** `manifestlens check <file>` flags risky settings (missing limits, root containers, `latest`
+  tags, missing probes and more) with 16 starter rules written as plain YAML. See
   [docs/writing-rules.md](docs/writing-rules.md) to add your own.
-- `explain` links each field to the official Kubernetes docs (`npm run check-links` verifies the links).
-- `manifestlens diff <old> <new>` explains what applying a changed manifest will do (scaling, rollouts,
-  restarts, rejected changes) and which findings the change adds or removes. Use `--fail-on warning` to
-  fail a CI job when a change introduces new problems.
-
-- A web page (`apps/web`) does all of the above in the browser. Nothing is uploaded: the page makes no
+- **Diff.** `manifestlens diff <old> <new>` explains what applying a changed manifest will do (scaling,
+  rollouts, restarts, rejected changes) and which findings the change adds or removes. Use
+  `--fail-on warning` to fail a CI job when a change introduces new problems.
+- **Web page.** `apps/web` does all of the above in the browser. Nothing is uploaded: the page makes no
   network requests, and its Content-Security-Policy forbids them.
+- **VS Code extension.** `packages/vscode` shows the findings as warnings in the editor, explains fields on
+  hover and adds an "Explain this manifest" command.
 
-- A VS Code extension (`packages/vscode`) shows the findings as warnings in the editor, explains fields
-  on hover and adds an "Explain this manifest" command.
+See [PLAN.md](PLAN.md) for the roadmap.
 
-See [PLAN.md](PLAN.md) for what comes next.
-
-## Try it
+## Try it locally
 
 ```sh
 npm install
