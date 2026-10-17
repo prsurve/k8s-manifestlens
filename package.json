@@ -13,12 +13,13 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build -w @manifestlens/core && npm run build -w manifestlens",
+    "build": "npm run build -w @manifestlens/core && npm run build -w manifestlens && npm run build -w @manifestlens/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "dev:web": "npm run dev -w @manifestlens/web",
     "check-links": "npm run check-links -w @manifestlens/core",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
   },
