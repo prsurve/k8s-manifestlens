@@ -16,7 +16,7 @@ jobs:
   manifests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # scope: new needs the base commit
 
@@ -30,7 +30,7 @@ jobs:
           sarif-file: manifestlens.sarif
 
       # Show findings in the repository's Security tab as well.
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         if: always() && steps.lens.outputs.sarif-file != ''
         with:
           sarif_file: ${{ steps.lens.outputs.sarif-file }}
@@ -50,7 +50,7 @@ jobs:
           - env: prod
             fail-on: warning # stricter in production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: prsurve/manifestlens@v1
         with:
           working-directory: deploy/${{ matrix.env }}

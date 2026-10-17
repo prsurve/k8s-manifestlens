@@ -5,7 +5,7 @@ and explanations as the CLI, the web page and the VS Code extension, runs entire
 sends nothing anywhere.
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@v7
 - uses: prsurve/manifestlens@v1
 ```
 

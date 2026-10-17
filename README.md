@@ -7,6 +7,14 @@ Explains Kubernetes YAML in plain English and flags risky settings. Local-first 
 **Try it in your browser: <https://manifestlens-one.vercel.app>**. Paste a manifest and nothing leaves
 your machine.
 
+**Use it in GitHub Actions** to check Kubernetes manifests on every pull request and fail the build on risky
+settings ([all options](docs/github-action.md), [Marketplace](https://github.com/marketplace/actions/manifestlens)):
+
+```yaml
+- uses: actions/checkout@v7
+- uses: prsurve/manifestlens@v1
+```
+
 ## What it does
 
 - **Explain.** `manifestlens explain <file>` explains a manifest line by line and links each field to the

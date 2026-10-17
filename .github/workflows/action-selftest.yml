@@ -21,7 +21,7 @@ jobs:
   clean-manifest-passes:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: lens
         uses: ./
         with:
@@ -34,7 +34,7 @@ jobs:
   violations-fail-the-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: lens
         continue-on-error: true
         uses: ./
@@ -52,7 +52,7 @@ jobs:
   report-mode-does-not-block:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: lens
         uses: ./
         with:
@@ -72,7 +72,7 @@ jobs:
           - { file: hardened.yaml, expect: success }
           - { file: risky.yaml, expect: failure }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: lens
         continue-on-error: true
         uses: ./
@@ -85,7 +85,7 @@ jobs:
   bad-configuration-is-reported:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: lens
         continue-on-error: true
         uses: ./
@@ -98,7 +98,7 @@ jobs:
   only-new-findings:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: lens
