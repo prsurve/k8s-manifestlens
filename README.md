@@ -25,6 +25,9 @@ Milestones 1 to 3:
   restarts, rejected changes) and which findings the change adds or removes. Use `--fail-on warning` to
   fail a CI job when a change introduces new problems.
 
+- A web page (`apps/web`) does all of the above in the browser. Nothing is uploaded: the page makes no
+  network requests, and its Content-Security-Policy forbids them.
+
 See [PLAN.md](PLAN.md) for what comes next.
 
 ## Try it
@@ -44,13 +47,26 @@ npm run check   # typecheck, lint, format check, tests
 npm run build   # builds every package
 ```
 
+Run the web page locally with `npm run dev:web`.
+
 The repo is an npm workspace:
 
 | Path            | What it is                                                                                     |
 | --------------- | ---------------------------------------------------------------------------------------------- |
 | `packages/core` | The framework-agnostic core (no Node imports): parse, explain, check, diff, rules and dataset. |
 | `packages/cli`  | The `manifestlens` command line.                                                               |
+| `apps/web`      | The web page (Vite, plain TypeScript). It bundles the core, so it runs fully offline.          |
 | `examples`      | Sample manifests used by the tests and the docs.                                               |
+
+## Deploying the web page
+
+`apps/web` builds to static files, so any static host works. On Vercel:
+
+1. Import the GitHub repository.
+2. Set **Root Directory** to `apps/web`. Leave "Include source files outside of the Root Directory" on,
+   because the page bundles `packages/core`.
+3. Deploy. `apps/web/vercel.json` already sets the install and build commands, the output directory and
+   the security headers.
 
 ## License
 
