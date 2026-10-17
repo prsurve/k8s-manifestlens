@@ -1,0 +1,27 @@
+# Starter rules for the Pod spec (a Pod, or a Deployment's Pod template).
+id: host-namespaces
+title: Pod shares the node's network, process or IPC space
+severity: warning
+kinds: [Pod, Deployment]
+scope: pod
+when:
+  any:
+    - equals: { hostNetwork: true }
+    - equals: { hostPID: true }
+    - equals: { hostIPC: true }
+report: [hostNetwork, hostPID, hostIPC]
+message: "The Pod shares the node's network, process or IPC namespace."
+why: Sharing these namespaces removes the isolation between the Pod and the node. The Pod can see node traffic or other processes.
+fix: Remove hostNetwork, hostPID and hostIPC unless this Pod is a node-level agent that really needs them.
+---
+id: hostpath-volume
+title: Pod mounts a directory from the node
+severity: warning
+kinds: [Pod, Deployment]
+scope: pod
+when:
+  present: volumes[].hostPath
+report: volumes[].hostPath
+message: "The Pod mounts a directory from the node's filesystem."
+why: A hostPath volume gives the Pod access to files on the node. A compromised Pod can read or change them, and the Pod becomes tied to specific nodes.
+fix: Use an emptyDir, a ConfigMap, a Secret or a PersistentVolumeClaim instead.

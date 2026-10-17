@@ -32,6 +32,8 @@ export interface ManifestDocument {
   apiVersion?: string;
   kind?: string;
   name?: string;
+  /** The document as plain JavaScript data, for rules to inspect. Absent if it is not a mapping. */
+  data?: Record<string, unknown>;
   fields: FieldNode[];
   issues: ParseIssue[];
 }

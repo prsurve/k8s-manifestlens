@@ -12,7 +12,8 @@
     "manifestlens": "dist/cli/main.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "bundle-rules": "node scripts/bundle-rules.mjs",
+    "build": "npm run bundle-rules && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",

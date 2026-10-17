@@ -9,3 +9,4 @@ export type {
   ManifestDocument,
   ParseIssue,
 } from './types.js';
+export * from './rules/index.js';
