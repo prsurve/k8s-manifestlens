@@ -2,7 +2,7 @@
 id: host-namespaces
 title: Pod shares the node's network, process or IPC space
 severity: warning
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: pod
 when:
   any:
@@ -17,7 +17,7 @@ fix: Remove hostNetwork, hostPID and hostIPC unless this Pod is a node-level age
 id: hostpath-volume
 title: Pod mounts a directory from the node
 severity: warning
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: pod
 when:
   present: volumes[].hostPath

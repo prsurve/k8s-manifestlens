@@ -44,7 +44,7 @@ describe('renderExplain', () => {
   it('reports YAML errors and unsupported kinds', () => {
     const bad = 'kind: Pod\nspec: [oops\n';
     expect(renderExplain(explainManifest(bad), bad).querySelector('.issue')).not.toBeNull();
-    const cm = 'kind: ConfigMap\ndata:\n  a: b\n';
+    const cm = 'kind: Certificate\ndata:\n  a: b\n';
     expect(renderExplain(explainManifest(cm), cm).textContent).toContain('No field explanations');
   });
 });

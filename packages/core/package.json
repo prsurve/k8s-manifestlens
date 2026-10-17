@@ -20,6 +20,7 @@
   "scripts": {
     "bundle-rules": "node scripts/bundle-rules.mjs",
     "build": "npm run bundle-rules && tsc -p tsconfig.build.json",
+    "generate-schema": "node scripts/generate-schema.mjs",
     "typecheck": "tsc --noEmit",
     "check-links": "node scripts/check-links.mjs"
   },

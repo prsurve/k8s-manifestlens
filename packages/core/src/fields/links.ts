@@ -61,34 +61,32 @@ const podLinks: Table = [
   ['imagePullSecrets', concept.pullSecrets],
 ];
 
+const metaLinks: Table = [
+  ['apiVersion', concept.objects],
+  ['kind', concept.objects],
+  ['metadata.labels', concept.labels],
+  ['metadata.annotations', concept.annotations],
+  ['metadata.namespace', concept.namespaces],
+  ['metadata', `${API}/common-definitions/object-meta/#ObjectMeta`],
+];
+
+/** Controllers that run Pods from a template share these links. */
+const workloadLinks = (page: string): Table => [
+  ...metaLinks,
+  ['spec.template.metadata.labels', concept.labels],
+  ['spec.template.metadata.annotations', concept.annotations],
+  ['spec.selector', concept.labels],
+  ['spec', page],
+];
+
+/** Per-kind links for fields that are not part of a Pod spec. Kinds without an entry use `metaLinks`. */
 const objectLinks: Record<string, Table> = {
-  Pod: [
-    ['apiVersion', concept.objects],
-    ['kind', concept.objects],
-    ['metadata.labels', concept.labels],
-    ['metadata.annotations', concept.annotations],
-    ['metadata.namespace', concept.namespaces],
-    ['metadata', `${API}/common-definitions/object-meta/#ObjectMeta`],
-  ],
-  Deployment: [
-    ['apiVersion', concept.objects],
-    ['kind', concept.objects],
-    ['metadata.labels', concept.labels],
-    ['metadata.annotations', concept.annotations],
-    ['metadata.namespace', concept.namespaces],
-    ['metadata', `${API}/common-definitions/object-meta/#ObjectMeta`],
-    ['spec.template.metadata.labels', concept.labels],
-    ['spec.template.metadata.annotations', concept.annotations],
-    ['spec.selector', concept.labels],
-    ['spec', concept.deployment],
-  ],
+  Deployment: workloadLinks(concept.deployment),
+  StatefulSet: workloadLinks(`${DOCS}/concepts/workloads/controllers/statefulset/`),
+  DaemonSet: workloadLinks(`${DOCS}/concepts/workloads/controllers/daemonset/`),
+  ReplicaSet: workloadLinks(`${DOCS}/concepts/workloads/controllers/replicaset/`),
   Service: [
-    ['apiVersion', concept.objects],
-    ['kind', concept.objects],
-    ['metadata.labels', concept.labels],
-    ['metadata.annotations', concept.annotations],
-    ['metadata.namespace', concept.namespaces],
-    ['metadata', `${API}/common-definitions/object-meta/#ObjectMeta`],
+    ...metaLinks,
     ['spec.selector', concept.labels],
     ['spec.ports', `${API}/service-resources/service-v1/#ServicePort`],
     ['spec', concept.service],
@@ -100,6 +98,28 @@ const kindPage: Record<string, string> = {
   Pod: concept.pods,
   Deployment: concept.deployment,
   Service: concept.service,
+  StatefulSet: `${DOCS}/concepts/workloads/controllers/statefulset/`,
+  DaemonSet: `${DOCS}/concepts/workloads/controllers/daemonset/`,
+  ReplicaSet: `${DOCS}/concepts/workloads/controllers/replicaset/`,
+  Job: `${DOCS}/concepts/workloads/controllers/job/`,
+  CronJob: `${DOCS}/concepts/workloads/controllers/cron-jobs/`,
+  Ingress: `${DOCS}/concepts/services-networking/ingress/`,
+  NetworkPolicy: `${DOCS}/concepts/services-networking/network-policies/`,
+  ConfigMap: `${DOCS}/concepts/configuration/configmap/`,
+  Secret: `${DOCS}/concepts/configuration/secret/`,
+  Namespace: concept.namespaces,
+  ServiceAccount: `${DOCS}/concepts/security/service-accounts/`,
+  PersistentVolumeClaim: `${DOCS}/concepts/storage/persistent-volumes/`,
+  PersistentVolume: `${DOCS}/concepts/storage/persistent-volumes/`,
+  StorageClass: `${DOCS}/concepts/storage/storage-classes/`,
+  HorizontalPodAutoscaler: `${DOCS}/tasks/run-application/horizontal-pod-autoscale/`,
+  PodDisruptionBudget: `${DOCS}/concepts/workloads/pods/disruptions/`,
+  ResourceQuota: `${DOCS}/concepts/policy/resource-quotas/`,
+  LimitRange: `${DOCS}/concepts/policy/limit-range/`,
+  Role: `${DOCS}/reference/access-authn-authz/rbac/`,
+  ClusterRole: `${DOCS}/reference/access-authn-authz/rbac/`,
+  RoleBinding: `${DOCS}/reference/access-authn-authz/rbac/`,
+  ClusterRoleBinding: `${DOCS}/reference/access-authn-authz/rbac/`,
 };
 
 /** True when `prefix` names `rel` or one of its parents: `env` matches `env[].name`, not `envFrom`. */
@@ -130,12 +150,12 @@ export function docsLinkFor(kind: string | undefined, pattern: string): string |
   if (where.level === 'pod') {
     return find(podLinks, where.rel) ?? `${POD_API}/#PodSpec`;
   }
-  return find(objectLinks[kind] ?? [], where.rel) ?? kindPage[kind];
+  return find(objectLinks[kind] ?? metaLinks, where.rel) ?? kindPage[kind];
 }
 
 /** Every URL this module can return, for the link checker. */
 export function allDocsLinks(): string[] {
-  const tables = [containerLinks, podLinks, ...Object.values(objectLinks)];
+  const tables = [containerLinks, podLinks, metaLinks, ...Object.values(objectLinks)];
   const urls = new Set<string>([
     ...tables.flatMap((t) => t.map(([, url]) => url)),
     ...Object.values(kindPage),

@@ -67,6 +67,12 @@ function byKind(kind: string, change: FieldChange, ctx: Ctx): string | undefined
   if (ctx.level === 'container') return containerEffect(change, ctx);
   if (ctx.level === 'pod') return podEffect(change, ctx);
   if (kind === 'Deployment') return deploymentEffect(change, ctx);
+  if ((kind === 'StatefulSet' || kind === 'ReplicaSet') && ctx.rel === 'spec.replicas') {
+    return scaleEffect(change);
+  }
+  if (ctx.rel.startsWith('spec.template.metadata.labels') && kind !== 'Pod') {
+    return 'Changes the labels of new Pods. They must still match spec.selector, or Kubernetes rejects the change.';
+  }
   if (kind === 'Service') return serviceEffect(change, ctx);
   return undefined;
 }
@@ -88,18 +94,21 @@ function metadataEffect(change: FieldChange, ctx: Ctx): string | undefined {
   return undefined;
 }
 
+/** Effect of changing `spec.replicas` on a Deployment, StatefulSet or ReplicaSet. */
+function scaleEffect(change: FieldChange): string | undefined {
+  const before = typeof change.before === 'number' ? change.before : 1;
+  const after = typeof change.after === 'number' ? change.after : 1;
+  if (after === before) return undefined;
+  if (after === 0) return 'Scales to zero: all Pods stop and the application is unavailable.';
+  const diff = Math.abs(after - before);
+  return after > before
+    ? `Scales up from ${before} to ${after}: ${plural(diff, 'more Pod')} will be started. Running Pods keep running.`
+    : `Scales down from ${before} to ${after}: ${plural(diff, 'Pod')} will be stopped. The rest keep running.`;
+}
+
 function deploymentEffect(change: FieldChange, ctx: Ctx): string | undefined {
   const { rel } = ctx;
-  if (rel === 'spec.replicas') {
-    const before = typeof change.before === 'number' ? change.before : 1;
-    const after = typeof change.after === 'number' ? change.after : 1;
-    if (after === before) return undefined;
-    if (after === 0) return 'Scales to zero: all Pods stop and the application is unavailable.';
-    const diff = Math.abs(after - before);
-    return after > before
-      ? `Scales up from ${before} to ${after}: ${plural(diff, 'more Pod')} will be started. Running Pods keep running.`
-      : `Scales down from ${before} to ${after}: ${plural(diff, 'Pod')} will be stopped. The rest keep running.`;
-  }
+  if (rel === 'spec.replicas') return scaleEffect(change);
   if (rel.startsWith('spec.selector')) {
     return 'Kubernetes does not allow changing the selector of an existing Deployment. Applying this will be rejected; delete and recreate the Deployment instead.';
   }
@@ -213,7 +222,8 @@ function podEffect(change: FieldChange, ctx: Ctx): string | undefined {
 
 function containerEffect(change: FieldChange, ctx: Ctx): string | undefined {
   const { rel, c } = ctx;
-  const restart = ctx.kind === 'Deployment' ? '' : ' The container restarts.';
+  // Controllers announce the rollout once per object (see notesFor), so only a bare Pod says it here.
+  const restart = ctx.kind === 'Pod' ? ' The container restarts.' : '';
   const name = ctx.item ?? '';
 
   if (rel === 'image') {

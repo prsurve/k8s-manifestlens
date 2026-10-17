@@ -6,3 +6,4 @@ examples/
 packages/cli/test/fixtures/
 package-lock.json
 packages/core/src/rules/bundled.ts
+packages/core/src/fields/generated/schema.ts

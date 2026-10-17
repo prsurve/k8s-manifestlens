@@ -13,6 +13,11 @@ export interface Location {
 export const POD_SPEC_PATH: Record<string, string> = {
   Pod: 'spec',
   Deployment: 'spec.template.spec',
+  StatefulSet: 'spec.template.spec',
+  DaemonSet: 'spec.template.spec',
+  ReplicaSet: 'spec.template.spec',
+  Job: 'spec.template.spec',
+  CronJob: 'spec.jobTemplate.spec.template.spec',
 };
 
 /** Work out whether a field pattern is on the object itself, its Pod spec, or a container. */
