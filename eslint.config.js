@@ -22,6 +22,11 @@ export default tseslint.config(
     },
   },
   {
+    // Plain browser scripts served as-is from the web app's public folder.
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { globals: { document: 'readonly', localStorage: 'readonly' } },
+  },
+  {
     // The core must stay framework- and runtime-agnostic so the web page and
     // editor plugin can reuse it. Node APIs belong in packages/cli only.
     files: ['packages/core/src/**/*.ts'],
