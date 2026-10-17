@@ -1,0 +1,10 @@
+id: team-needs-owner-label
+title: Object has no owner label
+severity: warning
+kinds: ['*']
+when:
+  missing: metadata.labels.owner
+report: metadata
+message: '{kind} "{name}" has no owner label.'
+why: Our team needs to know who to call.
+fix: Add metadata.labels.owner.

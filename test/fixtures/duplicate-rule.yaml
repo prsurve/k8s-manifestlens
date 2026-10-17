@@ -1,0 +1,6 @@
+id: single-replica
+title: Duplicate of a bundled rule
+severity: info
+kinds: [Deployment]
+when: { missing: spec.replicas }
+message: m
