@@ -20,7 +20,9 @@ your machine.
   rollouts, restarts, rejected changes) and which findings the change adds or removes. Use
   `--fail-on warning` to fail a CI job when a change introduces new problems.
 - **Web page.** `apps/web` does all of the above in the browser. Nothing is uploaded: the page makes no
-  network requests, and its Content-Security-Policy forbids them.
+  network requests, and its Content-Security-Policy forbids them. Results are compact: findings are one
+  line each, click one for the why and fix, filter by severity, and click a line number to jump to that
+  line in your YAML. It follows your system's light or dark theme, with a button to switch.
 - **VS Code extension.** `packages/vscode` shows the findings as warnings in the editor, explains fields on
   hover and adds an "Explain this manifest" command.
 
