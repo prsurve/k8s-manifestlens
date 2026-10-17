@@ -14,6 +14,7 @@
   "scripts": {
     "bundle-rules": "node scripts/bundle-rules.mjs",
     "build": "npm run bundle-rules && tsc -p tsconfig.build.json",
+    "check-links": "node scripts/check-links.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",

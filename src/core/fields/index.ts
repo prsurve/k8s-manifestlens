@@ -1,4 +1,5 @@
 import { deploymentDocs } from './deployment.js';
+import { allDocsLinks, docsLinkFor } from './links.js';
 import { podDocs } from './pod.js';
 import type { FieldDocs } from './pod.js';
 import { serviceDocs } from './service.js';
@@ -32,3 +33,5 @@ export function lookupField(kind: string | undefined, pattern: string): string |
 export function supportedKinds(): string[] {
   return Object.keys(docsByKind);
 }
+
+export { allDocsLinks, docsLinkFor };

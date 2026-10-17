@@ -9,7 +9,9 @@ export default tseslint.config(
   prettier,
   {
     files: ['scripts/**/*.mjs'],
-    languageOptions: { globals: { console: 'readonly', URL: 'readonly' } },
+    languageOptions: {
+      globals: { console: 'readonly', URL: 'readonly', fetch: 'readonly', process: 'readonly' },
+    },
   },
   {
     // The core must stay framework- and runtime-agnostic so the web page and
