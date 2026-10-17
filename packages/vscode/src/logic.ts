@@ -1,4 +1,4 @@
-import { checkManifest, explainManifest } from '@manifestlens/core';
+import { checkManifest, explainManifest, looksLikeKubernetes } from '@manifestlens/core';
 import type { ExplainResult, Rule, Severity } from '@manifestlens/core';
 
 /** Editor-independent description of one squiggle; extension.ts turns these into vscode objects. */
@@ -14,13 +14,7 @@ export interface Problem {
 
 const ORDER: Record<Severity, number> = { info: 0, warning: 1, error: 2 };
 
-/**
- * Cheap guard so ordinary YAML files (CI configs, Helm templates, docker-compose) are left alone:
- * only text that declares both `apiVersion` and `kind` is treated as a Kubernetes manifest.
- */
-export function looksLikeKubernetes(text: string): boolean {
-  return /^apiVersion:\s*\S/m.test(text) && /^kind:\s*\S/m.test(text) && !text.includes('{{');
-}
+export { looksLikeKubernetes };
 
 /** Run the rules over a document and describe each finding as a problem on a line. */
 export function findProblems(text: string, rules: Rule[], minimum: Severity = 'info'): Problem[] {
