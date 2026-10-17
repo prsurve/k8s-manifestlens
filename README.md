@@ -32,19 +32,25 @@ See [PLAN.md](PLAN.md) for what comes next.
 ```sh
 npm install
 npm run build
-node dist/cli/main.js explain test/fixtures/web.yaml
-node dist/cli/main.js check test/fixtures/risky.yaml
-node dist/cli/main.js diff test/fixtures/diff-old.yaml test/fixtures/diff-new.yaml
+node packages/cli/dist/main.js explain examples/web.yaml
+node packages/cli/dist/main.js check examples/risky.yaml
+node packages/cli/dist/main.js diff examples/diff-old.yaml examples/diff-new.yaml
 ```
 
 ## Development
 
 ```sh
 npm run check   # typecheck, lint, format check, tests
+npm run build   # builds every package
 ```
 
-`src/core` is runtime-agnostic (no Node imports) so a web page and editor plugin can reuse it. `src/cli` holds
-the command line.
+The repo is an npm workspace:
+
+| Path            | What it is                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------- |
+| `packages/core` | The framework-agnostic core (no Node imports): parse, explain, check, diff, rules and dataset. |
+| `packages/cli`  | The `manifestlens` command line.                                                               |
+| `examples`      | Sample manifests used by the tests and the docs.                                               |
 
 ## License
 

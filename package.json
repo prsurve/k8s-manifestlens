@@ -1,29 +1,26 @@
 {
-  "name": "manifestlens",
+  "name": "manifestlens-monorepo",
   "version": "0.0.0",
-  "description": "Explains Kubernetes YAML in plain English and flags risky settings. Local-first and offline.",
+  "private": true,
   "license": "Apache-2.0",
   "type": "module",
-  "private": true,
+  "description": "Explains Kubernetes YAML in plain English and flags risky settings. Local-first and offline.",
   "engines": {
     "node": ">=20"
   },
-  "bin": {
-    "manifestlens": "dist/cli/main.js"
-  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "bundle-rules": "node scripts/bundle-rules.mjs",
-    "build": "npm run bundle-rules && tsc -p tsconfig.build.json",
-    "check-links": "node scripts/check-links.mjs",
-    "typecheck": "tsc --noEmit",
+    "build": "npm run build -w @manifestlens/core && npm run build -w manifestlens",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "check-links": "npm run check-links -w @manifestlens/core",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
-  },
-  "dependencies": {
-    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

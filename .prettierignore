@@ -2,6 +2,7 @@ dist/
 coverage/
 node_modules/
 LICENSE
-test/fixtures/
+examples/
+packages/cli/test/fixtures/
 package-lock.json
-src/core/rules/bundled.ts
+packages/core/src/rules/bundled.ts

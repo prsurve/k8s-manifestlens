@@ -1,0 +1,21 @@
+{
+  "name": "manifestlens",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Explains Kubernetes YAML in plain English and flags risky settings. Local-first and offline.",
+  "bin": {
+    "manifestlens": "dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@manifestlens/core": "*"
+  }
+}

@@ -12,11 +12,6 @@
     "exactOptionalPropertyTypes": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
-    "skipLibCheck": true,
-    "outDir": "dist",
-    "rootDir": ".",
-    "declaration": true,
-    "sourceMap": true
-  },
-  "include": ["src", "test", "*.config.ts"]
+    "skipLibCheck": true
+  }
 }

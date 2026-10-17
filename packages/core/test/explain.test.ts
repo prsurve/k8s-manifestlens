@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { explainManifest } from '../src/core/index.js';
+import { explainManifest } from '../src/index.js';
 
 function explain(yaml: string, path: string, doc = 0): string | undefined {
   return explainManifest(yaml).documents[doc]?.fields.find((f) => f.path === path)?.explanation;

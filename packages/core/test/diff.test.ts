@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { diffManifests } from '../src/core/index.js';
-import { diffData } from '../src/core/diff/deep.js';
-import { run } from '../src/cli/main.js';
+import { diffManifests } from '../src/index.js';
+import { diffData } from '../src/diff/deep.js';
 
-const fixture = (name: string) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
+const fixture = (name: string) =>
+  fileURLToPath(new URL(`../../../examples/${name}`, import.meta.url));
 const read = (name: string) => readFileSync(fixture(name), 'utf8');
 
 const deployment = (extra: string, replicas = 2) => `apiVersion: apps/v1
@@ -242,45 +242,5 @@ describe('effects', () => {
       explanation: expect.stringContaining('identical Pods'),
       docsUrl: expect.stringContaining('kubernetes.io'),
     });
-  });
-});
-
-describe('manifestlens diff', () => {
-  const cli = (...args: string[]) => {
-    let stdout = '';
-    let stderr = '';
-    const code = run(args, { stdout: (t) => (stdout += t), stderr: (t) => (stderr += t) });
-    return { code, stdout, stderr };
-  };
-  const oldF = fixture('diff-old.yaml');
-  const newF = fixture('diff-new.yaml');
-
-  it('prints a readable summary', () => {
-    const { code, stdout } = cli('diff', oldF, newF);
-    expect(code).toBe(0);
-    expect(stdout).toContain('== Deployment "web": changed ==');
-    expect(stdout).toContain('Scales up from 2 to 5');
-    expect(stdout).toContain(
-      'line 29 (old file)  - spec.template.spec.containers[0].readinessProbe',
-    );
-    expect(stdout).toContain('== Service "metrics": added ==');
-    expect(stdout).toContain('== Service "legacy": removed ==');
-    expect(stdout).toMatch(
-      /2 changed, 1 added, 1 removed, 1 unchanged\. Findings: \d+ new, 0 resolved\./,
-    );
-  });
-
-  it('fails when the change adds findings at the --fail-on level', () => {
-    expect(cli('diff', oldF, newF, '--fail-on', 'warning').code).toBe(1);
-    expect(cli('diff', oldF, newF, '--fail-on', 'error').code).toBe(0);
-    expect(cli('diff', oldF, oldF, '--fail-on', 'info').code).toBe(0);
-  });
-
-  it('needs exactly two readable files', () => {
-    expect(cli('diff', oldF).code).toBe(2);
-    expect(cli('diff', oldF, newF, oldF).code).toBe(2);
-    const missing = cli('diff', oldF, fixture('nope.yaml'));
-    expect(missing.code).toBe(2);
-    expect(missing.stderr).toContain('Cannot read');
   });
 });

@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseManifest } from '../src/core/index.js';
+import { parseManifest } from '../src/index.js';
 
-const fixture = readFileSync(new URL('./fixtures/web.yaml', import.meta.url), 'utf8');
+const fixture = readFileSync(new URL('../../../examples/web.yaml', import.meta.url), 'utf8');
 
 describe('parseManifest', () => {
   it('splits a multi-document file and reads kind, apiVersion and name', () => {

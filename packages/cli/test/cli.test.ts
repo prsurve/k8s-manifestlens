@@ -1,9 +1,9 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { run } from '../src/cli/main.js';
+import { run } from '../src/main.js';
 
-const fixture = fileURLToPath(new URL('./fixtures/web.yaml', import.meta.url));
+const fixture = fileURLToPath(new URL('../../../examples/web.yaml', import.meta.url));
 
 function cli(...args: string[]) {
   let stdout = '';
@@ -52,8 +52,8 @@ describe('manifestlens explain', () => {
 });
 
 describe('manifestlens check', () => {
-  const risky = fileURLToPath(new URL('./fixtures/risky.yaml', import.meta.url));
-  const hardened = fileURLToPath(new URL('./fixtures/hardened.yaml', import.meta.url));
+  const risky = fileURLToPath(new URL('../../../examples/risky.yaml', import.meta.url));
+  const hardened = fileURLToPath(new URL('../../../examples/hardened.yaml', import.meta.url));
 
   it('reports findings with line numbers and exits 1 on errors', () => {
     const { code, stdout } = cli('check', risky);
@@ -96,5 +96,60 @@ describe('manifestlens check', () => {
     const { code, stderr } = cli('check', hardened, '--rules', dup);
     expect(code).toBe(2);
     expect(stderr).toContain('Duplicate rule id "single-replica"');
+  });
+});
+
+describe('manifestlens diff', () => {
+  const cli = (...args: string[]) => {
+    let stdout = '';
+    let stderr = '';
+    const code = run(args, { stdout: (t) => (stdout += t), stderr: (t) => (stderr += t) });
+    return { code, stdout, stderr };
+  };
+  const example = (name: string) =>
+    fileURLToPath(new URL(`../../../examples/${name}`, import.meta.url));
+  const oldF = example('diff-old.yaml');
+  const newF = example('diff-new.yaml');
+
+  it('prints a readable summary', () => {
+    const { code, stdout } = cli('diff', oldF, newF);
+    expect(code).toBe(0);
+    expect(stdout).toContain('== Deployment "web": changed ==');
+    expect(stdout).toContain('Scales up from 2 to 5');
+    expect(stdout).toContain(
+      'line 29 (old file)  - spec.template.spec.containers[0].readinessProbe',
+    );
+    expect(stdout).toContain('== Service "metrics": added ==');
+    expect(stdout).toContain('== Service "legacy": removed ==');
+    expect(stdout).toMatch(
+      /2 changed, 1 added, 1 removed, 1 unchanged\. Findings: \d+ new, 0 resolved\./,
+    );
+  });
+
+  it('fails when the change adds findings at the --fail-on level', () => {
+    expect(cli('diff', oldF, newF, '--fail-on', 'warning').code).toBe(1);
+    expect(cli('diff', oldF, newF, '--fail-on', 'error').code).toBe(0);
+    expect(cli('diff', oldF, oldF, '--fail-on', 'info').code).toBe(0);
+  });
+
+  it('needs exactly two readable files', () => {
+    expect(cli('diff', oldF).code).toBe(2);
+    expect(cli('diff', oldF, newF, oldF).code).toBe(2);
+    const missing = cli('diff', oldF, example('nope.yaml'));
+    expect(missing.code).toBe(2);
+    expect(missing.stderr).toContain('Cannot read');
+  });
+});
+
+describe('explain docs links', () => {
+  it('prints each docs link once per document', () => {
+    const { stdout } = cli(
+      'explain',
+      fileURLToPath(new URL('../../../examples/hardened.yaml', import.meta.url)),
+    );
+    expect((stdout.match(/Docs: \S+/g) ?? []).length).toBeGreaterThan(3);
+    const deployment = stdout.split('== Service')[0] ?? '';
+    const links = deployment.match(/Docs: \S+/g) ?? [];
+    expect(new Set(links).size).toBe(links.length);
   });
 });

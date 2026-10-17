@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { explainManifest } from '../src/core/index.js';
-import { allDocsLinks, docsLinkFor } from '../src/core/fields/index.js';
-import { locate } from '../src/core/fields/locate.js';
-import { run } from '../src/cli/main.js';
-import { fileURLToPath } from 'node:url';
+import { explainManifest } from '../src/index.js';
+import { allDocsLinks, docsLinkFor } from '../src/fields/index.js';
+import { locate } from '../src/fields/locate.js';
 
 const D = 'https://kubernetes.io/docs';
 
@@ -74,16 +72,5 @@ describe('explain with links', () => {
     const byPath = (p: string) => doc?.fields.find((f) => f.path === p);
     expect(byPath('spec.containers[0].resources')?.docsUrl).toMatch(/manage-resources/);
     expect(byPath('spec.containers[0].mystery')?.docsUrl).toBeUndefined();
-  });
-
-  it('prints each link once per document in the CLI', () => {
-    let out = '';
-    const file = fileURLToPath(new URL('./fixtures/hardened.yaml', import.meta.url));
-    run(['explain', file], { stdout: (t) => (out += t), stderr: () => undefined });
-    const docs = out.match(/Docs: \S+/g) ?? [];
-    expect(docs.length).toBeGreaterThan(3);
-    const deployment = out.split('== Service')[0] ?? '';
-    const links = deployment.match(/Docs: \S+/g) ?? [];
-    expect(new Set(links).size).toBe(links.length);
   });
 });

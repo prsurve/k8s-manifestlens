@@ -1,0 +1,29 @@
+{
+  "name": "@manifestlens/core",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Framework-agnostic core of ManifestLens: parse, explain, check and diff Kubernetes manifests.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "bundle-rules": "node scripts/bundle-rules.mjs",
+    "build": "npm run bundle-rules && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "check-links": "node scripts/check-links.mjs"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  }
+}

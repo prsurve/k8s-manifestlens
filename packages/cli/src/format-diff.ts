@@ -1,5 +1,5 @@
-import { formatValue as show } from '../core/index.js';
-import type { DiffResult, DocumentDiff, FieldChange, Finding } from '../core/index.js';
+import { formatValue as show } from '@manifestlens/core';
+import type { DiffResult, DocumentDiff, FieldChange, Finding } from '@manifestlens/core';
 
 const SIGN = { added: '+', removed: '-', changed: '~' } as const;
 

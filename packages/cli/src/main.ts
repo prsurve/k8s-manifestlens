@@ -10,8 +10,8 @@ import {
   explainManifest,
   loadBundledRules,
   parseRules,
-} from '../core/index.js';
-import type { Rule, Severity } from '../core/index.js';
+} from '@manifestlens/core';
+import type { Rule, Severity } from '@manifestlens/core';
 import { formatExplanation } from './format.js';
 import { formatDiff } from './format-diff.js';
 import { formatFindings } from './format-check.js';

@@ -1,4 +1,4 @@
-import type { CheckResult, Finding, Severity } from '../core/index.js';
+import type { CheckResult, Finding, Severity } from '@manifestlens/core';
 
 const LEVELS: Severity[] = ['error', 'warning', 'info'];
 

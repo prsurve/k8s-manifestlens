@@ -1,5 +1,5 @@
-import type { ExplainResult } from '../core/index.js';
-import { supportedKinds } from '../core/index.js';
+import type { ExplainResult } from '@manifestlens/core';
+import { supportedKinds } from '@manifestlens/core';
 
 /** Render an explain result as plain text, one block per source line. */
 export function formatExplanation(result: ExplainResult, source: string): string {

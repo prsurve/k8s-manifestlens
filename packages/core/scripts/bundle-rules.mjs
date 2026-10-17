@@ -1,4 +1,4 @@
-// Embeds rules/*.yaml in src/core/rules/bundled.ts so the core needs no file access at runtime.
+// Embeds rules/*.yaml in src/rules/bundled.ts so the core needs no file access at runtime.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -16,6 +16,6 @@ export const bundledRuleSources: Record<string, string> = {
 ${entries.join('\n')}
 };
 `;
-const target = fileURLToPath(new URL('src/core/rules/bundled.ts', root));
+const target = fileURLToPath(new URL('src/rules/bundled.ts', root));
 writeFileSync(target, out);
-console.log(`Bundled ${files.length} rule files into src/core/rules/bundled.ts`);
+console.log(`Bundled ${files.length} rule files into src/rules/bundled.ts`);

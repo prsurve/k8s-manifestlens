@@ -1,9 +1,10 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { RuleError, checkManifest, loadBundledRules, parseRules } from '../src/core/index.js';
-import { bundledRuleSources } from '../src/core/rules/bundled.js';
+import { RuleError, checkManifest, loadBundledRules, parseRules } from '../src/index.js';
+import { bundledRuleSources } from '../src/rules/bundled.js';
 
-const read = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
+const read = (name: string) =>
+  readFileSync(new URL(`../../../examples/${name}`, import.meta.url), 'utf8');
 const rulesDir = new URL('../rules/', import.meta.url);
 
 function findingsFor(rule: string, yaml: string) {
