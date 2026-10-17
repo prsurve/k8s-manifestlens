@@ -2,7 +2,7 @@
 id: image-latest-tag
 title: Image has no fixed version
 severity: warning
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: [container, initContainer]
 when:
   any:
@@ -16,7 +16,7 @@ fix: Use a specific version tag such as nginx:1.27, or an image digest (nginx@sh
 id: missing-memory-limit
 title: Container has no memory limit
 severity: warning
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: container
 when:
   missing: resources.limits.memory
@@ -28,7 +28,7 @@ fix: 'Add resources.limits.memory, for example: limits: { memory: 256Mi }.'
 id: missing-resource-requests
 title: Container has no CPU or memory request
 severity: warning
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: container
 when:
   any:
@@ -42,7 +42,7 @@ fix: 'Add resources.requests.cpu and resources.requests.memory, for example: req
 id: missing-readiness-probe
 title: Container has no readiness probe
 severity: warning
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: container
 when:
   missing: readinessProbe
@@ -53,7 +53,7 @@ fix: Add a readinessProbe, for example an httpGet on a health endpoint of your a
 id: missing-liveness-probe
 title: Container has no liveness probe
 severity: info
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: container
 when:
   missing: livenessProbe
@@ -64,7 +64,7 @@ fix: Add a livenessProbe that checks the app is still responding. Keep it simple
 id: privileged-container
 title: Container runs in privileged mode
 severity: error
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: [container, initContainer]
 when:
   equals: { securityContext.privileged: true }
@@ -76,7 +76,7 @@ fix: Remove privileged, or replace it with the specific capabilities the contain
 id: run-as-root-user
 title: Container is set to run as root
 severity: error
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: [container, initContainer]
 when:
   any:
@@ -92,7 +92,7 @@ fix: Set runAsUser to a non-zero ID such as 1000 and set runAsNonRoot to true.
 id: may-run-as-root
 title: Container is not prevented from running as root
 severity: warning
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: [container, initContainer]
 when:
   all:
@@ -108,7 +108,7 @@ fix: Set securityContext.runAsNonRoot to true (on the container or on the Pod), 
 id: allow-privilege-escalation
 title: Container may gain extra privileges
 severity: warning
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: [container, initContainer]
 when:
   not: { equals: { securityContext.allowPrivilegeEscalation: false } }
@@ -120,7 +120,7 @@ fix: Set securityContext.allowPrivilegeEscalation to false.
 id: writable-root-filesystem
 title: Container can write to its own filesystem
 severity: info
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: [container, initContainer]
 when:
   not: { equals: { securityContext.readOnlyRootFilesystem: true } }
@@ -132,7 +132,7 @@ fix: Set securityContext.readOnlyRootFilesystem to true, and mount an emptyDir v
 id: capabilities-not-dropped
 title: Container keeps default Linux capabilities
 severity: info
-kinds: [Pod, Deployment]
+kinds: ['*']
 scope: [container, initContainer]
 when:
   not: { contains: { securityContext.capabilities.drop: ALL } }

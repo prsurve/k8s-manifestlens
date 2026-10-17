@@ -51,7 +51,7 @@ describe('explainManifest', () => {
   });
 
   it('marks kinds without a dataset as unsupported and adds no explanations', () => {
-    const [doc] = explainManifest('kind: ConfigMap\ndata:\n  a: b\n').documents;
+    const [doc] = explainManifest('kind: Certificate\ndata:\n  a: b\n').documents;
     expect(doc?.unsupportedKind).toBe(true);
     expect(doc?.fields.every((f) => f.explanation === undefined)).toBe(true);
   });

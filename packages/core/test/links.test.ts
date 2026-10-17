@@ -55,7 +55,7 @@ describe('docsLinkFor', () => {
   });
 
   it('knows nothing about other kinds', () => {
-    expect(docsLinkFor('ConfigMap', 'data')).toBeUndefined();
+    expect(docsLinkFor('Certificate', 'data')).toBeUndefined();
     expect(docsLinkFor(undefined, 'spec')).toBeUndefined();
   });
 

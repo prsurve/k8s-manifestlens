@@ -1,4 +1,4 @@
-import { formatValue } from '@manifestlens/core';
+import { formatValue, supportedKinds } from '@manifestlens/core';
 import type {
   CheckResult,
   DiffResult,
@@ -54,7 +54,7 @@ export function renderExplain(result: ExplainResult, source: string): HTMLElemen
           doc.kind &&
           el('p', {
             class: 'issue',
-            text: `No field explanations for kind "${doc.kind}" yet (supported: Pod, Deployment, Service).`,
+            text: `No field explanations for kind "${doc.kind}" yet (supported: ${supportedKinds().join(', ')}).`,
           }),
         el('ul', { class: 'rows' }, rows),
       ]),

@@ -190,10 +190,48 @@ function lineOf(doc: ManifestDocument, path: string): number {
   return inside.length > 0 ? Math.min(...inside.map((f) => f.line)) : doc.startLine;
 }
 
+/** Where each controller keeps its Pod template, and what happens when the template changes. */
+const TEMPLATE_KINDS: Record<string, { prefix: string; changed: string }> = {
+  StatefulSet: {
+    prefix: 'spec.template',
+    changed:
+      'The Pod template changes, so Kubernetes replaces the Pods one at a time, highest number first, waiting for each to become ready (the default RollingUpdate).',
+  },
+  DaemonSet: {
+    prefix: 'spec.template',
+    changed:
+      'The Pod template changes, so Kubernetes replaces the Pods node by node (the default RollingUpdate).',
+  },
+  ReplicaSet: {
+    prefix: 'spec.template',
+    changed:
+      'A ReplicaSet does not update Pods it already runs. Only Pods created from now on use the new template; delete the old Pods, or use a Deployment, to roll it out.',
+  },
+  Job: {
+    prefix: 'spec.template',
+    changed:
+      "Kubernetes does not allow changing a Job's Pod template after it is created. Applying this will be rejected; delete and recreate the Job.",
+  },
+  CronJob: {
+    prefix: 'spec.jobTemplate',
+    changed:
+      'The change applies to Jobs created from the next run on. Jobs that are already running are not changed.',
+  },
+};
+
+const UNCHANGED_TEMPLATE =
+  'The Pod template is unchanged, so no rollout happens and running Pods are not restarted.';
+
 function notesFor(kind: string, changes: FieldChange[], now: ManifestDocument): string[] {
-  if (kind !== 'Deployment') return [];
-  const data = now.data ?? {};
-  const spec = (data.spec ?? {}) as { paused?: unknown; strategy?: { type?: unknown } };
+  if (kind === 'Deployment') return deploymentNotes(changes, now);
+  const info = Object.hasOwn(TEMPLATE_KINDS, kind) ? TEMPLATE_KINDS[kind] : undefined;
+  if (!info) return [];
+  if (changes.some((c) => c.path.startsWith(info.prefix))) return [info.changed];
+  return kind === 'StatefulSet' || kind === 'DaemonSet' ? [UNCHANGED_TEMPLATE] : [];
+}
+
+function deploymentNotes(changes: FieldChange[], now: ManifestDocument): string[] {
+  const spec = (now.data?.spec ?? {}) as { paused?: unknown; strategy?: { type?: unknown } };
   const touchesTemplate = changes.some((c) => c.path.startsWith('spec.template'));
   if (touchesTemplate && spec.paused !== true) {
     return [
@@ -202,10 +240,5 @@ function notesFor(kind: string, changes: FieldChange[], now: ManifestDocument): 
         : 'The Pod template changes, so Kubernetes will start new Pods and remove the old ones gradually (a rolling update). The app stays available if its readiness checks are set up.',
     ];
   }
-  if (!touchesTemplate) {
-    return [
-      'The Pod template is unchanged, so no rollout happens and running Pods are not restarted.',
-    ];
-  }
-  return [];
+  return touchesTemplate ? [] : [UNCHANGED_TEMPLATE];
 }

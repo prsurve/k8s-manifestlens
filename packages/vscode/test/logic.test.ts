@@ -110,7 +110,7 @@ describe('explainAsMarkdown', () => {
 
   it('copes with empty and unsupported files', () => {
     expect(explainAsMarkdown('')).toContain('No Kubernetes documents found');
-    expect(explainAsMarkdown('apiVersion: v1\nkind: ConfigMap\ndata: {}\n')).toContain(
+    expect(explainAsMarkdown('apiVersion: v1\nkind: Certificate\ndata: {}\n')).toContain(
       'No field explanations',
     );
   });

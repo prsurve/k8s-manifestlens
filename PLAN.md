@@ -10,7 +10,7 @@
 
 ## Milestones
 
-- M1 (done): parse a manifest, explain each field (hand-written dataset; OpenAPI-generated dataset still to do)
+- M1 (done): parse a manifest, explain each field (hand-written text for Pod, Deployment, Service; the rest generated from the OpenAPI spec)
 - M2 (done): rule engine with 16 starter rules (resources, securityContext, image tags, probes)
 - M3 (done): docs links per field, diff mode
 - M4 (done, pending deploy and Marketplace publish): web page (static, runs in the browser) and VS Code extension

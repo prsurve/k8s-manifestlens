@@ -1,0 +1,10 @@
+ManifestLens
+Copyright 2026 The ManifestLens authors
+
+This product includes software developed as part of the Kubernetes project
+(https://kubernetes.io/), licensed under the Apache License, Version 2.0:
+
+  * packages/core/src/fields/generated/schema.ts contains field descriptions
+    derived from the Kubernetes OpenAPI specification (api/openapi-spec/swagger.json)
+    of the release named at the top of that file. Copyright The Kubernetes Authors.
+    Descriptions are shortened, and links to further reading are removed.

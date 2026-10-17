@@ -1,14 +1,9 @@
+import { POD_SPEC_PATH } from '../fields/locate.js';
 import { parseManifest } from '../parse.js';
 import type { FieldNode, ManifestDocument } from '../types.js';
 import { evaluate, isPodPath, resolve } from './evaluate.js';
 import type { EvalContext } from './evaluate.js';
 import type { CheckResult, CheckedDocument, Finding, Rule, RuleScope } from './types.js';
-
-/** Where the Pod spec lives for each kind that has one. */
-const POD_SPEC_PATH: Record<string, string> = {
-  Pod: 'spec',
-  Deployment: 'spec.template.spec',
-};
 
 const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 } as const;
 
@@ -39,7 +34,7 @@ function checkDocument(doc: ManifestDocument, rules: Rule[]): CheckedDocument {
 
   const kind = doc.kind;
   const fieldsByPath = new Map<string, FieldNode>(doc.fields.map((f) => [f.path, f]));
-  const podPath = POD_SPEC_PATH[kind];
+  const podPath = Object.hasOwn(POD_SPEC_PATH, kind) ? POD_SPEC_PATH[kind] : undefined;
   const podData = podPath === undefined ? undefined : get(doc.data, podPath);
 
   for (const rule of rules) {

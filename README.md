@@ -16,8 +16,10 @@ Explains Kubernetes YAML in plain English and flags risky settings. Local-first 
 
 Milestones 1 to 3:
 
-- `manifestlens explain <file>` explains Pod, Deployment and Service manifests line by line, from a
-  small hand-written field dataset.
+- `manifestlens explain <file>` explains a manifest line by line. Pod, Deployment and Service have
+  plain-English text written by hand. 22 more kinds (StatefulSet, DaemonSet, Job, CronJob, Ingress,
+  ConfigMap, Secret, RBAC and others) are explained from a dataset generated from the Kubernetes OpenAPI
+  spec, bundled so it works offline.
 - `manifestlens check <file>` flags risky settings with 16 starter rules written as plain YAML. See
   [docs/writing-rules.md](docs/writing-rules.md) to add your own.
 - `explain` links each field to the official Kubernetes docs (`npm run check-links` verifies the links).
@@ -61,6 +63,21 @@ The repo is an npm workspace:
 | `packages/vscode` | The VS Code extension. Bundles the core into one file.                                         |
 | `apps/web`        | The web page (Vite, plain TypeScript). It bundles the core, so it runs fully offline.          |
 | `examples`        | Sample manifests used by the tests and the docs.                                               |
+
+## Field dataset
+
+Explanations come from two places. Text written by hand (`packages/core/src/fields/pod.ts` and friends)
+always wins, and is used for every Pod template too, so a StatefulSet's containers read the same as a
+Pod's. Everything else comes from `packages/core/src/fields/generated/schema.ts`, generated from the
+Kubernetes OpenAPI spec. To refresh it for a new Kubernetes release:
+
+```sh
+curl -fLo /tmp/swagger.json https://raw.githubusercontent.com/kubernetes/kubernetes/v1.37.1/api/openapi-spec/swagger.json
+npm run generate-schema -- --spec /tmp/swagger.json --version v1.37.1
+```
+
+To cover another kind, add it to `ROOTS` in `packages/core/scripts/generate-schema.mjs`. The Kubernetes
+documentation is Apache-2.0 licensed; see [NOTICE](NOTICE).
 
 ## Building the VS Code extension
 
