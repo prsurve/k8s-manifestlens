@@ -41,6 +41,8 @@ export interface ManifestDocument {
 export interface ExplainedField extends FieldNode {
   /** Plain-English explanation, absent when the dataset has nothing for this field. */
   explanation?: string;
+  /** Official Kubernetes documentation for this field. */
+  docsUrl?: string;
 }
 
 export interface ExplainedDocument extends Omit<ManifestDocument, 'fields'> {

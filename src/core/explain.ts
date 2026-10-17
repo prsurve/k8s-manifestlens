@@ -1,4 +1,4 @@
-import { hasDocsFor, lookupField } from './fields/index.js';
+import { docsLinkFor, hasDocsFor, lookupField } from './fields/index.js';
 import { parseManifest } from './parse.js';
 import type { ExplainResult, ExplainedField } from './types.js';
 
@@ -9,7 +9,9 @@ export function explainManifest(source: string): ExplainResult {
     unsupportedKind: !hasDocsFor(doc.kind),
     fields: doc.fields.map((field): ExplainedField => {
       const explanation = lookupField(doc.kind, field.pattern);
-      return explanation === undefined ? field : { ...field, explanation };
+      if (explanation === undefined) return field;
+      const docsUrl = docsLinkFor(doc.kind, field.pattern);
+      return { ...field, explanation, ...(docsUrl !== undefined ? { docsUrl } : {}) };
     }),
   }));
   return { documents };

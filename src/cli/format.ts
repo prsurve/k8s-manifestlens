@@ -22,12 +22,18 @@ export function formatExplanation(result: ExplainResult, source: string): string
       );
     }
 
+    const shown = new Set<string>();
     const width = String(Math.max(...doc.fields.map((f) => f.line), 1)).length;
     for (const field of doc.fields) {
       const text = (lines[field.line - 1] ?? '').trimEnd();
       out.push('', `${String(field.line).padStart(width)} | ${text}`);
       if (field.explanation) {
         out.push(`${' '.repeat(width)} |   ${field.explanation}`);
+        // Show each link once per document so the output stays readable.
+        if (field.docsUrl && !shown.has(field.docsUrl)) {
+          shown.add(field.docsUrl);
+          out.push(`${' '.repeat(width)} |   Docs: ${field.docsUrl}`);
+        }
       }
     }
     out.push('');

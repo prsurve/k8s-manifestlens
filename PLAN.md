@@ -10,7 +10,7 @@
 
 ## Milestones
 
-- M1: parse a manifest, explain each field from the OpenAPI schema
-- M2: rule engine with ~15 starter rules (resources, securityContext, image tags, probes)
-- M3: docs links per field, diff mode
+- M1 (done): parse a manifest, explain each field (hand-written dataset; OpenAPI-generated dataset still to do)
+- M2 (done): rule engine with 16 starter rules (resources, securityContext, image tags, probes)
+- M3 (done): docs links per field, diff mode
 - M4: web page (WASM or local server) and editor plugin
