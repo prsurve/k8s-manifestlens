@@ -9,6 +9,9 @@ import type { Analysis, LocatedFinding, Settings } from '../src/types.js';
 import { example } from './helpers.js';
 
 const rules = loadBundledRules();
+/** A row of the findings table: it names a file and line, unlike a row of the by-rule table. */
+const isFindingRow = (line: string): boolean =>
+  /^\| (🔴|🟠|🔵) \w+ \| <code>[^<]*:\d+<\/code> \|/.test(line);
 
 function info(
   text: string,
@@ -103,9 +106,7 @@ describe('job summary', () => {
     }));
     const text = buildSummary(info(example('hardened.yaml'), {}, { findings: many }));
     expect(text).toContain('Showing the first 300 of 400');
-    expect(text.split('\n').filter((l) => l.startsWith('| 🔵')).length).toBe(
-      300 + 1 /* the severity table row */,
-    );
+    expect(text.split('\n').filter(isFindingRow)).toHaveLength(300);
   });
 
   it('escapes hostile text from manifests', () => {
@@ -159,6 +160,100 @@ describe('job summary', () => {
   });
 });
 
+describe('by-rule breakdown', () => {
+  const lots: LocatedFinding[] = [
+    ...Array.from({ length: 7 }, (_, i): LocatedFinding => ({
+      file: `a${i}.yaml`,
+      line: 1,
+      ruleId: 'common-warning',
+      severity: 'warning',
+      message: 'm',
+    })),
+    ...Array.from({ length: 3 }, (_, i): LocatedFinding => ({
+      file: `b${i}.yaml`,
+      line: 1,
+      ruleId: 'rare-warning',
+      severity: 'warning',
+      message: 'm',
+    })),
+    ...Array.from({ length: 5 }, (_, i): LocatedFinding => ({
+      file: `c${i}.yaml`,
+      line: 1,
+      ruleId: 'common-info',
+      severity: 'info',
+      message: 'm',
+    })),
+    { file: 'd.yaml', line: 1, ruleId: 'the-error', severity: 'error', message: 'm' },
+  ];
+  const run = () => info(example('hardened.yaml'), {}, { findings: lots });
+
+  it('counts findings per rule in the summary, most severe and most common first', () => {
+    const text = buildSummary(run());
+    const section = text.split('### By rule')[1]?.split('###')[0] ?? '';
+    const rows = section
+      .split('\n')
+      .filter((l) => l.startsWith('| ') && !l.startsWith('| Severity') && !l.startsWith('| ---'));
+    expect(rows).toEqual([
+      '| 🔴 error | <code>the-error</code> | 1 |',
+      '| 🟠 warning | <code>common-warning</code> | 7 |',
+      '| 🟠 warning | <code>rare-warning</code> | 3 |',
+      '| 🔵 info | <code>common-info</code> | 5 |',
+    ]);
+  });
+
+  it('puts it before the long list of findings', () => {
+    const text = buildSummary(run());
+    expect(text.indexOf('### By rule')).toBeGreaterThan(-1);
+    expect(text.indexOf('### By rule')).toBeLessThan(text.indexOf('### Findings'));
+  });
+
+  it('is also in the pull request comment, ahead of the first rows', () => {
+    const body = buildComment(run(), '<!-- m -->', null);
+    expect(body).toContain('**By rule**');
+    expect(body.indexOf('**By rule**')).toBeLessThan(body.indexOf('| Severity | Where |'));
+    expect(body).toContain('| 🟠 warning | <code>common-warning</code> | 7 |');
+  });
+
+  it('is left out when the list is short enough to read in full', () => {
+    expect(
+      buildSummary(info(example('hardened.yaml'), {}, { findings: lots.slice(0, 4) })),
+    ).not.toContain('### By rule');
+    expect(
+      buildComment(
+        info(example('hardened.yaml'), {}, { findings: lots.slice(0, 4) }),
+        '<!-- m -->',
+        null,
+      ),
+    ).not.toContain('**By rule**');
+  });
+
+  it('shows at most the first 25 rules and says how many more there are', () => {
+    const wide: LocatedFinding[] = Array.from({ length: 40 }, (_, i) => ({
+      file: 'a.yaml',
+      line: i + 1,
+      ruleId: `rule-${String(i).padStart(2, '0')}`,
+      severity: 'info',
+      message: 'm',
+    }));
+    const text = buildSummary(info(example('hardened.yaml'), {}, { findings: wide }));
+    expect((text.match(/\| 🔵 info \| <code>rule-/g) ?? []).length).toBe(25);
+    expect(text).toContain('and 15 more rules');
+  });
+
+  it('escapes rule ids', () => {
+    const bad: LocatedFinding[] = Array.from({ length: 12 }, () => ({
+      file: 'a.yaml',
+      line: 1,
+      ruleId: '<b>x</b>',
+      severity: 'info',
+      message: 'm',
+    }));
+    expect(buildSummary(info(example('hardened.yaml'), {}, { findings: bad }))).not.toContain(
+      '<b>x</b>',
+    );
+  });
+});
+
 describe('pull request comment', () => {
   const marker = '<!-- manifestlens-action:prod -->';
 
@@ -174,11 +269,7 @@ describe('pull request comment', () => {
 
   it('shows only the first findings and counts the rest', () => {
     const body = buildComment(info(example('risky.yaml')), marker, null);
-    expect(
-      body
-        .split('\n')
-        .filter((l) => l.startsWith('| 🔴') || l.startsWith('| 🟠') || l.startsWith('| 🔵')),
-    ).toHaveLength(15);
+    expect(body.split('\n').filter(isFindingRow)).toHaveLength(15);
     expect(body).toContain('…and 1 more.');
   });
 

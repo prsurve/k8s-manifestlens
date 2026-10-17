@@ -31777,27 +31777,66 @@ function fileAt(cwd, commit, path6) {
 }
 
 // src/github.ts
+var GITHUB_LIMIT_PER_LEVEL = 10;
+function spreadAcrossRules(findings, limit) {
+  if (limit <= 0) return [];
+  if (findings.length <= limit) return findings;
+  const byRule2 = /* @__PURE__ */ new Map();
+  findings.forEach((f, i) => {
+    const group = byRule2.get(f.ruleId);
+    if (group) group.push(i);
+    else byRule2.set(f.ruleId, [i]);
+  });
+  const picked = [];
+  for (let round = 0; picked.length < limit; round++) {
+    let any = false;
+    for (const indexes of byRule2.values()) {
+      if (round >= indexes.length) continue;
+      picked.push(indexes[round]);
+      any = true;
+      if (picked.length === limit) break;
+    }
+    if (!any) break;
+  }
+  return picked.sort((x, y) => x - y).map((i) => findings[i]);
+}
+function selectAnnotations(findings, problems, max) {
+  let budget = Math.max(max, 0);
+  const keptProblems = problems.slice(0, Math.min(GITHUB_LIMIT_PER_LEVEL, budget));
+  budget -= keptProblems.length;
+  const picked = [];
+  for (const level of ["error", "warning", "info"]) {
+    const taken = level === "error" ? keptProblems.length : 0;
+    const room = Math.min(GITHUB_LIMIT_PER_LEVEL - taken, budget);
+    const chosen = spreadAcrossRules(
+      findings.filter((f) => f.severity === level),
+      room
+    );
+    picked.push(...chosen);
+    budget -= chosen.length;
+  }
+  return { problems: keptProblems, findings: picked };
+}
 function emitAnnotations(findings, problems, max) {
-  let used = 0;
-  for (const p of problems) {
-    if (used >= max) break;
+  const chosen = selectAnnotations(findings, problems, max);
+  for (const p of chosen.problems) {
     error(p.message, {
       title: "ManifestLens: invalid YAML",
       file: p.file,
       startLine: p.line ?? 1
     });
-    used++;
   }
-  for (const f of findings) {
-    if (used >= max) break;
+  for (const f of chosen.findings) {
     const props = { title: `ManifestLens: ${f.ruleId}`, file: f.file, startLine: f.line };
     const text2 = f.fix ? `${f.message} ${f.fix}` : f.message;
     if (f.severity === "error") error(text2, props);
     else if (f.severity === "warning") warning(text2, props);
     else notice(text2, props);
-    used++;
   }
-  return used;
+  return {
+    emitted: chosen.problems.length + chosen.findings.length,
+    total: problems.length + findings.length
+  };
 }
 async function api(fetchFn, target, method, path6, body) {
   const res = await fetchFn(`${target.apiUrl}/repos/${target.repo}${path6}`, {
@@ -31876,6 +31915,29 @@ function findingRows(findings, limit) {
   );
 }
 var TABLE_HEAD = ["| Severity | Where | Rule | Message |", "| --- | --- | --- | --- |"];
+var BY_RULE_MIN_FINDINGS = 10;
+var MAX_RULES_IN_SUMMARY = 25;
+var MAX_RULES_IN_COMMENT = 10;
+var SEVERITY_RANK = { error: 0, warning: 1, info: 2 };
+function byRule(findings) {
+  const counts = /* @__PURE__ */ new Map();
+  for (const f of findings) {
+    const key = `${f.severity}|${f.ruleId}`;
+    const entry = counts.get(key);
+    if (entry) entry.count++;
+    else counts.set(key, { severity: f.severity, ruleId: f.ruleId, count: 1 });
+  }
+  return [...counts.values()].sort(
+    (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] || b.count - a.count || a.ruleId.localeCompare(b.ruleId)
+  );
+}
+function byRuleTable(findings, limit) {
+  if (findings.length <= BY_RULE_MIN_FINDINGS) return [];
+  const rules = byRule(findings);
+  const rows = rules.slice(0, limit).map((r) => `| ${ICON[r.severity]} ${r.severity} | ${code(r.ruleId)} | ${r.count} |`);
+  const more = rules.length > limit ? [`_\u2026and ${rules.length - limit} more rules._`] : [];
+  return ["| Severity | Rule | Findings |", "| --- | --- | ---: |", ...rows, ...more];
+}
 function buildSummary(info2) {
   const { analysis: a, verdict: v, settings: s } = info2;
   const limit = thresholds(s);
@@ -31907,6 +31969,8 @@ function buildSummary(info2) {
       ""
     );
   }
+  const rules = byRuleTable(a.findings, MAX_RULES_IN_SUMMARY);
+  if (rules.length > 0) out.push("### By rule", "", ...rules, "");
   if (a.findings.length > 0) {
     out.push(
       `### Findings (${a.findings.length})`,
@@ -32009,6 +32073,8 @@ function buildComment(info2, marker, runUrl) {
     ""
   ];
   if (v.reasons.length > 0) out.push(...v.reasons.map((r) => `- ${md(r)}`), "");
+  const rules = byRuleTable(a.findings, MAX_RULES_IN_COMMENT);
+  if (rules.length > 0) out.push("**By rule**", "", ...rules, "");
   if (a.findings.length > 0) {
     out.push(...TABLE_HEAD, ...findingRows(a.findings, MAX_COMMENT_ROWS));
     if (a.findings.length > MAX_COMMENT_ROWS)
@@ -32088,7 +32154,7 @@ function buildReport(info2) {
 }
 
 // src/main.ts
-var VERSION = true ? "1.0.0" : "dev";
+var VERSION = true ? "1.0.1" : "dev";
 async function run() {
   try {
     await execute();
@@ -32160,8 +32226,18 @@ async function execute() {
   setOutputs(info2, workspace);
   if (settings.summary) await writeSummary(buildSummary(info2));
   if (!settings.dryRun) {
-    if (settings.annotations)
-      emitAnnotations(analysis.findings, analysis.parseProblems, settings.maxAnnotations);
+    if (settings.annotations) {
+      const { emitted, total } = emitAnnotations(
+        analysis.findings,
+        analysis.parseProblems,
+        settings.maxAnnotations
+      );
+      if (emitted < total) {
+        info(
+          `Annotated ${emitted} of ${total} findings. GitHub shows at most 10 of each severity per step, so the rest are in the job summary and the report file.`
+        );
+      }
+    }
     await maybeComment(info2);
   } else {
     info("Dry run: no annotations, no pull request comment, and the build is not affected.");

@@ -116,8 +116,18 @@ async function execute(): Promise<void> {
   setOutputs(info, workspace);
   if (settings.summary) await writeSummary(buildSummary(info));
   if (!settings.dryRun) {
-    if (settings.annotations)
-      emitAnnotations(analysis.findings, analysis.parseProblems, settings.maxAnnotations);
+    if (settings.annotations) {
+      const { emitted, total } = emitAnnotations(
+        analysis.findings,
+        analysis.parseProblems,
+        settings.maxAnnotations,
+      );
+      if (emitted < total) {
+        core.info(
+          `Annotated ${emitted} of ${total} findings. GitHub shows at most 10 of each severity per step, so the rest are in the job summary and the report file.`,
+        );
+      }
+    }
     await maybeComment(info);
   } else {
     core.info('Dry run: no annotations, no pull request comment, and the build is not affected.');

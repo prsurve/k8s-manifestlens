@@ -96,7 +96,7 @@ All are optional.
 | `disable-rules`       | none                       | Rule ids to turn off.                                                                         |
 | `severity-overrides`  | none                       | `rule-id=severity` per line (`error`, `warning`, `info`, `off`).                              |
 | `annotations`         | `true`                     | Mark findings on the changed lines in pull requests.                                          |
-| `max-annotations`     | `30`                       | GitHub limits how many a step may create; the most severe go first.                           |
+| `max-annotations`     | `30`                       | Most annotations in total; GitHub shows 10 of each severity.                                  |
 | `comment`             | `auto`                     | `auto`: comment when there is something to say. `always`. `never`.                            |
 | `summary`             | `true`                     | Write the job summary.                                                                        |
 | `sarif-file`          | none                       | Write SARIF here for code scanning.                                                           |
@@ -118,6 +118,19 @@ All are optional.
 | `suppressed`                              | Findings silenced by `ignore` or inline comments.                                  |
 | `report-file`                             | Path of the JSON report (every finding, the limits, where each setting came from). |
 | `sarif-file`                              | Path of the SARIF file, or empty.                                                  |
+
+## Large result sets
+
+A repository with hundreds of findings stays readable:
+
+- **By rule.** When there are more than 10 findings, the job summary and the pull request comment open with a
+  table of how many findings each rule produced, most severe and most common first
+  (`allow-privilege-escalation: 172`, `image-latest-tag: 163`...). Fixing one rule across the repository
+  often clears a large share of them.
+- **Annotations.** GitHub shows at most 10 annotations of each severity (error, warning, notice) per step and
+  silently drops the rest. The action therefore asks for up to 10 of each, errors first, and spreads them
+  across different rules so a long run of the same finding does not crowd out the others. When some are left
+  out, the log says how many; every finding is still in the summary and the report file.
 
 ## Config file
 
