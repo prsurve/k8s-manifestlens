@@ -13,7 +13,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build -w @manifestlens/core && npm run build -w manifestlens && npm run build -w @manifestlens/web && npm run build -w manifestlens-vscode",
+    "build": "npm run build -w @manifestlens/core && npm run build -w manifestlens && npm run build -w @manifestlens/web && npm run build -w manifestlens-vscode && npm run build -w @manifestlens/action",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",

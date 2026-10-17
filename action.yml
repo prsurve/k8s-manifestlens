@@ -1,0 +1,131 @@
+name: ManifestLens
+description: Check Kubernetes manifests for risky settings, explain what a change does, and pass or fail the build.
+author: ManifestLens contributors
+
+branding:
+  icon: search
+  color: blue
+
+# Inputs deliberately have no `default:`. The built-in defaults live in the code, so the action can
+# tell "not set" from "set to the default" and apply this order, lowest to highest:
+#   built-in defaults  <  config file (.github/manifestlens.yml)  <  these inputs
+inputs:
+  paths:
+    description: >
+      Files to check, one glob per line (prefix with ! to exclude), relative to working-directory.
+      Only files that declare apiVersion and kind are checked. Default: **/*.yaml and **/*.yml.
+    required: false
+  working-directory:
+    description: Folder the paths are relative to. Useful in monorepos and matrix jobs. Default is the repository root.
+    required: false
+  config-file:
+    description: Project-level settings file. Default is .github/manifestlens.yml; a missing default file is fine, a missing named file is an error.
+    required: false
+
+  scope:
+    description: >
+      What to judge. all: every finding in the matched files. changed: only files this change touches.
+      new: only findings this change introduces (best for repositories with existing problems).
+      changed and new need actions/checkout with fetch-depth 0. Default is all.
+    required: false
+  base-ref:
+    description: Commit, branch or tag to compare against for scope changed and new. Default is worked out from the event (pull request base, commit before a push).
+    required: false
+
+  fail-on:
+    description: >
+      Lowest severity that fails the build: error, warning, info, or none. Default is error.
+      This sets the default of max-errors, max-warnings and max-info (0 at and above this level, unlimited below).
+    required: false
+  max-errors:
+    description: Most errors allowed before the build fails. Overrides what fail-on implies.
+    required: false
+  max-warnings:
+    description: Most warnings allowed before the build fails. Overrides what fail-on implies.
+    required: false
+  max-info:
+    description: Most info findings allowed before the build fails. Overrides what fail-on implies.
+    required: false
+  max-total:
+    description: Most findings of any severity allowed. Default is no limit.
+    required: false
+  fail-on-parse-error:
+    description: Fail when a manifest is not valid YAML. Default is true.
+    required: false
+
+  mode:
+    description: enforce fails the build when a rule is violated. report states the violation but never fails it. Default is enforce.
+    required: false
+  dry-run:
+    description: Compute and log everything but touch nothing, so no annotations, no comment, and the build is never failed. Default is false.
+    required: false
+
+  rules:
+    description: Extra rule files or folders (YAML), one per line, inside the repository. Added to the built-in rules.
+    required: false
+  disable-rules:
+    description: Rule ids to turn off, separated by commas or new lines.
+    required: false
+  severity-overrides:
+    description: Change a rule's severity, one rule-id=severity per line (error, warning, info, or off).
+    required: false
+
+  annotations:
+    description: Show findings on the changed lines in pull requests. Default is true.
+    required: false
+  max-annotations:
+    description: Most annotations to create (GitHub limits how many a step may create). Default is 30.
+    required: false
+  comment:
+    description: auto posts or updates a pull request comment when there is something to report, always posts even when clean, never turns it off. Needs pull-requests write permission. Default is auto.
+    required: false
+  summary:
+    description: Write the report to the job summary. Default is true.
+    required: false
+  sarif-file:
+    description: Write a SARIF file here for GitHub code scanning (upload it with github/codeql-action/upload-sarif). Default is not to write one.
+    required: false
+  report-file:
+    description: Where to write the JSON report. Default is manifestlens-report.json.
+    required: false
+  label:
+    description: Names this run. Matrix jobs should set it so each gets its own summary heading and its own pull request comment.
+    required: false
+  max-files:
+    description: Safety limit on how many files the paths may match. Default is 2000.
+    required: false
+  max-file-size-kb:
+    description: Files larger than this are skipped. Default is 1024.
+    required: false
+  github-token:
+    description: Token used to post the pull request comment.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  result:
+    description: pass, fail, report (rules violated but not blocking) or dry-run.
+  passed:
+    description: true when no rule was violated, whatever the mode.
+  errors:
+    description: Number of error findings.
+  warnings:
+    description: Number of warning findings.
+  infos:
+    description: Number of info findings.
+  findings:
+    description: Total number of findings.
+  parse-errors:
+    description: Number of manifests that could not be read.
+  files-checked:
+    description: Number of manifest files checked.
+  suppressed:
+    description: Number of findings silenced by ignore entries or inline comments.
+  report-file:
+    description: Path of the JSON report.
+  sarif-file:
+    description: Path of the SARIF file, or empty if none was written.
+
+runs:
+  using: node24
+  main: packages/action/dist/index.js
