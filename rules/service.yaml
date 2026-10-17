@@ -1,0 +1,24 @@
+# Starter rules for Services.
+id: nodeport-service
+title: Service is exposed on every node
+severity: info
+kinds: [Service]
+when:
+  equals: { spec.type: NodePort }
+report: spec.type
+message: 'Service "{name}" opens a port on every node in the cluster.'
+why: NodePort exposes the Service on a high port of every node. It is easy to expose more than you meant to, and node IPs may be reachable from outside.
+fix: Use ClusterIP with an Ingress or Gateway, or a LoadBalancer with source ranges.
+---
+id: loadbalancer-open-to-world
+title: Load balancer is open to all addresses
+severity: warning
+kinds: [Service]
+when:
+  all:
+    - equals: { spec.type: LoadBalancer }
+    - missing: spec.loadBalancerSourceRanges
+report: spec.type
+message: 'Service "{name}" creates a load balancer that accepts traffic from any address.'
+why: By default a LoadBalancer Service is reachable from the whole internet (on most clouds).
+fix: Set spec.loadBalancerSourceRanges to the IP ranges that should have access.

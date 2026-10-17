@@ -4,3 +4,4 @@ node_modules/
 LICENSE
 test/fixtures/
 package-lock.json
+src/core/rules/bundled.ts

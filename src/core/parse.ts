@@ -33,6 +33,7 @@ export function parseManifest(source: string): ManifestDocument[] {
       index: result.length,
       startLine: isEmpty ? 1 : lineOf(root, lineCounter),
       ...topLevelScalars(root),
+      ...(isMap(root) ? { data: doc.toJS() as Record<string, unknown> } : {}),
       fields,
       issues,
     });

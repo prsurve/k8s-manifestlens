@@ -28,7 +28,7 @@ describe('manifestlens explain', () => {
   it('prints help and exits 0', () => {
     const { code, stdout } = cli('--help');
     expect(code).toBe(0);
-    expect(stdout).toContain('Usage: manifestlens explain <file>');
+    expect(stdout).toContain('manifestlens explain <file>');
   });
 
   it('exits 2 with usage when the command or file is missing', () => {
@@ -48,5 +48,53 @@ describe('manifestlens explain', () => {
     const { code, stderr } = cli('explain', join(fixture, 'missing.yaml'));
     expect(code).toBe(2);
     expect(stderr).toContain('Cannot read');
+  });
+});
+
+describe('manifestlens check', () => {
+  const risky = fileURLToPath(new URL('./fixtures/risky.yaml', import.meta.url));
+  const hardened = fileURLToPath(new URL('./fixtures/hardened.yaml', import.meta.url));
+
+  it('reports findings with line numbers and exits 1 on errors', () => {
+    const { code, stdout } = cli('check', risky);
+    expect(code).toBe(1);
+    expect(stdout).toContain('line 17  ERROR  privileged-container');
+    expect(stdout).toContain('Fix:');
+    expect(stdout).toMatch(/\d+ findings: 2 error, /);
+  });
+
+  it('exits 0 and says so when nothing is wrong', () => {
+    const { code, stdout } = cli('check', hardened);
+    expect(code).toBe(0);
+    expect(stdout).toContain('No issues found.');
+    expect(stdout).toContain('0 findings: 0 error, 0 warning, 0 info');
+  });
+
+  it('honours --fail-on', () => {
+    const noErrors = (extra: string[]) => cli('check', hardened, ...extra).code;
+    expect(noErrors(['--fail-on', 'info'])).toBe(0);
+    expect(cli('check', risky, '--fail-on', 'none').code).toBe(0);
+    expect(cli('check', risky, '--fail-on', 'bogus').code).toBe(2);
+  });
+
+  it('loads extra rules from a file or directory', () => {
+    const dir = fileURLToPath(new URL('./fixtures/custom-rules/', import.meta.url));
+    for (const target of [dir, join(dir, 'team.yaml')]) {
+      const { code, stdout } = cli('check', hardened, '--rules', target);
+      expect(stdout).toContain('team-needs-owner-label');
+      expect(code).toBe(0); // the custom rule is only a warning
+    }
+  });
+
+  it('rejects broken or duplicate rules with exit 2', () => {
+    const bad = join(
+      fileURLToPath(new URL('./fixtures/custom-rules/', import.meta.url)),
+      'nope.yaml',
+    );
+    expect(cli('check', hardened, '--rules', bad).code).toBe(2);
+    const dup = fileURLToPath(new URL('./fixtures/duplicate-rule.yaml', import.meta.url));
+    const { code, stderr } = cli('check', hardened, '--rules', dup);
+    expect(code).toBe(2);
+    expect(stderr).toContain('Duplicate rule id "single-replica"');
   });
 });

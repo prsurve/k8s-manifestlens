@@ -1,0 +1,13 @@
+# Starter rules for Deployments.
+id: single-replica
+title: Deployment runs a single Pod
+severity: info
+kinds: [Deployment]
+when:
+  any:
+    - missing: spec.replicas
+    - equals: { spec.replicas: 1 }
+report: spec.replicas
+message: 'Deployment "{name}" runs only one replica.'
+why: With one Pod, any restart, node failure or rolling update means downtime.
+fix: Set spec.replicas to 2 or more for anything that should stay available.

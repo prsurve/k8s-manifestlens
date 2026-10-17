@@ -3,10 +3,14 @@ import prettier from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'coverage/', 'node_modules/'] },
+  { ignores: ['dist/', 'coverage/', 'node_modules/', 'src/core/rules/bundled.ts'] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   prettier,
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: { console: 'readonly', URL: 'readonly' } },
+  },
   {
     // The core must stay framework- and runtime-agnostic so the web page and
     // editor plugin can reuse it. Node APIs belong in src/cli only.

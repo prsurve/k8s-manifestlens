@@ -14,8 +14,14 @@ Explains Kubernetes YAML in plain English and flags risky settings. Local-first 
 
 ## Status
 
-Milestone 1 is in progress: `manifestlens explain <file>` explains Pod, Deployment and Service manifests
-from a small hand-written field dataset. Rules, docs links and diff mode come later. See [PLAN.md](PLAN.md).
+Milestones 1 and 2:
+
+- `manifestlens explain <file>` explains Pod, Deployment and Service manifests line by line, from a
+  small hand-written field dataset.
+- `manifestlens check <file>` flags risky settings with 16 starter rules written as plain YAML. See
+  [docs/writing-rules.md](docs/writing-rules.md) to add your own.
+
+Docs links and diff mode come later. See [PLAN.md](PLAN.md).
 
 ## Try it
 
@@ -23,6 +29,7 @@ from a small hand-written field dataset. Rules, docs links and diff mode come la
 npm install
 npm run build
 node dist/cli/main.js explain test/fixtures/web.yaml
+node dist/cli/main.js check test/fixtures/risky.yaml
 ```
 
 ## Development
