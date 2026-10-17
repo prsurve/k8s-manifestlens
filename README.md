@@ -25,6 +25,12 @@ Milestones 1 to 3:
   restarts, rejected changes) and which findings the change adds or removes. Use `--fail-on warning` to
   fail a CI job when a change introduces new problems.
 
+- A web page (`apps/web`) does all of the above in the browser. Nothing is uploaded: the page makes no
+  network requests, and its Content-Security-Policy forbids them.
+
+- A VS Code extension (`packages/vscode`) shows the findings as warnings in the editor, explains fields
+  on hover and adds an "Explain this manifest" command.
+
 See [PLAN.md](PLAN.md) for what comes next.
 
 ## Try it
@@ -32,19 +38,48 @@ See [PLAN.md](PLAN.md) for what comes next.
 ```sh
 npm install
 npm run build
-node dist/cli/main.js explain test/fixtures/web.yaml
-node dist/cli/main.js check test/fixtures/risky.yaml
-node dist/cli/main.js diff test/fixtures/diff-old.yaml test/fixtures/diff-new.yaml
+node packages/cli/dist/main.js explain examples/web.yaml
+node packages/cli/dist/main.js check examples/risky.yaml
+node packages/cli/dist/main.js diff examples/diff-old.yaml examples/diff-new.yaml
 ```
 
 ## Development
 
 ```sh
 npm run check   # typecheck, lint, format check, tests
+npm run build   # builds every package
 ```
 
-`src/core` is runtime-agnostic (no Node imports) so a web page and editor plugin can reuse it. `src/cli` holds
-the command line.
+Run the web page locally with `npm run dev:web`.
+
+The repo is an npm workspace:
+
+| Path              | What it is                                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `packages/core`   | The framework-agnostic core (no Node imports): parse, explain, check, diff, rules and dataset. |
+| `packages/cli`    | The `manifestlens` command line.                                                               |
+| `packages/vscode` | The VS Code extension. Bundles the core into one file.                                         |
+| `apps/web`        | The web page (Vite, plain TypeScript). It bundles the core, so it runs fully offline.          |
+| `examples`        | Sample manifests used by the tests and the docs.                                               |
+
+## Building the VS Code extension
+
+```sh
+npm run package -w manifestlens-vscode   # writes packages/vscode/dist/manifestlens.vsix
+```
+
+Install the file with `code --install-extension packages/vscode/dist/manifestlens.vsix`. Publishing to the
+Marketplace needs a publisher account and is a separate step.
+
+## Deploying the web page
+
+`apps/web` builds to static files, so any static host works. On Vercel:
+
+1. Import the GitHub repository.
+2. Set **Root Directory** to `apps/web`. Leave "Include source files outside of the Root Directory" on,
+   because the page bundles `packages/core`.
+3. Deploy. `apps/web/vercel.json` already sets the install and build commands, the output directory and
+   the security headers.
 
 ## License
 

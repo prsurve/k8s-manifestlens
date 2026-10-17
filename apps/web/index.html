@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ManifestLens</title>
+    <meta
+      name="description"
+      content="Paste Kubernetes YAML and get a plain-English explanation, risky-setting warnings and a diff. Runs entirely in your browser."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap top-row">
+        <h1>ManifestLens</h1>
+        <p class="tagline">Kubernetes YAML in plain English, with risky settings flagged.</p>
+        <p class="privacy">Runs in your browser. Your YAML is never uploaded.</p>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <div class="tabs" role="tablist" aria-label="Mode">
+        <button role="tab" id="tab-explain" aria-controls="panel-explain" data-tab="explain">
+          Explain
+        </button>
+        <button role="tab" id="tab-check" aria-controls="panel-check" data-tab="check">
+          Check
+        </button>
+        <button role="tab" id="tab-diff" aria-controls="panel-diff" data-tab="diff">Diff</button>
+      </div>
+
+      <section role="tabpanel" id="panel-explain" aria-labelledby="tab-explain" class="panel">
+        <p class="hint">Each line of your manifest, explained, with a link to the official docs.</p>
+        <div class="split">
+          <div class="input">
+            <div class="input-head">
+              <label for="explain-input">Manifest</label>
+              <button type="button" class="link" data-example="explain">Load example</button>
+            </div>
+            <textarea
+              id="explain-input"
+              spellcheck="false"
+              placeholder="Paste Kubernetes YAML here"
+            ></textarea>
+          </div>
+          <div class="output" id="explain-output" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section role="tabpanel" id="panel-check" aria-labelledby="tab-check" class="panel" hidden>
+        <p class="hint">Flags missing limits, root containers, unpinned images and more.</p>
+        <div class="split">
+          <div class="input">
+            <div class="input-head">
+              <label for="check-input">Manifest</label>
+              <button type="button" class="link" data-example="check">Load example</button>
+            </div>
+            <textarea
+              id="check-input"
+              spellcheck="false"
+              placeholder="Paste Kubernetes YAML here"
+            ></textarea>
+          </div>
+          <div class="output" id="check-output" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section role="tabpanel" id="panel-diff" aria-labelledby="tab-diff" class="panel" hidden>
+        <p class="hint">
+          Paste the old and the new version to see what applying the change will do.
+        </p>
+        <div class="split diff">
+          <div class="input">
+            <div class="input-head">
+              <label for="diff-old">Old</label>
+              <button type="button" class="link" data-example="diff">Load example</button>
+            </div>
+            <textarea id="diff-old" spellcheck="false" placeholder="Current manifest"></textarea>
+            <div class="input-head second"><label for="diff-new">New</label></div>
+            <textarea id="diff-new" spellcheck="false" placeholder="Changed manifest"></textarea>
+          </div>
+          <div class="output" id="diff-output" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <details class="rules">
+        <summary>Add your own rules (Check and Diff)</summary>
+        <p class="hint">
+          Rules are plain YAML. See the
+          <a
+            href="https://github.com/prsurve/manifestlens/blob/main/docs/writing-rules.md"
+            rel="noopener noreferrer"
+            target="_blank"
+            >rule guide</a
+          >.
+        </p>
+        <textarea
+          id="extra-rules"
+          spellcheck="false"
+          placeholder="id: my-rule&#10;title: ..."
+        ></textarea>
+        <p id="rules-error" class="error" role="alert" hidden></p>
+      </details>
+    </main>
+
+    <footer class="wrap foot">
+      <p>
+        ManifestLens is open source under Apache-2.0.
+        <a href="https://github.com/prsurve/manifestlens" rel="noopener noreferrer" target="_blank"
+          >Source on GitHub</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>

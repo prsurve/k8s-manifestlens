@@ -1,35 +1,34 @@
 {
-  "name": "manifestlens",
+  "name": "manifestlens-monorepo",
   "version": "0.0.0",
-  "description": "Explains Kubernetes YAML in plain English and flags risky settings. Local-first and offline.",
+  "private": true,
   "license": "Apache-2.0",
   "type": "module",
-  "private": true,
+  "description": "Explains Kubernetes YAML in plain English and flags risky settings. Local-first and offline.",
   "engines": {
     "node": ">=20"
   },
-  "bin": {
-    "manifestlens": "dist/cli/main.js"
-  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "bundle-rules": "node scripts/bundle-rules.mjs",
-    "build": "npm run bundle-rules && tsc -p tsconfig.build.json",
-    "check-links": "node scripts/check-links.mjs",
-    "typecheck": "tsc --noEmit",
+    "build": "npm run build -w @manifestlens/core && npm run build -w manifestlens && npm run build -w @manifestlens/web && npm run build -w manifestlens-vscode",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "dev:web": "npm run dev -w @manifestlens/web",
+    "check-links": "npm run check-links -w @manifestlens/core",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
-  },
-  "dependencies": {
-    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.5",
     "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
+    "jsdom": "^26.1.0",
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.2",

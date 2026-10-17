@@ -1,0 +1,19 @@
+{
+  "name": "@manifestlens/web",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@manifestlens/core": "*"
+  },
+  "devDependencies": {
+    "vite": "^8.3.4"
+  }
+}

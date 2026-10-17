@@ -61,6 +61,6 @@ Add `[]` to a key to look at every item of a list: `present: volumes[].hostPath`
 
 ## Contributing a rule
 
-Built-in rules live in `rules/`. After editing them run `npm run bundle-rules` (the build does this too).
-The tests check that every built-in rule fires on `test/fixtures/risky.yaml` and that
-`test/fixtures/hardened.yaml` stays clean, so add a case to those fixtures for a new rule.
+Built-in rules live in `packages/core/rules/`. After editing them run `npm run bundle-rules` (the build does this too).
+The tests check that every built-in rule fires on `examples/risky.yaml` and that
+`examples/hardened.yaml` stays clean, so add a case to those fixtures for a new rule.

@@ -1,0 +1,81 @@
+{
+  "name": "manifestlens-vscode",
+  "displayName": "ManifestLens",
+  "description": "Explains Kubernetes YAML in plain English and flags risky settings. Works offline.",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "publisher": "prsurve",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/prsurve/manifestlens.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Linters",
+    "Education",
+    "Other"
+  ],
+  "keywords": [
+    "kubernetes",
+    "yaml",
+    "k8s",
+    "lint",
+    "security"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:yaml"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "manifestlens.explainFile",
+        "title": "ManifestLens: Explain this manifest"
+      }
+    ],
+    "configuration": {
+      "title": "ManifestLens",
+      "properties": {
+        "manifestlens.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check Kubernetes manifests and show explanations on hover."
+        },
+        "manifestlens.rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra rule files or folders (YAML). Relative paths are resolved from the workspace folder."
+        },
+        "manifestlens.minimumSeverity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "default": "info",
+          "description": "Hide findings below this severity."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository -o dist/manifestlens.vsix"
+  },
+  "dependencies": {
+    "@manifestlens/core": "*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2"
+  }
+}
