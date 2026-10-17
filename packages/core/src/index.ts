@@ -1,3 +1,4 @@
+export { looksLikeKubernetes } from './detect.js';
 export { explainManifest } from './explain.js';
 export { supportedKinds } from './fields/index.js';
 export { parseManifest } from './parse.js';

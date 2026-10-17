@@ -1,0 +1,43 @@
+# .github/manifestlens.yml: project-level settings for the ManifestLens action.
+#
+# Order of precedence, lowest to highest:
+#   built-in defaults  <  this file  <  inputs in the workflow (`with:`)
+# Every key below is also a workflow input of the same name. `ignore` is the only key that
+# can only be set here.
+version: 1
+
+# What to check.
+paths:
+  - 'k8s/**'
+  - 'deploy/**/*.yaml'
+  - '!k8s/legacy/**' # a leading ! excludes
+
+# What to judge. `new` counts only the problems a change introduces, so a repository with
+# existing issues can still gate pull requests (needs actions/checkout with fetch-depth: 0).
+scope: new
+
+# When to fail the build.
+fail-on: warning # error (default) | warning | info | none
+max-warnings: 5 # allow a few warnings; errors still fail because fail-on covers them
+max-total: 25 # but never more than 25 findings of any kind
+fail-on-parse-error: true
+
+# Rules.
+rules:
+  - .github/manifestlens-rules/ # your own rule files (YAML), see docs/writing-rules.md
+disable-rules:
+  - missing-liveness-probe
+severity-overrides:
+  single-replica: warning # raise from info
+  writable-root-filesystem: off # same as disabling it
+
+# Silence rules for part of the repository.
+ignore:
+  - path: 'k8s/jobs/**'
+    rules: [missing-readiness-probe, missing-liveness-probe]
+  - path: 'examples/**' # no rules key: everything is silenced here
+
+# Reporting.
+annotations: true
+comment: auto # post or update a pull request comment when there is something to say
+sarif-file: manifestlens.sarif

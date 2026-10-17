@@ -27,3 +27,8 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - run: npm run build
+      # GitHub runs packages/action/dist/index.js directly, so it is committed. Fail if it no longer
+      # matches the source (run `npm run build -w @manifestlens/action` and commit the result).
+      - name: Check the action bundle is up to date
+        if: matrix.node == 24
+        run: git diff --exit-code -- packages/action/dist

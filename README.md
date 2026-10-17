@@ -23,6 +23,10 @@ your machine.
   network requests, and its Content-Security-Policy forbids them. Results are compact: findings are one
   line each, click one for the why and fix, filter by severity, and click a line number to jump to that
   line in your YAML. It follows your system's light or dark theme, with a button to switch.
+- **GitHub Action.** `uses: prsurve/manifestlens@v1` checks manifests in CI and passes or fails the build.
+  Settings come from built-in defaults, a checked-in `.github/manifestlens.yml`, and workflow inputs, in that
+  order. It can gate only on what a pull request introduces, annotates the changed lines, comments on the
+  pull request, writes SARIF, and has a report-only mode. See [docs/github-action.md](docs/github-action.md).
 - **VS Code extension.** `packages/vscode` shows the findings as warnings in the editor, explains fields on
   hover and adds an "Explain this manifest" command.
 

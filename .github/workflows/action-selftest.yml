@@ -1,0 +1,114 @@
+name: Action self-test
+
+# Runs the action from this very commit (uses: ./) on the sample manifests, on a real GitHub runner,
+# and checks that it passes, fails and reports as designed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - action.yml
+      - packages/action/**
+      - packages/core/**
+      - examples/**
+      - .github/workflows/action-selftest.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  clean-manifest-passes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: lens
+        uses: ./
+        with:
+          paths: examples/hardened.yaml
+      - name: Expect a pass with nothing found
+        run: |
+          test "${{ steps.lens.outputs.result }}" = "pass"
+          test "${{ steps.lens.outputs.findings }}" = "0"
+
+  violations-fail-the-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: lens
+        continue-on-error: true
+        uses: ./
+        with:
+          paths: examples/risky.yaml
+          sarif-file: manifestlens.sarif
+      - name: Expect the step to have failed, with the right numbers
+        run: |
+          test "${{ steps.lens.outcome }}" = "failure"
+          test "${{ steps.lens.outputs.result }}" = "fail"
+          test "${{ steps.lens.outputs.errors }}" = "2"
+          test "${{ steps.lens.outputs.findings }}" = "16"
+          test -s "${{ steps.lens.outputs.sarif-file }}"
+
+  report-mode-does-not-block:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: lens
+        uses: ./
+        with:
+          paths: examples/risky.yaml
+          mode: report
+      - name: Expect a green step that still says what is wrong
+        run: |
+          test "${{ steps.lens.outputs.result }}" = "report"
+          test "${{ steps.lens.outputs.passed }}" = "false"
+
+  matrix-with-labels:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { file: hardened.yaml, expect: success }
+          - { file: risky.yaml, expect: failure }
+    steps:
+      - uses: actions/checkout@v4
+      - id: lens
+        continue-on-error: true
+        uses: ./
+        with:
+          paths: examples/${{ matrix.file }}
+          label: ${{ matrix.file }}
+      - name: Expect ${{ matrix.expect }}
+        run: test "${{ steps.lens.outcome }}" = "${{ matrix.expect }}"
+
+  bad-configuration-is-reported:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: lens
+        continue-on-error: true
+        uses: ./
+        with:
+          paths: examples/hardened.yaml
+          fail-on: sometimes
+      - name: Expect a clear failure, not a crash
+        run: test "${{ steps.lens.outcome }}" = "failure"
+
+  only-new-findings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: lens
+        uses: ./
+        with:
+          paths: examples/**
+          scope: new
+          # Compare with the previous commit so this works on every event type.
+          base-ref: HEAD~1
+          mode: report
+          comment: never
+      - name: Expect it to have run
+        run: test -n "${{ steps.lens.outputs.result }}"

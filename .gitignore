@@ -1,7 +1,13 @@
 node_modules/
 dist/
+# The action runs dist/index.js directly, so it is committed (CI checks it is up to date).
+!packages/action/dist/
 coverage/
 *.tsbuildinfo
 .DS_Store
 .env
 .vercel
+
+# Written by the ManifestLens action when run against this repository.
+manifestlens-report.json
+*.sarif

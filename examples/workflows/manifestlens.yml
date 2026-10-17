@@ -1,0 +1,60 @@
+# .github/workflows/manifestlens.yml
+name: ManifestLens
+
+on:
+  pull_request:
+    paths: ['k8s/**', 'deploy/**', '.github/manifestlens.yml']
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write # only needed for the pull request comment
+  security-events: write # only needed to upload SARIF to code scanning
+
+jobs:
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # scope: new needs the base commit
+
+      - id: lens
+        uses: prsurve/manifestlens@v1
+        with:
+          # Project settings live in .github/manifestlens.yml. Anything set here wins over the file.
+          scope: new
+          fail-on: warning
+          max-warnings: 3
+          sarif-file: manifestlens.sarif
+
+      # Show findings in the repository's Security tab as well.
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always() && steps.lens.outputs.sarif-file != ''
+        with:
+          sarif_file: ${{ steps.lens.outputs.sarif-file }}
+
+      # Use the outputs in later steps.
+      - if: always()
+        run: echo "${{ steps.lens.outputs.errors }} errors, ${{ steps.lens.outputs.warnings }} warnings (${{ steps.lens.outputs.result }})"
+
+  # One job per environment: `label` keeps each job's summary and pull request comment apart.
+  environments:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [dev, staging, prod]
+        include:
+          - env: prod
+            fail-on: warning # stricter in production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prsurve/manifestlens@v1
+        with:
+          working-directory: deploy/${{ matrix.env }}
+          label: ${{ matrix.env }}
+          fail-on: ${{ matrix.fail-on || 'error' }}
+          # Roll it out gradually: report everywhere except production.
+          mode: ${{ matrix.env == 'prod' && 'enforce' || 'report' }}
