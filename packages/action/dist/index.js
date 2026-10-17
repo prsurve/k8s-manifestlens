@@ -32128,6 +32128,7 @@ async function execute() {
   const invalid = validateSettings(settings);
   if (invalid.length > 0) throw new ConfigError(invalid);
   logConfiguration(settings, config.path);
+  warnIfUntrusted(settings, config.path);
   const rules = loadRules(workspace, settings);
   const found = await discover(settings, workspace);
   info(
@@ -32170,6 +32171,17 @@ async function execute() {
     warning(
       `ManifestLens found problems but is not blocking the build (${verdict.result}): ${verdict.reasons.join(" ")}`
     );
+}
+function warnIfUntrusted(s, configPath) {
+  if (process.env.GITHUB_EVENT_NAME !== "pull_request_target") return;
+  const sources = [
+    configPath ? `the config file (${configPath})` : "",
+    s.rules.length > 0 ? "custom rules" : ""
+  ].filter(Boolean);
+  if (sources.length === 0) return;
+  warning(
+    `This is a pull_request_target run, and ${sources.join(" and ")} are read from the checked-out code. If that is the pull request's code, its author controls them. Check out the base branch, or pass settings as workflow inputs instead.`
+  );
 }
 function logConfiguration(s, configPath) {
   startGroup("Configuration");

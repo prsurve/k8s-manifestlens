@@ -76,6 +76,7 @@ async function execute(): Promise<void> {
   const invalid = validateSettings(settings);
   if (invalid.length > 0) throw new ConfigError(invalid);
   logConfiguration(settings, config.path);
+  warnIfUntrusted(settings, config.path);
 
   // 3. Rules: the built-in ones plus any the project added.
   const rules = loadRules(workspace, settings);
@@ -127,6 +128,22 @@ async function execute(): Promise<void> {
     core.warning(
       `ManifestLens found problems but is not blocking the build (${verdict.result}): ${verdict.reasons.join(' ')}`,
     );
+}
+
+/**
+ * `pull_request_target` runs with a write token in the base repository. If the checkout is the pull
+ * request's code, its config file and rules are written by whoever opened the pull request.
+ */
+function warnIfUntrusted(s: Settings, configPath: string | null): void {
+  if (process.env.GITHUB_EVENT_NAME !== 'pull_request_target') return;
+  const sources = [
+    configPath ? `the config file (${configPath})` : '',
+    s.rules.length > 0 ? 'custom rules' : '',
+  ].filter(Boolean);
+  if (sources.length === 0) return;
+  core.warning(
+    `This is a pull_request_target run, and ${sources.join(' and ')} are read from the checked-out code. If that is the pull request's code, its author controls them. Check out the base branch, or pass settings as workflow inputs instead.`,
+  );
 }
 
 function logConfiguration(s: Settings, configPath: string | null): void {

@@ -503,6 +503,45 @@ describe('scope: only what this change introduces', () => {
   });
 });
 
+describe('pull_request_target', () => {
+  const target = {
+    eventName: 'pull_request_target',
+    event: { pull_request: { number: 1, base: { sha: 'b'.repeat(40) } } },
+  };
+
+  it('warns when the config file or rules could be controlled by the pull request author', async () => {
+    const withConfig = await runAction({
+      files: { 'a.yaml': hardened, '.github/manifestlens.yml': 'fail-on: none\n' },
+      ...target,
+    });
+    expect(withConfig.log).toContain(
+      '::warning::This is a pull_request_target run, and the config file (.github/manifestlens.yml)',
+    );
+    const withRules = await runAction({
+      files: {
+        'a.yaml': hardened,
+        'r/x.yaml':
+          'id: x\ntitle: t\nseverity: info\nkinds: ["*"]\nwhen: { missing: a }\nmessage: m\n',
+      },
+      ...target,
+      inputs: { rules: 'r' },
+    });
+    expect(withRules.log).toContain('and custom rules are read from the checked-out code');
+  });
+
+  it('stays quiet when nothing comes from the checkout, or on a normal pull request', async () => {
+    expect((await runAction({ files: { 'a.yaml': hardened }, ...target })).log).not.toContain(
+      'pull_request_target run',
+    );
+    const normal = await runAction({
+      files: { 'a.yaml': hardened, '.github/manifestlens.yml': 'fail-on: none\n' },
+      eventName: 'pull_request',
+      event: target.event,
+    });
+    expect(normal.log).not.toContain('pull_request_target run');
+  });
+});
+
 describe('pull request comment', () => {
   const pr = {
     eventName: 'pull_request',
