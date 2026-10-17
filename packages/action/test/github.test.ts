@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emitAnnotations, upsertComment } from '../src/github.js';
+import {
+  GITHUB_LIMIT_PER_LEVEL,
+  emitAnnotations,
+  selectAnnotations,
+  spreadAcrossRules,
+  upsertComment,
+} from '../src/github.js';
 import type { CommentTarget } from '../src/github.js';
 import type { LocatedFinding } from '../src/types.js';
 
@@ -103,6 +109,102 @@ describe('upsertComment', () => {
   });
 });
 
+const find = (
+  severity: LocatedFinding['severity'],
+  line: number,
+  ruleId = `rule-${line}`,
+): LocatedFinding => ({
+  file: 'k8s/a.yaml',
+  line,
+  ruleId,
+  severity,
+  message: 'msg',
+  fix: 'Do this.',
+});
+const many = (severity: LocatedFinding['severity'], n: number, ruleId?: string) =>
+  Array.from({ length: n }, (_, i) => find(severity, i + 1, ruleId));
+
+describe('spreadAcrossRules', () => {
+  it('takes one finding per rule before taking a second of any', () => {
+    const list = [
+      find('warning', 1, 'a'),
+      find('warning', 2, 'a'),
+      find('warning', 3, 'a'),
+      find('warning', 4, 'b'),
+      find('warning', 5, 'b'),
+      find('warning', 6, 'c'),
+    ];
+    expect(spreadAcrossRules(list, 3).map((f) => f.line)).toEqual([1, 4, 6]);
+    expect(spreadAcrossRules(list, 5).map((f) => f.line)).toEqual([1, 2, 4, 5, 6]);
+  });
+
+  it('keeps the original order, and returns everything when the limit is large', () => {
+    const list = [find('info', 1, 'a'), find('info', 2, 'b'), find('info', 3, 'a')];
+    expect(spreadAcrossRules(list, 10)).toEqual(list);
+    expect(spreadAcrossRules(list, 0)).toEqual([]);
+  });
+});
+
+describe('selectAnnotations: GitHub shows at most 10 of each severity per step', () => {
+  const count = (sel: ReturnType<typeof selectAnnotations>, sev: LocatedFinding['severity']) =>
+    sel.findings.filter((f) => f.severity === sev).length;
+
+  it('knows the limit', () => {
+    expect(GITHUB_LIMIT_PER_LEVEL).toBe(10);
+  });
+
+  it('never asks for more than 10 of one severity, so each severity gets its share', () => {
+    const sel = selectAnnotations(
+      [...many('error', 12), ...many('warning', 25), ...many('info', 15)],
+      [],
+      30,
+    );
+    expect([count(sel, 'error'), count(sel, 'warning'), count(sel, 'info')]).toEqual([10, 10, 10]);
+  });
+
+  it('shows info findings even when there are hundreds of warnings', () => {
+    const sel = selectAnnotations([...many('warning', 900), ...many('info', 400)], [], 30);
+    expect([count(sel, 'warning'), count(sel, 'info')]).toEqual([10, 10]);
+  });
+
+  it('respects a smaller total, most severe first', () => {
+    const sel = selectAnnotations(
+      [...many('error', 12), ...many('warning', 25), ...many('info', 15)],
+      [],
+      25,
+    );
+    expect([count(sel, 'error'), count(sel, 'warning'), count(sel, 'info')]).toEqual([10, 10, 5]);
+    const small = selectAnnotations([...many('error', 12), ...many('warning', 5)], [], 3);
+    expect([count(small, 'error'), count(small, 'warning')]).toEqual([3, 0]);
+  });
+
+  it('counts unreadable YAML as errors', () => {
+    const problems = Array.from({ length: 4 }, (_, i) => ({
+      file: 'bad.yaml',
+      line: i + 1,
+      message: 'oops',
+    }));
+    const sel = selectAnnotations(many('error', 12), problems, 30);
+    expect(sel.problems).toHaveLength(4);
+    expect(count(sel, 'error')).toBe(6);
+  });
+
+  it('spreads each severity across the rules that fired', () => {
+    const warnings = [
+      ...many('warning', 40, 'common'),
+      find('warning', 100, 'rare-1'),
+      find('warning', 101, 'rare-2'),
+    ];
+    const rules = new Set(selectAnnotations(warnings, [], 30).findings.map((f) => f.ruleId));
+    expect(rules).toEqual(new Set(['common', 'rare-1', 'rare-2']));
+  });
+
+  it('does nothing at a cap of zero or with nothing to show', () => {
+    expect(selectAnnotations(many('error', 3), [], 0)).toEqual({ problems: [], findings: [] });
+    expect(selectAnnotations([], [], 30)).toEqual({ problems: [], findings: [] });
+  });
+});
+
 describe('emitAnnotations', () => {
   const out: string[] = [];
   const spy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => {
@@ -113,19 +215,10 @@ describe('emitAnnotations', () => {
     out.length = 0;
   });
 
-  const f = (severity: LocatedFinding['severity'], line: number): LocatedFinding => ({
-    file: 'k8s/a.yaml',
-    line,
-    ruleId: `rule-${line}`,
-    severity,
-    message: 'msg',
-    fix: 'Do this.',
-  });
-
-  it('creates an error, warning or notice at the right file and line', () => {
-    const n = emitAnnotations([f('error', 3), f('warning', 4), f('info', 5)], [], 10);
+  it('creates an error, warning or notice at the right file and line, and reports the counts', () => {
+    const result = emitAnnotations([find('error', 3), find('warning', 4), find('info', 5)], [], 10);
     const text = out.join('');
-    expect(n).toBe(3);
+    expect(result).toEqual({ emitted: 3, total: 3 });
     expect(text).toContain(
       '::error title=ManifestLens%3A rule-3,file=k8s/a.yaml,line=3::msg Do this.',
     );
@@ -133,17 +226,18 @@ describe('emitAnnotations', () => {
     expect(text).toContain('::notice title=ManifestLens%3A rule-5,file=k8s/a.yaml,line=5::');
   });
 
-  it('stops at the cap, keeping the most severe first', () => {
-    const n = emitAnnotations([f('error', 1), f('error', 2), f('warning', 3)], [], 2);
-    expect(n).toBe(2);
-    expect(out.join('')).not.toContain('warning');
+  it('asks GitHub for no more than it will show, and says how many were left out', () => {
+    const result = emitAnnotations([...many('warning', 25), ...many('info', 25)], [], 30);
+    expect(result).toEqual({ emitted: 20, total: 50 });
+    expect(out.join('').match(/::warning /g)).toHaveLength(10);
+    expect(out.join('').match(/::notice /g)).toHaveLength(10);
   });
 
   it('shows unreadable YAML first, and creates nothing at a cap of zero', () => {
-    emitAnnotations([f('error', 1)], [{ file: 'bad.yaml', line: 2, message: 'oops' }], 5);
+    emitAnnotations([find('error', 1)], [{ file: 'bad.yaml', line: 2, message: 'oops' }], 5);
     expect(out.join('').indexOf('invalid YAML')).toBeLessThan(out.join('').indexOf('rule-1'));
     out.length = 0;
-    expect(emitAnnotations([f('error', 1)], [], 0)).toBe(0);
+    expect(emitAnnotations([find('error', 1)], [], 0)).toEqual({ emitted: 0, total: 1 });
     expect(out).toEqual([]);
   });
 

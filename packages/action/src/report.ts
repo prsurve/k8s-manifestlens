@@ -78,6 +78,42 @@ function findingRows(findings: LocatedFinding[], limit: number): string[] {
 
 const TABLE_HEAD = ['| Severity | Where | Rule | Message |', '| --- | --- | --- | --- |'];
 
+/** Below this many findings the full list is short enough to read, so a breakdown adds nothing. */
+const BY_RULE_MIN_FINDINGS = 10;
+const MAX_RULES_IN_SUMMARY = 25;
+const MAX_RULES_IN_COMMENT = 10;
+const SEVERITY_RANK = { error: 0, warning: 1, info: 2 } as const;
+
+/** Findings counted per rule, most severe first and then most common, so the big problems lead. */
+function byRule(
+  findings: LocatedFinding[],
+): { severity: Severity; ruleId: string; count: number }[] {
+  const counts = new Map<string, { severity: Severity; ruleId: string; count: number }>();
+  for (const f of findings) {
+    const key = `${f.severity}|${f.ruleId}`;
+    const entry = counts.get(key);
+    if (entry) entry.count++;
+    else counts.set(key, { severity: f.severity, ruleId: f.ruleId, count: 1 });
+  }
+  return [...counts.values()].sort(
+    (a, b) =>
+      SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] ||
+      b.count - a.count ||
+      a.ruleId.localeCompare(b.ruleId),
+  );
+}
+
+/** The by-rule table, or nothing when there are too few findings to need it. */
+function byRuleTable(findings: LocatedFinding[], limit: number): string[] {
+  if (findings.length <= BY_RULE_MIN_FINDINGS) return [];
+  const rules = byRule(findings);
+  const rows = rules
+    .slice(0, limit)
+    .map((r) => `| ${ICON[r.severity]} ${r.severity} | ${code(r.ruleId)} | ${r.count} |`);
+  const more = rules.length > limit ? [`_…and ${rules.length - limit} more rules._`] : [];
+  return ['| Severity | Rule | Findings |', '| --- | --- | ---: |', ...rows, ...more];
+}
+
 /** The full job summary, as markdown. */
 export function buildSummary(info: RunInfo): string {
   const { analysis: a, verdict: v, settings: s } = info;
@@ -114,6 +150,9 @@ export function buildSummary(info: RunInfo): string {
       '',
     );
   }
+
+  const rules = byRuleTable(a.findings, MAX_RULES_IN_SUMMARY);
+  if (rules.length > 0) out.push('### By rule', '', ...rules, '');
 
   if (a.findings.length > 0) {
     out.push(
@@ -226,6 +265,8 @@ export function buildComment(info: RunInfo, marker: string, runUrl: string | nul
     '',
   ];
   if (v.reasons.length > 0) out.push(...v.reasons.map((r) => `- ${md(r)}`), '');
+  const rules = byRuleTable(a.findings, MAX_RULES_IN_COMMENT);
+  if (rules.length > 0) out.push('**By rule**', '', ...rules, '');
   if (a.findings.length > 0) {
     out.push(...TABLE_HEAD, ...findingRows(a.findings, MAX_COMMENT_ROWS));
     if (a.findings.length > MAX_COMMENT_ROWS)

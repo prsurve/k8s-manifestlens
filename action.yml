@@ -74,7 +74,7 @@ inputs:
     description: Show findings on the changed lines in pull requests. Default is true.
     required: false
   max-annotations:
-    description: Most annotations to create (GitHub limits how many a step may create). Default is 30.
+    description: Most annotations to create in total. GitHub shows at most 10 of each severity (error, warning, notice) per step, so each severity gets up to 10, errors first and spread across different rules. Default is 30, the most GitHub will show.
     required: false
   comment:
     description: auto posts or updates a pull request comment when there is something to report, always posts even when clean, never turns it off. Needs pull-requests write permission. Default is auto.
