@@ -32088,7 +32088,7 @@ function buildReport(info2) {
 }
 
 // src/main.ts
-var VERSION = true ? "0.1.0" : "dev";
+var VERSION = true ? "1.0.0" : "dev";
 async function run() {
   try {
     await execute();
