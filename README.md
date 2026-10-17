@@ -28,6 +28,9 @@ Milestones 1 to 3:
 - A web page (`apps/web`) does all of the above in the browser. Nothing is uploaded: the page makes no
   network requests, and its Content-Security-Policy forbids them.
 
+- A VS Code extension (`packages/vscode`) shows the findings as warnings in the editor, explains fields
+  on hover and adds an "Explain this manifest" command.
+
 See [PLAN.md](PLAN.md) for what comes next.
 
 ## Try it
@@ -51,12 +54,22 @@ Run the web page locally with `npm run dev:web`.
 
 The repo is an npm workspace:
 
-| Path            | What it is                                                                                     |
-| --------------- | ---------------------------------------------------------------------------------------------- |
-| `packages/core` | The framework-agnostic core (no Node imports): parse, explain, check, diff, rules and dataset. |
-| `packages/cli`  | The `manifestlens` command line.                                                               |
-| `apps/web`      | The web page (Vite, plain TypeScript). It bundles the core, so it runs fully offline.          |
-| `examples`      | Sample manifests used by the tests and the docs.                                               |
+| Path              | What it is                                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `packages/core`   | The framework-agnostic core (no Node imports): parse, explain, check, diff, rules and dataset. |
+| `packages/cli`    | The `manifestlens` command line.                                                               |
+| `packages/vscode` | The VS Code extension. Bundles the core into one file.                                         |
+| `apps/web`        | The web page (Vite, plain TypeScript). It bundles the core, so it runs fully offline.          |
+| `examples`        | Sample manifests used by the tests and the docs.                                               |
+
+## Building the VS Code extension
+
+```sh
+npm run package -w manifestlens-vscode   # writes packages/vscode/dist/manifestlens.vsix
+```
+
+Install the file with `code --install-extension packages/vscode/dist/manifestlens.vsix`. Publishing to the
+Marketplace needs a publisher account and is a separate step.
 
 ## Deploying the web page
 
