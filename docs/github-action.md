@@ -127,6 +127,9 @@ A repository with hundreds of findings stays readable:
   table of how many findings each rule produced, most severe and most common first
   (`allow-privilege-escalation: 172`, `image-latest-tag: 163`...). Fixing one rule across the repository
   often clears a large share of them.
+- **Two jobs on the same lines.** If one job reports on the whole repository and another enforces with
+  `scope: new`, both annotate the same new lines and an error shows up twice. Set `annotations: false` on the
+  report-only job.
 - **Annotations.** GitHub shows at most 10 annotations of each severity (error, warning, notice) per step and
   silently drops the rest. The action therefore asks for up to 10 of each, errors first, and spreads them
   across different rules so a long run of the same finding does not crowd out the others. When some are left
