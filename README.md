@@ -35,7 +35,8 @@ settings ([all options](docs/github-action.md), [Marketplace](https://github.com
   Settings come from built-in defaults, a checked-in `.github/manifestlens.yml`, and workflow inputs, in that
   order. It can gate only on what a pull request introduces, annotates the changed lines, comments on the
   pull request, writes SARIF, and has a report-only mode. See [docs/github-action.md](docs/github-action.md).
-- **VS Code extension.** `packages/vscode` shows the findings as warnings in the editor, explains fields on
+- **VS Code extension.** [Install it from the Marketplace](https://marketplace.visualstudio.com/items?itemName=prsurve.manifestlens-vscode)
+  (`packages/vscode`). It shows the findings as warnings in the editor, explains fields on
   hover and adds an "Explain this manifest" command.
 
 See [PLAN.md](PLAN.md) for the roadmap.
@@ -90,8 +91,8 @@ documentation is Apache-2.0 licensed; see [NOTICE](NOTICE).
 npm run package -w manifestlens-vscode   # writes packages/vscode/dist/manifestlens.vsix
 ```
 
-Install the file with `code --install-extension packages/vscode/dist/manifestlens.vsix`. Publishing to the
-Marketplace needs a publisher account and is a separate step.
+Install the file with `code --install-extension packages/vscode/dist/manifestlens.vsix`. To publish a new
+version, set `VSCE_PAT` to a Marketplace token and run `npm run publish:marketplace -w manifestlens-vscode`.
 
 ## Deploying the web page
 

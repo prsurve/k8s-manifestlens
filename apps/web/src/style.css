@@ -753,6 +753,9 @@ ins {
   .gh {
     margin-left: auto;
   }
+  .gh + .gh {
+    margin-left: 0;
+  }
   .row {
     grid-template-columns: 2.5rem minmax(0, 1fr);
   }
