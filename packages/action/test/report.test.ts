@@ -240,6 +240,27 @@ describe('by-rule breakdown', () => {
     expect(text).toContain('and 15 more rules');
   });
 
+  it('says "1 more rule" when exactly one rule is left out', () => {
+    const rules = (n: number): LocatedFinding[] =>
+      Array.from({ length: n }, (_, i) => ({
+        file: 'a.yaml',
+        line: i + 1,
+        ruleId: `rule-${String(i).padStart(2, '0')}`,
+        severity: 'info',
+        message: 'm',
+      }));
+    const summary = buildSummary(info(example('hardened.yaml'), {}, { findings: rules(26) }));
+    expect(summary).toContain('and 1 more rule.');
+    expect(summary).not.toContain('1 more rules');
+    const comment = buildComment(
+      info(example('hardened.yaml'), {}, { findings: rules(11) }),
+      '<!-- m -->',
+      null,
+    );
+    expect(comment).toContain('and 1 more rule.');
+    expect(comment).not.toContain('1 more rules');
+  });
+
   it('escapes rule ids', () => {
     const bad: LocatedFinding[] = Array.from({ length: 12 }, () => ({
       file: 'a.yaml',

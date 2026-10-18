@@ -110,7 +110,8 @@ function byRuleTable(findings: LocatedFinding[], limit: number): string[] {
   const rows = rules
     .slice(0, limit)
     .map((r) => `| ${ICON[r.severity]} ${r.severity} | ${code(r.ruleId)} | ${r.count} |`);
-  const more = rules.length > limit ? [`_…and ${rules.length - limit} more rules._`] : [];
+  const left = rules.length - limit;
+  const more = left > 0 ? [`_…and ${plural(left, 'more rule')}._`] : [];
   return ['| Severity | Rule | Findings |', '| --- | --- | ---: |', ...rows, ...more];
 }
 

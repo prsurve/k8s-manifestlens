@@ -31935,7 +31935,8 @@ function byRuleTable(findings, limit) {
   if (findings.length <= BY_RULE_MIN_FINDINGS) return [];
   const rules = byRule(findings);
   const rows = rules.slice(0, limit).map((r) => `| ${ICON[r.severity]} ${r.severity} | ${code(r.ruleId)} | ${r.count} |`);
-  const more = rules.length > limit ? [`_\u2026and ${rules.length - limit} more rules._`] : [];
+  const left = rules.length - limit;
+  const more = left > 0 ? [`_\u2026and ${plural3(left, "more rule")}._`] : [];
   return ["| Severity | Rule | Findings |", "| --- | --- | ---: |", ...rows, ...more];
 }
 function buildSummary(info2) {
@@ -32154,7 +32155,7 @@ function buildReport(info2) {
 }
 
 // src/main.ts
-var VERSION = true ? "1.0.1" : "dev";
+var VERSION = true ? "1.0.2" : "dev";
 async function run() {
   try {
     await execute();

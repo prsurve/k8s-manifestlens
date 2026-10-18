@@ -58,3 +58,5 @@ jobs:
           fail-on: ${{ matrix.fail-on || 'error' }}
           # Roll it out gradually: report everywhere except production.
           mode: ${{ matrix.env == 'prod' && 'enforce' || 'report' }}
+          # If another job already annotates the same lines, turn annotations off on the report-only one.
+          # annotations: false
