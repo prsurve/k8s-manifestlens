@@ -1,7 +1,7 @@
 # ManifestLens for VS Code
 
 Explains Kubernetes YAML in plain English and flags risky settings, right in the editor. It works
-offline: nothing is sent anywhere.
+offline: nothing is sent anywhere. You can also [try it in your browser](https://manifestlens-one.vercel.app).
 
 ## What you get
 
@@ -12,7 +12,8 @@ offline: nothing is sent anywhere.
 - **Explain this manifest.** Run `ManifestLens: Explain this manifest` from the Command Palette to get the
   whole file explained line by line.
 
-Only files that declare both `apiVersion` and `kind` are checked, so other YAML files (CI configs,
+It understands 25 kinds, including Pod, Deployment, StatefulSet, DaemonSet, Job, CronJob, Service and
+Ingress. Only files that declare both `apiVersion` and `kind` are checked, so other YAML files (CI configs,
 docker-compose, Helm templates) are left alone.
 
 ## Settings

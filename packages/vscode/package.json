@@ -2,10 +2,18 @@
   "name": "manifestlens-vscode",
   "displayName": "ManifestLens",
   "description": "Explains Kubernetes YAML in plain English and flags risky settings. Works offline.",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "license": "Apache-2.0",
   "publisher": "prsurve",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#2f5bd6",
+    "theme": "dark"
+  },
+  "homepage": "https://manifestlens-one.vercel.app",
+  "bugs": {
+    "url": "https://github.com/prsurve/manifestlens/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/prsurve/manifestlens.git"
@@ -68,7 +76,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository -o dist/manifestlens.vsix"
+    "package": "npm run build && vsce package --no-dependencies -o dist/manifestlens.vsix",
+    "publish:marketplace": "npm run build && vsce publish --no-dependencies"
   },
   "dependencies": {
     "@manifestlens/core": "*"
