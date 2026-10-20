@@ -4,6 +4,7 @@
   "installCommand": "cd ../.. && npm ci",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "ignoreCommand": "bash ../../scripts/vercel-ignore.sh",
   "headers": [
     {
       "source": "/(.*)",
