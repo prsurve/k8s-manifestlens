@@ -7,6 +7,7 @@ import {
   parseRules,
 } from '@manifestlens/core';
 import type { Rule } from '@manifestlens/core';
+import { inject } from '@vercel/analytics';
 import './style.css';
 import { examples } from './examples.js';
 import { initTheme } from './theme.js';
@@ -22,6 +23,8 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return node as T;
 };
 const input = (id: string): HTMLTextAreaElement => $<HTMLTextAreaElement>(id);
+
+inject();
 
 const bundled = loadBundledRules();
 
