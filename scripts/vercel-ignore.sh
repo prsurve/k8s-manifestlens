@@ -7,12 +7,6 @@ if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then
   exit 1
 fi
 
-# Skip when the last commit touched nothing the site depends on.
-if git diff --quiet HEAD^ HEAD -- . ../../packages ../../package-lock.json 2>/dev/null; then
-  echo "No web-related changes, skipping preview."
-  exit 0
-fi
-
 # Not a PR build: skip.
 if [ -z "$VERCEL_GIT_PULL_REQUEST_ID" ]; then
   echo "Not a pull request, skipping preview."
