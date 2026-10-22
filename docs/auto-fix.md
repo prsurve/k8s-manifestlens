@@ -134,7 +134,7 @@ is skipped. A value is either written in the rule or a `$param` filled from the 
 
 - **CLI:** `manifestlens fix` (above). Exit code 0 when previewed or written, 1 when the file has YAML
   errors or validation rejected the fixes, 2 for bad usage.
-- **Web page:** the Fix tab shows what would change, what was held back, the diff, and a buttons to apply the fixed manifest to the input (with undo) or copy it
+- **Web page:** the Fix tab shows what would change, what was held back, the diff, and buttons to apply the fixed manifest to the input (with undo) or copy it
   the fixed manifest.
 - **VS Code:** a lightbulb quick fix on each fixable finding (labelled with its risk), and `ManifestLens:
 Fix this manifest (preview first)`, which opens a diff and asks before applying.
