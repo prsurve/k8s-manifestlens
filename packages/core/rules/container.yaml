@@ -24,6 +24,13 @@ report: resources
 message: 'Container "{container}" has no memory limit.'
 why: A container without a memory limit can use all the memory on its node, which can starve or crash other workloads.
 fix: 'Add resources.limits.memory, for example: limits: { memory: 256Mi }.'
+autofix:
+  risk: medium
+  summary: Set resources.limits.memory to the memoryLimit from the fix policy.
+  requires:
+    missing: resources.requests.memory
+  set:
+    resources.limits.memory: { $param: memoryLimit, pattern: '^[1-9][0-9]*(Ki|Mi|Gi|Ti)$' }
 ---
 id: missing-resource-requests
 title: Container has no CPU or memory request
@@ -72,6 +79,11 @@ report: securityContext.privileged
 message: 'Container "{container}" runs in privileged mode.'
 why: A privileged container has almost the same access as a process running directly on the node. If it is compromised, the whole node is at risk.
 fix: Remove privileged, or replace it with the specific capabilities the container needs under securityContext.capabilities.add.
+autofix:
+  risk: high
+  summary: Set securityContext.privileged to false.
+  set:
+    securityContext.privileged: false
 ---
 id: run-as-root-user
 title: Container is set to run as root
@@ -104,6 +116,17 @@ report: securityContext
 message: 'Container "{container}" is not prevented from running as root.'
 why: Many images run as root by default. Unless you say otherwise, Kubernetes lets them.
 fix: Set securityContext.runAsNonRoot to true (on the container or on the Pod), or set runAsUser to a non-zero ID.
+autofix:
+  risk: medium
+  summary: Set securityContext.runAsNonRoot to true.
+  requires:
+    all:
+      - not: { equals: { securityContext.runAsUser: 0 } }
+      - not: { equals: { $pod.securityContext.runAsUser: 0 } }
+      - not: { equals: { securityContext.runAsNonRoot: false } }
+      - not: { equals: { $pod.securityContext.runAsNonRoot: false } }
+  set:
+    securityContext.runAsNonRoot: true
 ---
 id: allow-privilege-escalation
 title: Container may gain extra privileges
@@ -116,6 +139,15 @@ report: securityContext.allowPrivilegeEscalation
 message: 'Container "{container}" does not disable privilege escalation.'
 why: Privilege escalation lets a process gain more rights than its parent, for example through setuid programs. It is on by default.
 fix: Set securityContext.allowPrivilegeEscalation to false.
+autofix:
+  risk: low
+  summary: Set securityContext.allowPrivilegeEscalation to false.
+  requires:
+    all:
+      - not: { equals: { securityContext.privileged: true } }
+      - not: { contains: { securityContext.capabilities.add: SYS_ADMIN } }
+  set:
+    securityContext.allowPrivilegeEscalation: false
 ---
 id: writable-root-filesystem
 title: Container can write to its own filesystem

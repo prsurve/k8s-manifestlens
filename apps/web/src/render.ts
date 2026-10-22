@@ -6,6 +6,7 @@ import type {
   ExplainResult,
   FieldChange,
   Finding,
+  FixResult,
   Severity,
 } from '@manifestlens/core';
 import { docsLink, el } from './dom.js';
@@ -403,5 +404,88 @@ export function renderDiff(result: DiffResult, view: View = createView()): HTMLE
     );
   }
   for (const doc of shown) root.append(diffDocument(doc, view));
+  return root;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Fix                                                                                         */
+/* ------------------------------------------------------------------------------------------- */
+
+/**
+ * A preview of fixes: what would change, what was held back and why, and the diff. Nothing is
+ * applied in the browser; the user copies the fixed manifest if they want it.
+ */
+export function renderFix(
+  result: FixResult,
+  diff: string,
+  copy: (text: string) => void = () => undefined,
+): HTMLElement {
+  const root = el('div');
+  const n = result.applied.length;
+
+  if (result.status === 'rejected') {
+    root.append(
+      el('p', { class: 'summary', text: 'Nothing changed: the fixes failed validation.' }),
+      ...result.validation.problems.map((p) => el('p', { class: 'issue', text: p })),
+    );
+  } else if (n === 0) {
+    root.append(el('p', { class: 'summary', text: 'No fixes to apply.' }));
+  } else {
+    root.append(
+      toolbar(
+        el('p', { class: 'summary', text: `${plural(n, 'fix')} ready` }),
+        el('button', { class: 'text-btn', text: 'Copy fixed manifest', attrs: { type: 'button' } }),
+      ),
+    );
+    root.querySelector('button')?.addEventListener('click', () => copy(result.fixed));
+    root.append(
+      el('p', {
+        class: 'note',
+        text: `Checked: the YAML parses, only the listed fields changed, ${plural(result.validation.resolved, 'finding')} gone, none added.`,
+      }),
+    );
+  }
+
+  if (n > 0) {
+    root.append(
+      el('section', { class: 'doc' }, [
+        el('h2', { text: 'Would change' }),
+        ...result.applied.map((a) =>
+          el('details', { class: 'finding' }, [
+            el('summary', {}, [
+              el('span', { class: 'badge', text: a.risk }),
+              ` Line ${a.line}: ${a.ruleId}`,
+            ]),
+            el('p', { text: a.summary }),
+            ...a.changes.map((c) =>
+              el('p', { class: 'meta', text: `${c.path}: ${c.before} -> ${c.after}` }),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+  if (result.skipped.length > 0) {
+    root.append(
+      el('section', { class: 'doc' }, [
+        el('h2', { text: 'Not applied' }),
+        ...result.skipped.map((s) =>
+          el('p', {
+            class: 'issue',
+            text: `Line ${s.line}: ${s.ruleId} (${s.risk} risk): ${s.detail}`,
+          }),
+        ),
+      ]),
+    );
+  }
+  if (diff !== '') {
+    const pre = el('pre', { class: 'diff-text', attrs: { 'aria-label': 'Unified diff' } });
+    for (const line of diff.split('\n')) {
+      if (line === '') continue;
+      const kind = line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : 'ctx';
+      pre.append(el('span', { class: `dl dl-${kind}`, text: `${line}\n` }));
+    }
+    root.append(el('section', { class: 'doc' }, [el('h2', { text: 'Diff' }), pre]));
+  }
   return root;
 }

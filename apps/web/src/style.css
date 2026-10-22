@@ -796,3 +796,31 @@ ins {
     transition: none !important;
   }
 }
+
+/* Fix tab */
+.diff-text {
+  margin: 0;
+  padding: 0.5rem 0;
+  overflow-x: auto;
+  font: 0.8125rem/1.5 var(--mono, ui-monospace, monospace);
+}
+.dl {
+  display: block;
+  padding: 0 0.75rem;
+  white-space: pre;
+}
+.dl-add {
+  background: color-mix(in srgb, #2da44e 18%, transparent);
+}
+.dl-del {
+  background: color-mix(in srgb, #cf222e 16%, transparent);
+}
+.note,
+label.inline {
+  font-size: 0.8125rem;
+  color: var(--muted, inherit);
+}
+textarea.short {
+  min-height: 5.5rem;
+  flex: 0 0 auto;
+}

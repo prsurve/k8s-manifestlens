@@ -8,9 +8,15 @@ import {
 } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 import * as core from '@actions/core';
-import { RuleError, loadBundledRules, parseRules } from '@manifestlens/core';
-import type { Rule } from '@manifestlens/core';
-import { analyze } from './analyze.js';
+import {
+  FixPolicyError,
+  RuleError,
+  loadBundledRules,
+  parseFixPolicy,
+  parseRules,
+} from '@manifestlens/core';
+import type { FixPolicy, Rule } from '@manifestlens/core';
+import { analyze, prepareRules } from './analyze.js';
 import type { FileToAnalyze } from './analyze.js';
 import { determineBase } from './base.js';
 import type { Base } from './base.js';
@@ -18,6 +24,7 @@ import { ConfigError, Problems } from './coerce.js';
 import { loadConfig } from './config.js';
 import { discover } from './discover.js';
 import { evaluate } from './evaluate.js';
+import { suggestFixes } from './fixes.js';
 import { changedFiles, fileAt, resolveCommit } from './git.js';
 import { emitAnnotations, upsertComment } from './github.js';
 import { buildComment, buildReport, buildSarif, buildSummary } from './report.js';
@@ -111,6 +118,20 @@ async function execute(): Promise<void> {
     skipped: found.skipped,
   };
 
+  // Optional: work out fixes for what was found. This only reports; no file is ever changed.
+  if (settings.suggestFixes || settings.fixPatchFile !== '') {
+    info.fixes = suggestFixes(
+      files,
+      prepareRules(rules, settings).rules,
+      analysis,
+      settings,
+      loadFixPolicy(workspace, settings),
+    );
+    core.info(
+      `Suggested fixes: ${info.fixes.available} ready, ${info.fixes.heldBack} held back (up to ${settings.fixMaxRisk} risk). Nothing was changed.`,
+    );
+  }
+
   // 6. Report: outputs and files first, so downstream steps work even if a later step fails.
   logFindings(info);
   setOutputs(info, workspace);
@@ -149,6 +170,7 @@ function warnIfUntrusted(s: Settings, configPath: string | null): void {
   const sources = [
     configPath ? `the config file (${configPath})` : '',
     s.rules.length > 0 ? 'custom rules' : '',
+    s.fixPolicy !== '' ? 'the fix policy' : '',
   ].filter(Boolean);
   if (sources.length === 0) return;
   core.warning(
@@ -207,6 +229,26 @@ function loadRules(workspace: string, s: Settings): Rule[] {
     seen.add(rule.id);
   }
   return rules;
+}
+
+/** Read the fix policy file, keeping it inside the repository. */
+function loadFixPolicy(workspace: string, s: Settings): FixPolicy | undefined {
+  if (s.fixPolicy === '') return undefined;
+  let real: string;
+  const root = realpathSync(workspace);
+  try {
+    real = realpathSync(join(workspace, s.fixPolicy));
+  } catch {
+    throw new ConfigError([`fix-policy: "${s.fixPolicy}" does not exist.`]);
+  }
+  if (real !== root && !real.startsWith(root + sep))
+    throw new ConfigError([`fix-policy: "${s.fixPolicy}" points outside the repository.`]);
+  try {
+    return parseFixPolicy(readFileSync(real, 'utf8'), s.fixPolicy);
+  } catch (err) {
+    if (err instanceof FixPolicyError) throw new ConfigError([err.message]);
+    throw err;
+  }
 }
 
 function scopeToChange(
@@ -271,6 +313,11 @@ function writeFile(workspace: string, path: string, content: string): string {
 
 function setOutputs(info: RunInfo, workspace: string): void {
   const { verdict: v, analysis: a, settings: s } = info;
+  let patchPath = '';
+  if (s.fixPatchFile !== '') {
+    patchPath = writeFile(workspace, s.fixPatchFile, info.fixes?.patch ?? '');
+    info.fixPatchPath = patchPath;
+  }
   const reportPath = writeFile(
     workspace,
     s.reportFile,
@@ -291,6 +338,8 @@ function setOutputs(info: RunInfo, workspace: string): void {
   core.setOutput('suppressed', String(a.suppressed));
   core.setOutput('report-file', reportPath);
   core.setOutput('sarif-file', sarifPath);
+  core.setOutput('fixes-available', String(info.fixes?.available ?? 0));
+  core.setOutput('fix-patch-file', patchPath);
 }
 
 async function writeSummary(markdown: string): Promise<void> {

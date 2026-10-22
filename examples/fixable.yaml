@@ -1,0 +1,38 @@
+# Try: manifestlens fix examples/fixable.yaml --policy examples/fix-policy.yaml --max-risk medium
+# The comments and layout below are kept when fixes are applied.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop # owned by team-a
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: shop }
+  template:
+    metadata:
+      labels: { app: shop }
+    spec:
+      containers:
+        # the main container
+        - name: api
+          image: ghcr.io/example/shop-api:1.4.2
+          securityContext: {}
+          resources:
+            requests: { cpu: 100m }
+          readinessProbe:
+            httpGet: { path: /ready, port: 8080 }
+        - name: sidecar
+          image: ghcr.io/example/log-shipper:2.0.1
+          securityContext:
+            readOnlyRootFilesystem: true
+            privileged: true # needs review: never fixed unless you allow high risk
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop
+spec:
+  type: LoadBalancer
+  selector: { app: shop }
+  ports:
+    - port: 80

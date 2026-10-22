@@ -6,5 +6,6 @@ import web from '../../../examples/web.yaml?raw';
 export const examples = {
   explain: web,
   check: risky,
+  fix: risky,
   diff: { old: diffOld, new: diffNew },
 };

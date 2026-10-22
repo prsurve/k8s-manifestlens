@@ -1,5 +1,11 @@
-import { checkManifest, explainManifest, looksLikeKubernetes } from '@manifestlens/core';
-import type { ExplainResult, Rule, Severity } from '@manifestlens/core';
+import {
+  checkManifest,
+  explainManifest,
+  fixManifest,
+  lineEdits,
+  looksLikeKubernetes,
+} from '@manifestlens/core';
+import type { ExplainResult, FixOptions, FixResult, Rule, Severity } from '@manifestlens/core';
 
 /** Editor-independent description of one squiggle; extension.ts turns these into vscode objects. */
 export interface Problem {
@@ -101,4 +107,39 @@ export function explainAsMarkdown(text: string): string {
     out.push('');
   }
   return out.join('\n');
+}
+
+/** A fix as an editor edit: replace `deleteCount` whole lines from `startLine` (0-based) with `text`. */
+export interface LineReplacement {
+  startLine: number;
+  deleteCount: number;
+  text: string;
+}
+
+export interface PlannedFix {
+  result: FixResult;
+  edits: LineReplacement[];
+}
+
+/** Compute fixes for a document and express them as line edits. Nothing is applied here. */
+export function planFix(text: string, rules: Rule[], options: FixOptions): PlannedFix {
+  const result = fixManifest(text, rules, options);
+  const edits =
+    result.status === 'fixed'
+      ? lineEdits(result.original, result.fixed).map((e) => ({
+          startLine: e.start,
+          deleteCount: e.deleteCount,
+          text: e.insert.join(''),
+        }))
+      : [];
+  return { result, edits };
+}
+
+/** Title for a quick fix, naming the risk when it needs a second look. */
+export function fixTitle(result: FixResult): string | undefined {
+  const first = result.applied[0];
+  if (!first || result.status !== 'fixed') return undefined;
+  const extra = result.applied.length > 1 ? ` (+${result.applied.length - 1} more)` : '';
+  const risk = first.risk === 'low' ? '' : ` [${first.risk} risk: review]`;
+  return `ManifestLens: ${first.summary}${extra}${risk}`;
 }

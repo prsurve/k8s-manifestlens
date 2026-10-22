@@ -37,7 +37,7 @@ fix: 'Add resources.limits.memory, for example: limits: { memory: 256Mi }.'
 | `report`   | no       | Path (or list of paths, first one that exists wins) the finding points at. Defaults to the scope.                                                                |
 | `message`  | yes      | What is wrong. Placeholders: `{kind}`, `{name}`, `{container}`, `{value}`.                                                                                       |
 | `why`      | no       | Why it matters, written for someone new to Kubernetes.                                                                                                           |
-| `fix`      | no       | What to change.                                                                                                                                                  |
+| `fix`      | no       | What to change, as advice for a person.                                                                                                                          |
 
 `scope: pod` and the container scopes work for Pod and Deployment. Paths in `when` are relative to the scope.
 Start a path with `$pod.` to read from the Pod spec instead, for example `$pod.securityContext.runAsNonRoot`.
@@ -58,6 +58,12 @@ Every condition has exactly one operator.
 | `not: condition`             | the condition is false                             |
 
 Add `[]` to a key to look at every item of a list: `present: volumes[].hostPath` is true if any volume has a `hostPath`.
+
+## Letting a rule fix itself
+
+A rule can also carry an `autofix`: a structured change that `manifestlens fix` can preview and apply.
+It is optional. Rules without it behave exactly as before. See [auto-fix.md](auto-fix.md) for the
+fields, risk levels and the checks every fix goes through.
 
 ## Contributing a rule
 

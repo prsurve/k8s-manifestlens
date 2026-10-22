@@ -42,6 +42,10 @@
       {
         "command": "manifestlens.explainFile",
         "title": "ManifestLens: Explain this manifest"
+      },
+      {
+        "command": "manifestlens.fixFile",
+        "title": "ManifestLens: Fix this manifest (preview first)"
       }
     ],
     "configuration": {
@@ -69,6 +73,21 @@
           ],
           "default": "info",
           "description": "Hide findings below this severity."
+        },
+        "manifestlens.fixMaxRisk": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "default": "low",
+          "description": "Highest risk applied by \"Fix this manifest\". The lightbulb quick fixes always offer every fix and show its risk."
+        },
+        "manifestlens.fixPolicy": {
+          "type": "string",
+          "default": "",
+          "description": "YAML file with values for fixes that cannot guess them, for example params: { memoryLimit: 256Mi }. Relative paths are resolved from the workspace folder."
         }
       }
     }

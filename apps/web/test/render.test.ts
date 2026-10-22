@@ -3,12 +3,21 @@ import {
   checkManifest,
   diffManifests,
   explainManifest,
+  fixManifest,
   loadBundledRules,
+  unifiedDiff,
 } from '@manifestlens/core';
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createView, friendlyPath, renderCheck, renderDiff, renderExplain } from '../src/render.js';
+import {
+  createView,
+  friendlyPath,
+  renderCheck,
+  renderDiff,
+  renderExplain,
+  renderFix,
+} from '../src/render.js';
 
 const hostile = [
   'kind: Pod',
@@ -259,5 +268,30 @@ describe('stylesheet', () => {
     // jsdom does not apply CSS, so check the rule that makes `row.hidden = true` work in a browser.
     const css = readFileSync(join(process.cwd(), 'apps/web/src/style.css'), 'utf8');
     expect(css).toMatch(/\[hidden\]\s*\{\s*display:\s*none\s*!important/);
+  });
+});
+
+describe('renderFix', () => {
+  const rules = loadBundledRules();
+  const pod =
+    'kind: Pod\nmetadata:\n  name: "<img src=x onerror=alert(1)>"\nspec:\n  containers:\n    - name: "<b>c</b>"\n      image: x:1\n';
+
+  it('lists the fixes, the diff and a copy button, and never turns YAML into markup', () => {
+    const result = fixManifest(pod, rules, { only: ['allow-privilege-escalation'] });
+    const copy = vi.fn();
+    const root = renderFix(result, unifiedDiff(result.original, result.fixed), copy);
+    expect(root.textContent).toContain('1 fix ready');
+    expect(root.textContent).toContain('allowPrivilegeEscalation: false');
+    expect(root.querySelectorAll('.dl-add').length).toBeGreaterThan(0);
+    expect(injected(root).length).toBe(0);
+    click(root.querySelector('button'));
+    expect(copy).toHaveBeenCalledWith(result.fixed);
+  });
+
+  it('says why fixes were held back', () => {
+    const result = fixManifest(pod, rules, { only: ['missing-memory-limit'], maxRisk: 'medium' });
+    const root = renderFix(result, '');
+    expect(root.textContent).toContain('No fixes to apply');
+    expect(root.textContent).toContain('memoryLimit');
   });
 });

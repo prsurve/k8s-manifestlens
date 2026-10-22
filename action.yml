@@ -91,6 +91,18 @@ inputs:
   label:
     description: Names this run. Matrix jobs should set it so each gets its own summary heading and its own pull request comment.
     required: false
+  suggest-fixes:
+    description: Work out automatic fixes for the findings and list them in the job summary. Nothing in the repository is ever changed. Default is false.
+    required: false
+  fix-patch-file:
+    description: Write all suggested fixes here as one unified diff (apply it with git apply). Implies suggest-fixes. Upload it with actions/upload-artifact. Default is not to write one.
+    required: false
+  fix-max-risk:
+    description: Highest fix risk to suggest, low, medium or high. Default is low.
+    required: false
+  fix-policy:
+    description: YAML file in the repository with values that fixes cannot guess, for example params with memoryLimit. Default is none.
+    required: false
   max-files:
     description: Safety limit on how many files the paths may match. Default is 2000.
     required: false
@@ -125,6 +137,10 @@ outputs:
     description: Path of the JSON report.
   sarif-file:
     description: Path of the SARIF file, or empty if none was written.
+  fixes-available:
+    description: Number of validated automatic fixes (0 when suggest-fixes is off).
+  fix-patch-file:
+    description: Path of the fix patch, or empty if none was written.
 
 runs:
   using: node24

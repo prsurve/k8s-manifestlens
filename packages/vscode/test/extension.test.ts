@@ -133,3 +133,116 @@ describe('explain command', () => {
     expect(state.openedDocuments).toHaveLength(0);
   });
 });
+
+describe('fixes', () => {
+  const pod = `apiVersion: v1
+kind: Pod
+metadata:
+  name: web
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27
+      securityContext:
+        runAsUser: 1000
+`;
+
+  /** The diagnostics ManifestLens published for a document, as the editor passes them to code actions. */
+  function actionsFor(doc: ReturnType<typeof fakeDocument>, code: string) {
+    const diagnostics = (diagnosticsFor(doc.uri.fsPath.slice(1)) ?? []).filter(
+      (d) => d.code === code,
+    );
+    const first = diagnostics[0];
+    if (!first) return [];
+    return (
+      state.codeActionProviders[0]?.provideCodeActions(doc, first.range, { diagnostics }) ?? []
+    );
+  }
+
+  it('offers a quick fix on a fixable finding, with the edit but no application', () => {
+    activate(context() as never);
+    const doc = fakeDocument('q.yaml', 'yaml', pod);
+    state.open.forEach((l) => l(doc));
+    const [action] = actionsFor(doc, 'allow-privilege-escalation');
+    expect(action?.title).toBe(
+      'ManifestLens: Set securityContext.allowPrivilegeEscalation to false.',
+    );
+    expect(action?.edit?.replacements).toHaveLength(1);
+    expect(action?.edit?.replacements[0]?.text).toContain('allowPrivilegeEscalation: false');
+    expect(state.applied).toHaveLength(0);
+  });
+
+  it('labels higher-risk quick fixes and offers none for findings that need input or have no fix', () => {
+    activate(context() as never);
+    const doc = fakeDocument('r.yaml', 'yaml', pod.replace('runAsUser: 1000', 'privileged: true'));
+    state.open.forEach((l) => l(doc));
+    expect(actionsFor(doc, 'privileged-container')[0]?.title).toContain('[high risk: review]');
+    expect(actionsFor(doc, 'missing-memory-limit')).toEqual([]);
+    expect(actionsFor(doc, 'missing-readiness-probe')).toEqual([]);
+  });
+
+  it('fixes only the finding the quick fix was asked for', () => {
+    activate(context() as never);
+    const two = `${pod}    - name: other\n      image: busybox:1.36\n      securityContext:\n        runAsUser: 1000\n`;
+    const doc = fakeDocument('s.yaml', 'yaml', two);
+    state.open.forEach((l) => l(doc));
+    const list = (diagnosticsFor('s.yaml') ?? []).filter(
+      (d) => d.code === 'allow-privilege-escalation',
+    );
+    expect(list).toHaveLength(2);
+    const second = list[1];
+    if (!second) throw new Error('expected two diagnostics');
+    const [action] =
+      state.codeActionProviders[0]?.provideCodeActions(doc, second.range, {
+        diagnostics: [second],
+      }) ?? [];
+    expect(action?.edit?.replacements).toHaveLength(1);
+    expect(action?.edit?.replacements[0]?.range.start.line).toBeGreaterThan(9);
+  });
+
+  it('the fix command shows a preview and applies only after the user confirms', async () => {
+    activate(context() as never);
+    state.activeDocument = fakeDocument('t.yaml', 'yaml', pod);
+    state.choice = undefined;
+    await state.commands.get('manifestlens.fixFile')?.();
+    expect(state.openedDocuments[0]?.content).toContain('allowPrivilegeEscalation: false');
+    expect(state.executed[0]?.[0]).toBe('vscode.diff');
+    expect(state.applied).toHaveLength(0);
+
+    state.choice = 'Apply';
+    await state.commands.get('manifestlens.fixFile')?.();
+    expect(state.applied).toHaveLength(1);
+  });
+
+  it('refuses to apply when the file changed after the preview', async () => {
+    activate(context() as never);
+    const doc = fakeDocument('u.yaml', 'yaml', pod);
+    state.activeDocument = doc;
+    state.choice = 'Apply';
+    const original = doc.getText;
+    let calls = 0;
+    // The first read is for the plan; by the time of the confirmation the buffer has changed.
+    doc.getText = () => (++calls <= 2 ? original() : `${original()}# edited\n`);
+    await state.commands.get('manifestlens.fixFile')?.();
+    expect(state.applied).toHaveLength(0);
+    expect(state.warnings.at(-1)).toContain('changed since the preview');
+  });
+
+  it('only applies fixes up to the configured risk, and says what was held back', async () => {
+    activate(context() as never);
+    state.activeDocument = fakeDocument('v.yaml', 'yaml', example('hardened.yaml'));
+    await state.commands.get('manifestlens.fixFile')?.();
+    expect(state.infos.at(-1)).toContain('no fixes to apply');
+    state.activeDocument = fakeDocument(
+      'w.yaml',
+      'yaml',
+      pod.replace('runAsUser: 1000', 'privileged: true'),
+    );
+    state.settings['fixMaxRisk'] = 'low';
+    state.choice = 'Apply';
+    await state.commands.get('manifestlens.fixFile')?.();
+    expect(state.openedDocuments).toHaveLength(0);
+    expect(state.applied).toHaveLength(0);
+    expect(state.infos.at(-1)).toContain('need review or input');
+  });
+});

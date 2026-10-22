@@ -35,6 +35,10 @@ export const DEFAULTS: Settings = {
   sarifFile: '',
   reportFile: 'manifestlens-report.json',
   label: '',
+  suggestFixes: false,
+  fixPatchFile: '',
+  fixMaxRisk: 'low',
+  fixPolicy: '',
   maxFiles: 2000,
   maxFileSizeKb: 1024,
 };
@@ -85,6 +89,13 @@ const FIELDS: Fields = {
   sarifFile: { name: 'sarif-file', parse: text },
   reportFile: { name: 'report-file', parse: text },
   label: { name: 'label', parse: text },
+  suggestFixes: { name: 'suggest-fixes', parse: (v, n, p) => asBool(v, n, p) },
+  fixPatchFile: { name: 'fix-patch-file', parse: text },
+  fixMaxRisk: {
+    name: 'fix-max-risk',
+    parse: (v, n, p) => asEnum(v, ['low', 'medium', 'high'] as const, n, p),
+  },
+  fixPolicy: { name: 'fix-policy', parse: text },
   maxFiles: { name: 'max-files', parse: (v, n, p) => asInt(v, n, p, 1, 100000) },
   maxFileSizeKb: { name: 'max-file-size-kb', parse: (v, n, p) => asInt(v, n, p, 1, 51200) },
 };
@@ -270,7 +281,14 @@ export function validateSettings(s: Settings): string[] {
   if (s.paths.length === 0) problems.push('paths: needs at least one pattern.');
   if (s.paths.every((p) => p.startsWith('!')))
     problems.push('paths: needs at least one pattern that is not an exclusion (!).');
-  for (const key of ['workingDirectory', 'configFile', 'sarifFile', 'reportFile'] as const) {
+  for (const key of [
+    'workingDirectory',
+    'configFile',
+    'sarifFile',
+    'reportFile',
+    'fixPatchFile',
+    'fixPolicy',
+  ] as const) {
     const value = s[key];
     if (value !== '' && unsafePath(value)) {
       problems.push(

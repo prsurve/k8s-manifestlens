@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -629,4 +630,129 @@ it('cleans up: the example repo files are unchanged by running the action', asyn
   await runAction({ workspace: dir });
   expect(readFileSync(join(dir, 'a.yaml'), 'utf8')).toBe(risky);
   expect(existsSync(join(dir, 'manifestlens-report.json'))).toBe(true);
+});
+
+describe('fix suggestions', () => {
+  const pod = (extra = '') =>
+    `apiVersion: v1\nkind: Pod\nmetadata:\n  name: web\nspec:\n  containers:\n    - name: app\n      image: nginx:1.27\n      securityContext:\n        runAsUser: 1000\n${extra}`;
+
+  it('is off by default: no new section, no new report key, no files', async () => {
+    const r = await runAction({ files: { 'a.yaml': pod() } });
+    expect(r.summary).not.toContain('Suggested fixes');
+    expect(r.outputs['fixes-available']).toBe('0');
+    expect(r.outputs['fix-patch-file']).toBe('');
+    const report = JSON.parse(readFileSync(r.outputs['report-file'] as string, 'utf8'));
+    expect(report).not.toHaveProperty('fixes');
+  });
+
+  it('lists fixes in the summary and report without touching any file', async () => {
+    const files = { 'a.yaml': pod() };
+    const r = await runAction({ files, inputs: { 'suggest-fixes': 'true' } });
+    expect(r.summary).toContain('### Suggested fixes');
+    expect(r.summary).toContain('Nothing was changed');
+    expect(r.summary).toContain('allow-privilege-escalation');
+    expect(r.outputs['fixes-available']).toBe('1');
+    expect(r.outputs['fix-patch-file']).toBe('');
+    expect(readFileSync(join(r.workspace, 'a.yaml'), 'utf8')).toBe(files['a.yaml']);
+    const report = JSON.parse(readFileSync(r.outputs['report-file'] as string, 'utf8'));
+    expect(report.fixes).toMatchObject({ available: 1, heldBack: 1, maxRisk: 'low' });
+    expect(report.fixes.files[0].applied[0].ruleId).toBe('allow-privilege-escalation');
+    expect(report.fixes.files[0]).not.toHaveProperty('patch');
+    expect(report.counts.total).toBe(report.findings.length); // findings unchanged
+  });
+
+  it('writes a patch that git apply accepts, and leaves the file as it was', async () => {
+    const files = { 'k8s/a.yaml': pod() };
+    const r = await runAction({ files, inputs: { 'fix-patch-file': 'out/fixes.patch' } });
+    const patchPath = join(r.workspace, 'out/fixes.patch');
+    expect(r.outputs['fix-patch-file']).toBe(patchPath);
+    const patch = readFileSync(patchPath, 'utf8');
+    expect(patch).toContain('--- a/k8s/a.yaml\n+++ b/k8s/a.yaml\n');
+    expect(patch).toContain('+        allowPrivilegeEscalation: false');
+    const check = spawnSync('git', ['apply', '--check', patchPath], {
+      cwd: r.workspace,
+      encoding: 'utf8',
+    });
+    expect(check.stderr).toBe('');
+    expect(check.status).toBe(0);
+    expect(readFileSync(join(r.workspace, 'k8s/a.yaml'), 'utf8')).toBe(files['k8s/a.yaml']);
+  });
+
+  it('writes an empty patch when there is nothing to fix, so an upload step still finds a file', async () => {
+    const r = await runAction({
+      files: { 'a.yaml': example('hardened.yaml') },
+      inputs: { 'fix-patch-file': 'fixes.patch' },
+    });
+    expect(readFileSync(join(r.workspace, 'fixes.patch'), 'utf8')).toBe('');
+    expect(r.summary).toContain('No automatic fixes apply');
+  });
+
+  it('does not fix what ignores and disabled rules silence', async () => {
+    // The finding points at the container's first key when the field is missing.
+    const text = pod().replace(
+      '    - name: app',
+      '    # manifestlens-ignore: allow-privilege-escalation\n    - name: app',
+    );
+    const inline = await runAction({
+      files: { 'a.yaml': text },
+      inputs: { 'suggest-fixes': 'true' },
+    });
+    expect(inline.outputs['fixes-available']).toBe('0');
+    const disabled = await runAction({
+      files: { 'a.yaml': pod() },
+      inputs: { 'suggest-fixes': 'true', 'disable-rules': 'allow-privilege-escalation' },
+    });
+    expect(disabled.outputs['fixes-available']).toBe('0');
+  });
+
+  it('holds back risky fixes until the risk is raised, and reads values from a policy file', async () => {
+    const files = {
+      'a.yaml': pod().replace('runAsUser: 1000', 'privileged: true'),
+      'policy.yaml': 'params:\n  memoryLimit: 256Mi\n',
+    };
+    const low = await runAction({ files, inputs: { 'suggest-fixes': 'true' } });
+    expect(low.summary).toContain('held back');
+    expect(low.summary).toContain('--max-risk high');
+    const high = await runAction({
+      files,
+      inputs: { 'suggest-fixes': 'true', 'fix-max-risk': 'high', 'fix-policy': 'policy.yaml' },
+    });
+    const report = JSON.parse(readFileSync(high.outputs['report-file'] as string, 'utf8'));
+    const rulesFixed = report.fixes.files[0].applied.map((a: { ruleId: string }) => a.ruleId);
+    expect(rulesFixed).toContain('privileged-container');
+    expect(rulesFixed).toContain('missing-memory-limit');
+  });
+
+  it('rejects a fix policy outside the repository or with bad content', async () => {
+    const outside = await runAction({
+      files: { 'a.yaml': pod() },
+      inputs: { 'suggest-fixes': 'true', 'fix-policy': '../policy.yaml' },
+    });
+    expect(outside.exitCode).toBe(1);
+    const bad = await runAction({
+      files: { 'a.yaml': pod(), 'p.yaml': 'params: 3' },
+      inputs: { 'suggest-fixes': 'true', 'fix-policy': 'p.yaml' },
+    });
+    expect(bad.exitCode).toBe(1);
+    expect(bad.log).toContain('"params" must be a mapping');
+    const missing = await runAction({
+      files: { 'a.yaml': pod() },
+      inputs: { 'suggest-fixes': 'true', 'fix-policy': 'nope.yaml' },
+    });
+    expect(missing.exitCode).toBe(1);
+  });
+
+  it('does not change the verdict', async () => {
+    const plain = await runAction({ files: { 'a.yaml': risky } });
+    const withFixes = await runAction({
+      files: { 'a.yaml': risky },
+      inputs: { 'suggest-fixes': 'true' },
+    });
+    expect(withFixes.outputs).toMatchObject({
+      result: plain.outputs['result'],
+      findings: plain.outputs['findings'],
+      errors: plain.outputs['errors'],
+    });
+    expect(withFixes.exitCode).toBe(plain.exitCode);
+  });
 });

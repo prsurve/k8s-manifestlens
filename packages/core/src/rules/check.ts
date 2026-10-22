@@ -7,7 +7,7 @@ import type { CheckResult, CheckedDocument, Finding, Rule, RuleScope } from './t
 
 const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 } as const;
 
-interface ScopeInstance {
+export interface ScopeInstance {
   /** Path of the scope inside the document, `''` for the whole document. */
   path: string;
   data: unknown;
@@ -20,17 +20,18 @@ export function checkManifest(source: string, rules: Rule[]): CheckResult {
   return { documents: parseManifest(source).map((doc) => checkDocument(doc, rules)) };
 }
 
-function checkDocument(doc: ManifestDocument, rules: Rule[]): CheckedDocument {
-  const checked: CheckedDocument = {
-    index: doc.index,
-    startLine: doc.startLine,
-    issues: doc.issues,
-    findings: [],
-    ...(doc.apiVersion !== undefined ? { apiVersion: doc.apiVersion } : {}),
-    ...(doc.kind !== undefined ? { kind: doc.kind } : {}),
-    ...(doc.name !== undefined ? { name: doc.name } : {}),
-  };
-  if (!doc.data || !doc.kind) return checked;
+/** One rule that fired, with the scope instance and evaluation context it fired in. */
+export interface RuleMatch {
+  rule: Rule;
+  instance: ScopeInstance;
+  ctx: EvalContext;
+  finding: Finding;
+}
+
+/** Evaluate rules against one document. Matches come in rule order, then scope order. */
+export function matchRules(doc: ManifestDocument, rules: Rule[]): RuleMatch[] {
+  const matches: RuleMatch[] = [];
+  if (!doc.data || !doc.kind) return matches;
 
   const kind = doc.kind;
   const fieldsByPath = new Map<string, FieldNode>(doc.fields.map((f) => [f.path, f]));
@@ -43,10 +44,28 @@ function checkDocument(doc: ManifestDocument, rules: Rule[]): CheckedDocument {
       for (const instance of scopeInstances(scope, doc.data, podPath, podData)) {
         const ctx: EvalContext = { scope: instance.data, pod: podData };
         if (!evaluate(rule.when, ctx)) continue;
-        checked.findings.push(buildFinding(rule, instance, ctx, doc, podPath, fieldsByPath));
+        matches.push({
+          rule,
+          instance,
+          ctx,
+          finding: buildFinding(rule, instance, ctx, doc, podPath, fieldsByPath),
+        });
       }
     }
   }
+  return matches;
+}
+
+function checkDocument(doc: ManifestDocument, rules: Rule[]): CheckedDocument {
+  const checked: CheckedDocument = {
+    index: doc.index,
+    startLine: doc.startLine,
+    issues: doc.issues,
+    findings: matchRules(doc, rules).map((m) => m.finding),
+    ...(doc.apiVersion !== undefined ? { apiVersion: doc.apiVersion } : {}),
+    ...(doc.kind !== undefined ? { kind: doc.kind } : {}),
+    ...(doc.name !== undefined ? { name: doc.name } : {}),
+  };
   checked.findings.sort(
     (a, b) =>
       a.line - b.line ||

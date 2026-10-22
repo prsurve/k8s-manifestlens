@@ -4,7 +4,16 @@ import type { Rule } from './types.js';
 
 export { checkManifest } from './check.js';
 export { RuleError, parseRules } from './load.js';
-export type { CheckResult, CheckedDocument, Finding, Rule, Severity } from './types.js';
+export type {
+  CheckResult,
+  CheckedDocument,
+  Finding,
+  FixRisk,
+  FixSet,
+  FixSpec,
+  Rule,
+  Severity,
+} from './types.js';
 
 /** The rules that ship with ManifestLens. */
 export function loadBundledRules(): Rule[] {

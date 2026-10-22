@@ -22,3 +22,9 @@ report: spec.type
 message: 'Service "{name}" creates a load balancer that accepts traffic from any address.'
 why: By default a LoadBalancer Service is reachable from the whole internet (on most clouds).
 fix: Set spec.loadBalancerSourceRanges to the IP ranges that should have access.
+autofix:
+  risk: medium
+  summary: Set spec.loadBalancerSourceRanges to the loadBalancerSourceRanges from the fix policy.
+  set:
+    spec.loadBalancerSourceRanges:
+      { $param: loadBalancerSourceRanges, pattern: '^[0-9A-Fa-f:.]+/[0-9]{1,3}$' }

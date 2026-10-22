@@ -1,6 +1,7 @@
 import type { Rule, Severity } from '@manifestlens/core';
 import type { Base } from './base.js';
 import type { Verdict } from './evaluate.js';
+import type { FixSuggestions } from './fixes.js';
 import { thresholds } from './settings.js';
 import type { Analysis, LocatedFinding, SettingKey, Settings, Source } from './types.js';
 
@@ -15,6 +16,10 @@ export interface RunInfo {
   rules: Rule[];
   matchedFiles: number;
   skipped: { path: string; reason: string }[];
+  /** Present only when `suggest-fixes` is on. */
+  fixes?: FixSuggestions;
+  /** Where the patch was written, when it was. */
+  fixPatchPath?: string;
 }
 
 const REPO_URL = 'https://github.com/prsurve/manifestlens';
@@ -171,6 +176,8 @@ export function buildSummary(info: RunInfo): string {
     out.push('', ...howToFix(a.findings), '');
   }
 
+  if (info.fixes) out.push(...fixSection(info), '');
+
   if (a.changes.length > 0) {
     out.push('### What this change does', '');
     for (const c of a.changes.slice(0, 40)) {
@@ -202,6 +209,47 @@ export function buildSummary(info: RunInfo): string {
 }
 
 /** One entry per rule that fired, so the fix is not repeated for every finding. */
+/** What the fix engine could do, as a table. The repository is never touched. */
+function fixSection(info: RunInfo): string[] {
+  const f = info.fixes as FixSuggestions;
+  const out = ['### Suggested fixes', ''];
+  if (f.available === 0 && f.heldBack === 0) {
+    out.push('No automatic fixes apply to these findings.');
+    return out;
+  }
+  out.push(
+    `${plural(f.available, 'fix')} checked and ready (up to ${f.maxRisk} risk)${f.heldBack ? `; ${plural(f.heldBack, 'more')} held back` : ''}. **Nothing was changed.**`,
+    '',
+  );
+  if (f.available > 0) {
+    out.push('| File | Line | Rule | Risk | Change |', '| --- | ---: | --- | --- | --- |');
+    for (const file of f.files) {
+      for (const a of file.applied.slice(0, 100)) {
+        out.push(
+          `| ${code(file.file)} | ${a.line} | ${code(a.ruleId)} | ${a.risk} | ${md(a.summary)} |`,
+        );
+      }
+    }
+    out.push('');
+  }
+  const held = f.files.flatMap((file) => file.skipped.map((s) => ({ file: file.file, s })));
+  if (held.length > 0) {
+    out.push('Held back:', '');
+    for (const { file, s } of held.slice(0, 50)) {
+      out.push(
+        `- ${code(`${file}:${s.line}`)} ${code(s.ruleId)} (${s.risk} risk): ${md(s.detail)}`,
+      );
+    }
+    out.push('');
+  }
+  out.push(
+    info.fixPatchPath
+      ? `Review the patch (${code(info.settings.fixPatchFile)}, upload it with \`actions/upload-artifact\`) and apply it locally with \`git apply\`.`
+      : 'Set `fix-patch-file` to also write these fixes as a patch you can review and apply with `git apply`.',
+  );
+  return out;
+}
+
 function howToFix(findings: LocatedFinding[]): string[] {
   const seen = new Map<string, LocatedFinding>();
   for (const f of findings) if (!seen.has(f.ruleId)) seen.set(f.ruleId, f);
@@ -280,6 +328,12 @@ export function buildComment(info: RunInfo, marker: string, runUrl: string | nul
       out.push(`- **${md(c.object)}**: ${md([...c.notes, ...c.effects][0] ?? c.status)}`);
     out.push('');
   }
+  if (info.fixes && info.fixes.available > 0) {
+    out.push(
+      `**${plural(info.fixes.available, 'automatic fix')}** available. Nothing was changed; see the job summary.`,
+      '',
+    );
+  }
   out.push(runUrl ? `[Full report and how to fix](${runUrl})` : '');
   return out.join('\n').slice(0, MAX_COMMENT_CHARS);
 }
@@ -352,5 +406,20 @@ export function buildReport(info: RunInfo): object {
     parseProblems: a.parseProblems,
     changes: a.changes,
     sources: info.sources,
+    ...(info.fixes
+      ? {
+          fixes: {
+            maxRisk: info.fixes.maxRisk,
+            available: info.fixes.available,
+            heldBack: info.fixes.heldBack,
+            patchFile: info.fixPatchPath ?? null,
+            files: info.fixes.files.map((f) => ({
+              file: f.file,
+              applied: f.applied,
+              skipped: f.skipped,
+            })),
+          },
+        }
+      : {}),
   };
 }
