@@ -39,8 +39,6 @@ settings ([all options](docs/github-action.md), [Marketplace](https://github.com
   (`packages/vscode`). It shows the findings as warnings in the editor, explains fields on
   hover and adds an "Explain this manifest" command.
 
-See [PLAN.md](PLAN.md) for the roadmap.
-
 ## Try it locally
 
 ```sh
