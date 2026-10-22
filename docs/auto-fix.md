@@ -120,6 +120,7 @@ autofix:
   risk: low # low, medium or high
   summary: Label the Pod with the platform team.
   requires: { missing: metadata.labels } # optional, same syntax as `when`
+  blocked: Pod already has labels, so add the team label by hand. # optional, shown when `requires` is false
   set:
     metadata.labels.team: platform
     resources.limits.memory: { $param: memoryLimit, pattern: '^[1-9][0-9]*(Mi|Gi)$' }

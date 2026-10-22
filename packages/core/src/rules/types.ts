@@ -32,6 +32,8 @@ export interface FixSpec {
   summary: string;
   /** Extra preconditions, evaluated like `when` in the rule's scope. The fix is skipped if false. */
   requires?: Condition;
+  /** Shown when `requires` is false, so the reason is specific ("runAsUser is 0"). */
+  blockedMessage?: string;
   set: FixSet[];
 }
 

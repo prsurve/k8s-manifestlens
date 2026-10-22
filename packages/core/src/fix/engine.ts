@@ -113,7 +113,7 @@ function resolveValues(
     if (!Object.hasOwn(params, set.param)) {
       return {
         reason: 'needs-input',
-        detail: `Needs the policy parameter "${set.param}" (--policy file, "params:").`,
+        detail: `Needs the policy value "${set.param}": add it under "params:" in the fix policy.`,
       };
     }
     const value = params[set.param];
@@ -275,7 +275,7 @@ function attempt(
   if (spec.requires && !evaluate(spec.requires, candidate.match.ctx)) {
     return skip(
       'precondition-failed',
-      'The surrounding settings make this fix unsafe or ambiguous.',
+      spec.blockedMessage ?? 'The surrounding settings make this fix unsafe or ambiguous.',
     );
   }
   const resolved = resolveValues(spec, ctx.params);

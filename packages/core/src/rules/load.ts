@@ -105,7 +105,7 @@ function toRule(raw: Record<string, unknown>, origin: string, position: number):
 }
 
 const FIX_RISKS: FixRisk[] = ['low', 'medium', 'high'];
-const FIX_KEYS = ['risk', 'summary', 'requires', 'set'];
+const FIX_KEYS = ['risk', 'summary', 'requires', 'blocked', 'set'];
 const FIX_PATH = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/;
 
 function toFixSpec(raw: unknown, fail: (msg: string) => never): FixSpec {
@@ -123,6 +123,9 @@ function toFixSpec(raw: unknown, fail: (msg: string) => never): FixSpec {
     fail('"autofix.summary" is required.');
   }
   const summary = (obj.summary as string).trim();
+  if (obj.blocked !== undefined && (typeof obj.blocked !== 'string' || obj.blocked.trim() === '')) {
+    fail('"autofix.blocked" must be a non-empty string.');
+  }
   const set = obj.set;
   if (
     set === null ||
@@ -167,6 +170,7 @@ function toFixSpec(raw: unknown, fail: (msg: string) => never): FixSpec {
     risk: obj.risk as FixRisk,
     summary,
     ...(obj.requires !== undefined ? { requires: toCondition(obj.requires, fail) } : {}),
+    ...(obj.blocked !== undefined ? { blockedMessage: (obj.blocked as string).trim() } : {}),
     set: sets,
   };
 }

@@ -614,3 +614,27 @@ describe('the shipped example', () => {
     expect(r.fixed).toContain('privileged: false');
   });
 });
+
+describe('skip messages', () => {
+  it('names the setting that blocks a fix, and where a missing value goes', () => {
+    const root = POD('      securityContext:\n        runAsUser: 0\n');
+    const blocked = fixManifest(root, rules, only('may-run-as-root', { maxRisk: 'medium' }));
+    expect(blocked.skipped[0]?.detail).toContain('runAsUser is 0');
+    const needs = fixManifest(POD(''), rules, only('missing-memory-limit', { maxRisk: 'medium' }));
+    expect(needs.skipped[0]?.detail).toBe(
+      'Needs the policy value "memoryLimit": add it under "params:" in the fix policy.',
+    );
+  });
+
+  it('accepts and validates a blocked message in rule files', () => {
+    const base =
+      "id: r\ntitle: t\nseverity: info\nkinds: ['*']\nwhen: { missing: a }\nmessage: m\n";
+    const ok = parseRules(
+      `${base}autofix: { risk: low, summary: s, blocked: why, set: { a: 1 } }\n`,
+    );
+    expect(ok[0]?.autofix?.blockedMessage).toBe('why');
+    expect(() =>
+      parseRules(`${base}autofix: { risk: low, summary: s, blocked: 3, set: { a: 1 } }\n`),
+    ).toThrow(/autofix.blocked/);
+  });
+});

@@ -27,6 +27,7 @@ fix: 'Add resources.limits.memory, for example: limits: { memory: 256Mi }.'
 autofix:
   risk: medium
   summary: Set resources.limits.memory to the memoryLimit from the fix policy.
+  blocked: 'The container sets a memory request, and the limit must not be below it. Set the limit yourself.'
   requires:
     missing: resources.requests.memory
   set:
@@ -119,6 +120,7 @@ fix: Set securityContext.runAsNonRoot to true (on the container or on the Pod), 
 autofix:
   risk: medium
   summary: Set securityContext.runAsNonRoot to true.
+  blocked: 'runAsUser is 0 or runAsNonRoot is false, which contradicts runAsNonRoot: true. Choose a non-root user ID yourself.'
   requires:
     all:
       - not: { equals: { securityContext.runAsUser: 0 } }
@@ -142,6 +144,7 @@ fix: Set securityContext.allowPrivilegeEscalation to false.
 autofix:
   risk: low
   summary: Set securityContext.allowPrivilegeEscalation to false.
+  blocked: 'The container is privileged or adds SYS_ADMIN, which needs privilege escalation.'
   requires:
     all:
       - not: { equals: { securityContext.privileged: true } }

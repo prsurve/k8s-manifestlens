@@ -27540,6 +27540,7 @@ fix: 'Add resources.limits.memory, for example: limits: { memory: 256Mi }.'
 autofix:
   risk: medium
   summary: Set resources.limits.memory to the memoryLimit from the fix policy.
+  blocked: 'The container sets a memory request, and the limit must not be below it. Set the limit yourself.'
   requires:
     missing: resources.requests.memory
   set:
@@ -27632,6 +27633,7 @@ fix: Set securityContext.runAsNonRoot to true (on the container or on the Pod), 
 autofix:
   risk: medium
   summary: Set securityContext.runAsNonRoot to true.
+  blocked: 'runAsUser is 0 or runAsNonRoot is false, which contradicts runAsNonRoot: true. Choose a non-root user ID yourself.'
   requires:
     all:
       - not: { equals: { securityContext.runAsUser: 0 } }
@@ -27655,6 +27657,7 @@ fix: Set securityContext.allowPrivilegeEscalation to false.
 autofix:
   risk: low
   summary: Set securityContext.allowPrivilegeEscalation to false.
+  blocked: 'The container is privileged or adds SYS_ADMIN, which needs privilege escalation.'
   requires:
     all:
       - not: { equals: { securityContext.privileged: true } }
@@ -27847,7 +27850,7 @@ function toRule(raw, origin, position) {
   return rule;
 }
 var FIX_RISKS = ["low", "medium", "high"];
-var FIX_KEYS = ["risk", "summary", "requires", "set"];
+var FIX_KEYS = ["risk", "summary", "requires", "blocked", "set"];
 var FIX_PATH = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/;
 function toFixSpec(raw, fail) {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
@@ -27864,6 +27867,9 @@ function toFixSpec(raw, fail) {
     fail('"autofix.summary" is required.');
   }
   const summary2 = obj.summary.trim();
+  if (obj.blocked !== void 0 && (typeof obj.blocked !== "string" || obj.blocked.trim() === "")) {
+    fail('"autofix.blocked" must be a non-empty string.');
+  }
   const set = obj.set;
   if (set === null || typeof set !== "object" || Array.isArray(set) || Object.keys(set).length === 0) {
     return fail('"autofix.set" must be a non-empty mapping of path to value.');
@@ -27897,6 +27903,7 @@ function toFixSpec(raw, fail) {
     risk: obj.risk,
     summary: summary2,
     ...obj.requires !== void 0 ? { requires: toCondition(obj.requires, fail) } : {},
+    ...obj.blocked !== void 0 ? { blockedMessage: obj.blocked.trim() } : {},
     set: sets
   };
 }
@@ -28355,7 +28362,7 @@ function resolveValues(spec, params) {
     if (!Object.hasOwn(params, set.param)) {
       return {
         reason: "needs-input",
-        detail: `Needs the policy parameter "${set.param}" (--policy file, "params:").`
+        detail: `Needs the policy value "${set.param}": add it under "params:" in the fix policy.`
       };
     }
     const value = params[set.param];
@@ -28467,7 +28474,7 @@ function attempt(text2, state, candidate, rules, ctx) {
   if (spec.requires && !evaluate(spec.requires, candidate.match.ctx)) {
     return skip(
       "precondition-failed",
-      "The surrounding settings make this fix unsafe or ambiguous."
+      spec.blockedMessage ?? "The surrounding settings make this fix unsafe or ambiguous."
     );
   }
   const resolved = resolveValues(spec, ctx.params);
