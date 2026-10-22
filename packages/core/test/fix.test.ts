@@ -147,9 +147,7 @@ describe('fixManifest: the supported fixes', () => {
   it('sets allowPrivilegeEscalation, creating securityContext', () => {
     const r = fixManifest(POD(''), rules, only('allow-privilege-escalation'));
     expect(r.status).toBe('fixed');
-    expect(r.fixed).toBe(
-      POD('      securityContext:\n        allowPrivilegeEscalation: false\n').replace(/^$/m, ''),
-    );
+    expect(r.fixed).toBe(POD('      securityContext:\n        allowPrivilegeEscalation: false\n'));
     expect(r.applied).toHaveLength(1);
     expect(r.applied[0]).toMatchObject({
       ruleId: 'allow-privilege-escalation',
