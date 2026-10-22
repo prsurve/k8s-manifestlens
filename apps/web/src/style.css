@@ -14,6 +14,8 @@
   --warning-bg: #fff3d1;
   --info: #1f5fa8;
   --info-bg: #e5effa;
+  --ok: #1a6b32;
+  --ok-bg: #e3f4e8;
   --add: #12703a;
   --add-bg: #e3f5ea;
   --remove: #b42318;
@@ -48,6 +50,8 @@
     --warning-bg: #3a2f14;
     --info: #8bb9f2;
     --info-bg: #17283d;
+    --ok: #7ee2a0;
+    --ok-bg: #16301f;
     --add: #63d584;
     --add-bg: #16311f;
     --remove: #ff8f85;
@@ -72,6 +76,8 @@
   --warning-bg: #3a2f14;
   --info: #8bb9f2;
   --info-bg: #17283d;
+  --ok: #7ee2a0;
+  --ok-bg: #16301f;
   --add: #63d584;
   --add-bg: #16311f;
   --remove: #ff8f85;
@@ -529,6 +535,21 @@ a.docs {
 .sev-info .badge {
   background: var(--info-bg);
   color: var(--info);
+}
+.issue .badge {
+  display: inline-block;
+}
+.risk-low .badge {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.risk-medium .badge {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.risk-high .badge {
+  background: var(--error-bg);
+  color: var(--error);
 }
 .msg {
   flex: 1;

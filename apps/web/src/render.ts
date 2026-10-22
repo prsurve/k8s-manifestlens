@@ -467,9 +467,9 @@ export function renderFix(result: FixResult, diff: string, actions: FixActions =
       el('section', { class: 'doc' }, [
         el('h2', { text: 'Would change' }),
         ...result.applied.map((a) =>
-          el('details', { class: 'finding' }, [
+          el('details', { class: `finding risk-${a.risk}` }, [
             el('summary', {}, [
-              el('span', { class: 'badge', text: a.risk }),
+              el('span', { class: 'badge', text: `${a.risk} risk` }),
               ` Line ${a.line}: ${a.ruleId}`,
             ]),
             el('p', { text: a.summary }),
@@ -486,10 +486,10 @@ export function renderFix(result: FixResult, diff: string, actions: FixActions =
       el('section', { class: 'doc' }, [
         el('h2', { text: 'Not applied' }),
         ...result.skipped.map((s) =>
-          el('p', {
-            class: 'issue',
-            text: `Line ${s.line}: ${s.ruleId} (${s.risk} risk): ${s.detail}`,
-          }),
+          el('p', { class: `issue risk-${s.risk}` }, [
+            el('span', { class: 'badge', text: `${s.risk} risk` }),
+            ` Line ${s.line}: ${s.ruleId}: ${s.detail}`,
+          ]),
         ),
       ]),
     );

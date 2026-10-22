@@ -284,6 +284,7 @@ describe('renderFix', () => {
     expect(root.textContent).toContain('1 fix ready');
     expect(root.textContent).toContain('allowPrivilegeEscalation: false');
     expect(root.querySelectorAll('.dl-add').length).toBeGreaterThan(0);
+    expect(root.querySelector('details.risk-low .badge')?.textContent).toBe('low risk');
     expect(injected(root).length).toBe(0);
     const buttons = [...root.querySelectorAll('button')];
     expect(buttons.map((b) => b.textContent)).toEqual(['Apply to input', 'Copy fixed manifest']);
@@ -314,5 +315,6 @@ describe('renderFix', () => {
     const root = renderFix(result, '');
     expect(root.textContent).toContain('No fixes to apply');
     expect(root.textContent).toContain('memoryLimit');
+    expect(root.querySelector('.issue.risk-medium .badge')?.textContent).toBe('medium risk');
   });
 });
