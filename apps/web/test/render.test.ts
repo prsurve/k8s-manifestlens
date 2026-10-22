@@ -279,13 +279,34 @@ describe('renderFix', () => {
   it('lists the fixes, the diff and a copy button, and never turns YAML into markup', () => {
     const result = fixManifest(pod, rules, { only: ['allow-privilege-escalation'] });
     const copy = vi.fn();
-    const root = renderFix(result, unifiedDiff(result.original, result.fixed), copy);
+    const apply = vi.fn();
+    const root = renderFix(result, unifiedDiff(result.original, result.fixed), { copy, apply });
     expect(root.textContent).toContain('1 fix ready');
     expect(root.textContent).toContain('allowPrivilegeEscalation: false');
     expect(root.querySelectorAll('.dl-add').length).toBeGreaterThan(0);
     expect(injected(root).length).toBe(0);
-    click(root.querySelector('button'));
+    const buttons = [...root.querySelectorAll('button')];
+    expect(buttons.map((b) => b.textContent)).toEqual(['Apply to input', 'Copy fixed manifest']);
+    click(buttons[0]);
+    expect(apply).toHaveBeenCalledWith(result.fixed);
+    click(buttons[1]);
     expect(copy).toHaveBeenCalledWith(result.fixed);
+  });
+
+  it('offers undo only when given one, and never applies by itself', () => {
+    const result = fixManifest(pod, rules, { only: ['allow-privilege-escalation'] });
+    const apply = vi.fn();
+    const undo = vi.fn();
+    const root = renderFix(result, '', { apply, undo });
+    expect(apply).not.toHaveBeenCalled();
+    const labels = [...root.querySelectorAll('button')].map((b) => b.textContent);
+    expect(labels).toContain('Undo last apply');
+    click([...root.querySelectorAll('button')].find((b) => b.textContent === 'Undo last apply'));
+    expect(undo).toHaveBeenCalled();
+    const none = fixManifest(pod, rules, { only: ['missing-memory-limit'], maxRisk: 'medium' });
+    expect(renderFix(none, '', { undo }).querySelector('button')?.textContent).toBe(
+      'Undo last apply',
+    );
   });
 
   it('says why fixes were held back', () => {

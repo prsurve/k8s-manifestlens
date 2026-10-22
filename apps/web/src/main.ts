@@ -90,6 +90,9 @@ function show(output: HTMLElement, content: HTMLElement): void {
   output.scrollTop = top;
 }
 
+/** The Fix input as it was before the last "Apply to input", so it can be undone. */
+let beforeApply: string | undefined;
+
 /** The policy the user typed, or undefined (with the error shown) when it is not valid. */
 function currentPolicy(): FixPolicy | undefined {
   const text = input('fix-policy').value;
@@ -147,8 +150,22 @@ function update(tab: Tab): void {
       renderFix(
         result,
         unifiedDiff(result.original, result.fixed, 'a/manifest.yaml', 'b/manifest.yaml'),
-        (text) => {
-          void navigator.clipboard?.writeText(text);
+        {
+          copy: (text) => void navigator.clipboard?.writeText(text),
+          apply: (text) => {
+            beforeApply = input('fix-input').value;
+            input('fix-input').value = text;
+            update('fix');
+          },
+          ...(beforeApply !== undefined
+            ? {
+                undo: () => {
+                  input('fix-input').value = beforeApply ?? '';
+                  beforeApply = undefined;
+                  update('fix');
+                },
+              }
+            : {}),
         },
       ),
     );
@@ -240,6 +257,8 @@ function init(): void {
   });
 
   $('fix-risk').addEventListener('change', refresh);
+  // Typing starts a new edit: the old undo point no longer makes sense.
+  input('fix-input').addEventListener('input', () => (beforeApply = undefined));
 
   const fromHash = (): Tab => {
     const hash = location.hash.slice(1) as Tab;

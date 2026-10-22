@@ -415,11 +415,21 @@ export function renderDiff(result: DiffResult, view: View = createView()): HTMLE
  * A preview of fixes: what would change, what was held back and why, and the diff. Nothing is
  * applied in the browser; the user copies the fixed manifest if they want it.
  */
-export function renderFix(
-  result: FixResult,
-  diff: string,
-  copy: (text: string) => void = () => undefined,
-): HTMLElement {
+function button(label: string, onClick: () => void): HTMLElement {
+  const b = el('button', { class: 'text-btn', text: label, attrs: { type: 'button' } });
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+/** What the Fix tab can do with a result. Applying only edits the text box; undo puts it back. */
+export interface FixActions {
+  copy?: (text: string) => void;
+  apply?: (text: string) => void;
+  /** Present right after an apply, to restore the text from before it. */
+  undo?: () => void;
+}
+
+export function renderFix(result: FixResult, diff: string, actions: FixActions = {}): HTMLElement {
   const root = el('div');
   const n = result.applied.length;
 
@@ -429,15 +439,21 @@ export function renderFix(
       ...result.validation.problems.map((p) => el('p', { class: 'issue', text: p })),
     );
   } else if (n === 0) {
-    root.append(el('p', { class: 'summary', text: 'No fixes to apply.' }));
+    root.append(
+      toolbar(
+        el('p', { class: 'summary', text: 'No fixes to apply.' }),
+        actions.undo ? button('Undo last apply', actions.undo) : false,
+      ),
+    );
   } else {
     root.append(
       toolbar(
         el('p', { class: 'summary', text: `${plural(n, 'fix')} ready` }),
-        el('button', { class: 'text-btn', text: 'Copy fixed manifest', attrs: { type: 'button' } }),
+        button('Apply to input', () => actions.apply?.(result.fixed)),
+        button('Copy fixed manifest', () => actions.copy?.(result.fixed)),
+        actions.undo ? button('Undo last apply', actions.undo) : false,
       ),
     );
-    root.querySelector('button')?.addEventListener('click', () => copy(result.fixed));
     root.append(
       el('p', {
         class: 'note',
