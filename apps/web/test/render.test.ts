@@ -5,9 +5,11 @@ import {
   explainManifest,
   fixManifest,
   loadBundledRules,
+  parseFixPolicy,
   unifiedDiff,
 } from '@manifestlens/core';
 import { describe, expect, it, vi } from 'vitest';
+import { fixExamples } from '../src/examples.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -286,7 +288,7 @@ describe('renderFix', () => {
     expect(root.querySelectorAll('.dl-add').length).toBeGreaterThan(0);
     expect(root.querySelector('details.risk-low .badge')?.textContent).toBe('low risk');
     expect(injected(root).length).toBe(0);
-    const buttons = [...root.querySelectorAll('button')];
+    const buttons = [...root.querySelectorAll('button.text-btn')];
     expect(buttons.map((b) => b.textContent)).toEqual(['Apply to input', 'Copy fixed manifest']);
     click(buttons[0]);
     expect(apply).toHaveBeenCalledWith(result.fixed);
@@ -316,5 +318,50 @@ describe('renderFix', () => {
     expect(root.textContent).toContain('No fixes to apply');
     expect(root.textContent).toContain('memoryLimit');
     expect(root.querySelector('.issue.risk-medium .badge')?.textContent).toBe('medium risk');
+  });
+});
+
+describe('fix examples', () => {
+  const rules = loadBundledRules();
+  const run = (name: keyof typeof fixExamples) => {
+    const example = fixExamples[name];
+    const policy = example.policy ? parseFixPolicy(example.policy) : undefined;
+    return fixManifest(example.text, rules, {
+      maxRisk: example.risk,
+      ...(policy ? { policy } : {}),
+    });
+  };
+  const order = { low: 0, medium: 1, high: 2 } as const;
+  const top = (name: keyof typeof fixExamples) =>
+    Math.max(...run(name).applied.map((a) => order[a.risk]));
+
+  it('low, medium and high each end at the risk they are named for', () => {
+    expect(top('low')).toBe(0);
+    expect(top('medium')).toBe(1);
+    expect(top('high')).toBe(2);
+    for (const name of ['low', 'medium', 'high'] as const) {
+      expect(run(name).validation.ok).toBe(true);
+    }
+  });
+
+  it('the low example holds the memory limit back, so the page has something to explain', () => {
+    expect(run('low').skipped.map((s) => s.ruleId)).toContain('missing-memory-limit');
+  });
+
+  it('the "nothing to fix" example has no fixes and nothing held back', () => {
+    const r = run('none');
+    expect(r.applied).toEqual([]);
+    expect(r.skipped).toEqual([]);
+  });
+
+  it('lines in the result are clickable and show the source line', () => {
+    const r = run('high');
+    const jump = vi.fn();
+    const root = renderFix(r, '', { jump });
+    const first = root.querySelector('button.ln');
+    expect(first?.textContent).toMatch(/^Line \d+$/);
+    expect(root.querySelector('code.src')?.textContent?.trim().length).toBeGreaterThan(0);
+    click(first);
+    expect(jump).toHaveBeenCalledWith(r.applied[0]?.line);
   });
 });

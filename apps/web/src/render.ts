@@ -425,6 +425,8 @@ function button(label: string, onClick: () => void): HTMLElement {
 export interface FixActions {
   copy?: (text: string) => void;
   apply?: (text: string) => void;
+  /** Select a 1-based line in the input box. */
+  jump?: (line: number) => void;
   /** Present right after an apply, to restore the text from before it. */
   undo?: () => void;
 }
@@ -432,6 +434,13 @@ export interface FixActions {
 export function renderFix(result: FixResult, diff: string, actions: FixActions = {}): HTMLElement {
   const root = el('div');
   const n = result.applied.length;
+  const view = createView((_target, line) => actions.jump?.(line));
+  const lines = result.original.split('\n');
+  /** A "go to line" button and the line's text, so the finding can be found in the YAML. */
+  const at = (line: number): HTMLElement[] => [
+    lineButton(view, 'main', line, `Line ${line}`),
+    el('code', { class: 'src', text: ` ${(lines[line - 1] ?? '').trim()}` }),
+  ];
 
   if (result.status === 'rejected') {
     root.append(
@@ -470,7 +479,8 @@ export function renderFix(result: FixResult, diff: string, actions: FixActions =
           el('details', { class: `finding risk-${a.risk}` }, [
             el('summary', {}, [
               el('span', { class: 'badge', text: `${a.risk} risk` }),
-              ` Line ${a.line}: ${a.ruleId}`,
+              ` ${a.ruleId} `,
+              ...at(a.line),
             ]),
             el('p', { text: a.summary }),
             ...a.changes.map((c) =>
@@ -488,7 +498,9 @@ export function renderFix(result: FixResult, diff: string, actions: FixActions =
         ...result.skipped.map((s) =>
           el('p', { class: `issue risk-${s.risk}` }, [
             el('span', { class: 'badge', text: `${s.risk} risk` }),
-            ` Line ${s.line}: ${s.ruleId}: ${s.detail}`,
+            ` ${s.ruleId} `,
+            ...at(s.line),
+            el('span', { text: ` ${s.detail}` }),
           ]),
         ),
       ]),

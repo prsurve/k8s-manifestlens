@@ -536,6 +536,10 @@ a.docs {
   background: var(--info-bg);
   color: var(--info);
 }
+.src {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
 .issue .badge {
   display: inline-block;
 }

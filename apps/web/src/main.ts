@@ -13,7 +13,7 @@ import {
 import type { FixPolicy, FixRisk, Rule } from '@manifestlens/core';
 import { inject } from '@vercel/analytics';
 import './style.css';
-import { examples } from './examples.js';
+import { examples, fixExamples } from './examples.js';
 import { initTheme } from './theme.js';
 import {
   createView,
@@ -74,7 +74,7 @@ const jumpers: Record<Tab, (target: JumpTarget, line: number) => void> = {
   explain: (_t, line) => selectLine(input('explain-input'), line),
   check: (_t, line) => selectLine(input('check-input'), line),
   diff: (target, line) => selectLine(input(target === 'old' ? 'diff-old' : 'diff-new'), line),
-  fix: () => undefined,
+  fix: (_t, line) => selectLine(input('fix-input'), line),
 };
 const views = {
   explain: createView(jumpers.explain),
@@ -152,6 +152,7 @@ function update(tab: Tab): void {
         unifiedDiff(result.original, result.fixed, 'a/manifest.yaml', 'b/manifest.yaml'),
         {
           copy: (text) => void navigator.clipboard?.writeText(text),
+          jump: (line) => selectLine(input('fix-input'), line),
           apply: (text) => {
             beforeApply = input('fix-input').value;
             input('fix-input').value = text;
@@ -257,6 +258,18 @@ function init(): void {
   });
 
   $('fix-risk').addEventListener('change', refresh);
+  $<HTMLSelectElement>('fix-example').addEventListener('change', (e) => {
+    const select = e.target as HTMLSelectElement;
+    const example = fixExamples[select.value as keyof typeof fixExamples];
+    select.value = '';
+    if (!example) return;
+    beforeApply = undefined;
+    input('fix-input').value = example.text;
+    input('fix-policy').value = example.policy;
+    $<HTMLSelectElement>('fix-risk').value = example.risk;
+    update('fix');
+    $('fix-output').scrollTop = 0;
+  });
   // Typing starts a new edit: the old undo point no longer makes sense.
   input('fix-input').addEventListener('input', () => (beforeApply = undefined));
 

@@ -45,7 +45,7 @@ export interface AppliedFix {
   risk: FixRisk;
   summary: string;
   target: FixTarget;
-  /** 1-based line of the finding in the file as it was when this fix was applied. */
+  /** 1-based line of the finding in the original file. */
   line: number;
   changes: FixChange[];
 }

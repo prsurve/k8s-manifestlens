@@ -638,3 +638,21 @@ describe('skip messages', () => {
     ).toThrow(/autofix.blocked/);
   });
 });
+
+describe('reported lines', () => {
+  it('are lines of the original text, even after earlier fixes added lines above', () => {
+    const src = `${POD('')}    - name: other\n      image: busybox:1.36\n`;
+    const original = src.split('\n');
+    const r = fixManifest(src, rules, { maxRisk: 'medium' });
+    expect(r.applied.length).toBeGreaterThan(2);
+    for (const a of [...r.applied, ...r.skipped]) {
+      const text = original[a.line - 1] ?? '';
+      // Each finding points at a real line of the container it is about.
+      expect(text, `${a.ruleId} line ${a.line}`).toMatch(
+        /name: (app|other)|image:|securityContext|resources/,
+      );
+    }
+    const second = r.applied.find((a) => a.target.scope.endsWith('containers[1]'));
+    expect(original[(second?.line ?? 0) - 1]).toContain('name: other');
+  });
+});

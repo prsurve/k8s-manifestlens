@@ -3,6 +3,7 @@ import { matchRules } from '../rules/check.js';
 import type { RuleMatch } from '../rules/check.js';
 import { evaluate, resolve } from '../rules/evaluate.js';
 import type { Finding, FixSet, FixSpec, Rule } from '../rules/types.js';
+import { diffLines } from './diff.js';
 import { setInSource, toSteps } from './edit.js';
 import type { Step } from './edit.js';
 import { fingerprint } from './hash.js';
@@ -150,6 +151,21 @@ function setDeep(root: unknown, steps: Step[], value: unknown): void {
   });
 }
 
+/** Where a line of the current text sits in the original: earlier fixes insert lines above it. */
+function originalLine(source: string, text: string, line: number): number {
+  if (source === text) return line;
+  let before = 0;
+  let after = 0;
+  let last = 0;
+  for (const op of diffLines(source, text)) {
+    if (op.type !== 'del') after++;
+    if (op.type !== 'add') before++;
+    if (op.type === 'same') last = before;
+    if (after === line) return op.type === 'same' ? before : Math.max(last, 1);
+  }
+  return line;
+}
+
 const fullPath = (scope: string, path: string): string =>
   scope === '' ? path : `${scope}.${path}`;
 const target = (
@@ -220,7 +236,7 @@ export function fixManifest(source: string, rules: Rule[], options: FixOptions =
       attempted.add(key);
       attempts++;
 
-      const outcome = attempt(text, state, candidate, rules, { maxRisk, params, touched });
+      const outcome = attempt(text, state, candidate, rules, { maxRisk, params, touched, source });
       if ('skip' in outcome) {
         skipped.set(key, outcome.skip);
       } else {
@@ -250,6 +266,8 @@ interface Context {
   maxRisk: number;
   params: Record<string, unknown>;
   touched: Map<string, string>;
+  /** The original text, for reporting lines. */
+  source: string;
 }
 
 function attempt(
@@ -261,9 +279,10 @@ function attempt(
 ): { text: string; applied: AppliedFix } | { skip: SkippedFix } {
   const { rule, instance, finding } = candidate.match;
   const spec = rule.autofix as FixSpec;
+  const reported = originalLine(ctx.source, text, finding.line);
   const where = target(candidate.documentIndex, candidate.kind, candidate.name, instance.path);
   const skip = (reason: SkipReason, detail: string): { skip: SkippedFix } => ({
-    skip: { ruleId: rule.id, reason, detail, risk: spec.risk, target: where, line: finding.line },
+    skip: { ruleId: rule.id, reason, detail, risk: spec.risk, target: where, line: reported },
   });
 
   if (RISK_ORDER[spec.risk] > ctx.maxRisk) {
@@ -326,7 +345,7 @@ function attempt(
       risk: spec.risk,
       summary: spec.summary,
       target: where,
-      line: finding.line,
+      line: reported,
       changes,
     },
   };

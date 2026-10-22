@@ -28144,6 +28144,105 @@ function loadBundledRules() {
   return Object.entries(bundledRuleSources).flatMap(([file, text2]) => parseRules(text2, file));
 }
 
+// ../core/src/fix/diff.ts
+function split(text2) {
+  return text2.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+}
+var MAX_CELLS = 4e6;
+function diffLines(oldText, newText) {
+  const a = split(oldText);
+  const b = split(newText);
+  let head = 0;
+  while (head < a.length && head < b.length && a[head] === b[head]) head++;
+  let tail = 0;
+  while (tail < a.length - head && tail < b.length - head && a[a.length - 1 - tail] === b[b.length - 1 - tail]) {
+    tail++;
+  }
+  const midA = a.slice(head, a.length - tail);
+  const midB = b.slice(head, b.length - tail);
+  const ops = a.slice(0, head).map((text2) => ({ type: "same", text: text2 }));
+  ops.push(...middle(midA, midB));
+  ops.push(...a.slice(a.length - tail).map((text2) => ({ type: "same", text: text2 })));
+  return ops;
+}
+function middle(a, b) {
+  if (a.length === 0) return b.map((text2) => ({ type: "add", text: text2 }));
+  if (b.length === 0) return a.map((text2) => ({ type: "del", text: text2 }));
+  if (a.length * b.length > MAX_CELLS) {
+    return [
+      ...a.map((text2) => ({ type: "del", text: text2 })),
+      ...b.map((text2) => ({ type: "add", text: text2 }))
+    ];
+  }
+  const w = b.length + 1;
+  const table = new Uint32Array((a.length + 1) * w);
+  for (let i2 = a.length - 1; i2 >= 0; i2--) {
+    for (let j2 = b.length - 1; j2 >= 0; j2--) {
+      table[i2 * w + j2] = a[i2] === b[j2] ? table[(i2 + 1) * w + j2 + 1] + 1 : Math.max(table[(i2 + 1) * w + j2], table[i2 * w + j2 + 1]);
+    }
+  }
+  const ops = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      ops.push({ type: "same", text: a[i] });
+      i++;
+      j++;
+    } else if (table[(i + 1) * w + j] >= table[i * w + j + 1]) {
+      ops.push({ type: "del", text: a[i++] });
+    } else {
+      ops.push({ type: "add", text: b[j++] });
+    }
+  }
+  while (i < a.length) ops.push({ type: "del", text: a[i++] });
+  while (j < b.length) ops.push({ type: "add", text: b[j++] });
+  return ops;
+}
+function unifiedDiff(oldText, newText, oldLabel = "a/manifest.yaml", newLabel = "b/manifest.yaml", context = 3) {
+  if (oldText === newText) return "";
+  const ops = diffLines(oldText, newText);
+  const changed = ops.flatMap((op, i) => op.type === "same" ? [] : [i]);
+  const hunks = [];
+  for (const i of changed) {
+    const from = Math.max(i - context, 0);
+    const to = Math.min(i + context, ops.length - 1);
+    const last = hunks[hunks.length - 1];
+    if (last && from <= last[1] + 1) last[1] = Math.max(last[1], to);
+    else hunks.push([from, to]);
+  }
+  const out = [`--- ${oldLabel}`, `+++ ${newLabel}`];
+  let oldLine = 1;
+  let newLine = 1;
+  let cursor = 0;
+  for (const [from, to] of hunks) {
+    for (; cursor < from; cursor++) {
+      const type = ops[cursor].type;
+      if (type !== "add") oldLine++;
+      if (type !== "del") newLine++;
+    }
+    const body = [];
+    let oldCount = 0;
+    let newCount = 0;
+    for (let i = from; i <= to; i++) {
+      const op = ops[i];
+      const mark = op.type === "same" ? " " : op.type === "del" ? "-" : "+";
+      body.push(`${mark}${op.text.replace(/\n$/, "")}`);
+      if (!op.text.endsWith("\n")) body.push("\\ No newline at end of file");
+      if (op.type !== "add") oldCount++;
+      if (op.type !== "del") newCount++;
+    }
+    const oldStart = oldCount === 0 ? oldLine - 1 : oldLine;
+    const newStart = newCount === 0 ? newLine - 1 : newLine;
+    out.push(`@@ -${oldStart},${oldCount} +${newStart},${newCount} @@`, ...body);
+    oldLine += oldCount;
+    newLine += newCount;
+    cursor = to + 1;
+  }
+  return `${out.join("\n")}
+`;
+}
+
 // ../core/src/fix/edit.ts
 var import_yaml3 = __toESM(require_dist(), 1);
 var INDENT = 2;
@@ -28396,6 +28495,19 @@ function setDeep(root, steps, value) {
     node = node[step];
   });
 }
+function originalLine(source, text2, line) {
+  if (source === text2) return line;
+  let before = 0;
+  let after = 0;
+  let last = 0;
+  for (const op of diffLines(source, text2)) {
+    if (op.type !== "del") after++;
+    if (op.type !== "add") before++;
+    if (op.type === "same") last = before;
+    if (after === line) return op.type === "same" ? before : Math.max(last, 1);
+  }
+  return line;
+}
 var fullPath = (scope, path6) => scope === "" ? path6 : `${scope}.${path6}`;
 var target = (documentIndex, kind, name, scope) => ({
   document: documentIndex,
@@ -28435,7 +28547,7 @@ function fixManifest(source, rules, options = {}) {
       if (attempted.has(key)) continue;
       attempted.add(key);
       attempts++;
-      const outcome = attempt(text2, state, candidate, rules, { maxRisk, params, touched });
+      const outcome = attempt(text2, state, candidate, rules, { maxRisk, params, touched, source });
       if ("skip" in outcome) {
         skipped.set(key, outcome.skip);
       } else {
@@ -28461,9 +28573,10 @@ function fixManifest(source, rules, options = {}) {
 function attempt(text2, state, candidate, rules, ctx) {
   const { rule, instance, finding } = candidate.match;
   const spec = rule.autofix;
+  const reported = originalLine(ctx.source, text2, finding.line);
   const where = target(candidate.documentIndex, candidate.kind, candidate.name, instance.path);
   const skip = (reason, detail) => ({
-    skip: { ruleId: rule.id, reason, detail, risk: spec.risk, target: where, line: finding.line }
+    skip: { ruleId: rule.id, reason, detail, risk: spec.risk, target: where, line: reported }
   });
   if (RISK_ORDER[spec.risk] > ctx.maxRisk) {
     return skip(
@@ -28517,7 +28630,7 @@ function attempt(text2, state, candidate, rules, ctx) {
       risk: spec.risk,
       summary: spec.summary,
       target: where,
-      line: finding.line,
+      line: reported,
       changes
     }
   };
@@ -28597,105 +28710,6 @@ function finish(source, text2, rules, original, applied, skipped) {
     remaining: final.matches.length,
     validation
   };
-}
-
-// ../core/src/fix/diff.ts
-function split(text2) {
-  return text2.match(/[^\n]*\n|[^\n]+$/g) ?? [];
-}
-var MAX_CELLS = 4e6;
-function diffLines(oldText, newText) {
-  const a = split(oldText);
-  const b = split(newText);
-  let head = 0;
-  while (head < a.length && head < b.length && a[head] === b[head]) head++;
-  let tail = 0;
-  while (tail < a.length - head && tail < b.length - head && a[a.length - 1 - tail] === b[b.length - 1 - tail]) {
-    tail++;
-  }
-  const midA = a.slice(head, a.length - tail);
-  const midB = b.slice(head, b.length - tail);
-  const ops = a.slice(0, head).map((text2) => ({ type: "same", text: text2 }));
-  ops.push(...middle(midA, midB));
-  ops.push(...a.slice(a.length - tail).map((text2) => ({ type: "same", text: text2 })));
-  return ops;
-}
-function middle(a, b) {
-  if (a.length === 0) return b.map((text2) => ({ type: "add", text: text2 }));
-  if (b.length === 0) return a.map((text2) => ({ type: "del", text: text2 }));
-  if (a.length * b.length > MAX_CELLS) {
-    return [
-      ...a.map((text2) => ({ type: "del", text: text2 })),
-      ...b.map((text2) => ({ type: "add", text: text2 }))
-    ];
-  }
-  const w = b.length + 1;
-  const table = new Uint32Array((a.length + 1) * w);
-  for (let i2 = a.length - 1; i2 >= 0; i2--) {
-    for (let j2 = b.length - 1; j2 >= 0; j2--) {
-      table[i2 * w + j2] = a[i2] === b[j2] ? table[(i2 + 1) * w + j2 + 1] + 1 : Math.max(table[(i2 + 1) * w + j2], table[i2 * w + j2 + 1]);
-    }
-  }
-  const ops = [];
-  let i = 0;
-  let j = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      ops.push({ type: "same", text: a[i] });
-      i++;
-      j++;
-    } else if (table[(i + 1) * w + j] >= table[i * w + j + 1]) {
-      ops.push({ type: "del", text: a[i++] });
-    } else {
-      ops.push({ type: "add", text: b[j++] });
-    }
-  }
-  while (i < a.length) ops.push({ type: "del", text: a[i++] });
-  while (j < b.length) ops.push({ type: "add", text: b[j++] });
-  return ops;
-}
-function unifiedDiff(oldText, newText, oldLabel = "a/manifest.yaml", newLabel = "b/manifest.yaml", context = 3) {
-  if (oldText === newText) return "";
-  const ops = diffLines(oldText, newText);
-  const changed = ops.flatMap((op, i) => op.type === "same" ? [] : [i]);
-  const hunks = [];
-  for (const i of changed) {
-    const from = Math.max(i - context, 0);
-    const to = Math.min(i + context, ops.length - 1);
-    const last = hunks[hunks.length - 1];
-    if (last && from <= last[1] + 1) last[1] = Math.max(last[1], to);
-    else hunks.push([from, to]);
-  }
-  const out = [`--- ${oldLabel}`, `+++ ${newLabel}`];
-  let oldLine = 1;
-  let newLine = 1;
-  let cursor = 0;
-  for (const [from, to] of hunks) {
-    for (; cursor < from; cursor++) {
-      const type = ops[cursor].type;
-      if (type !== "add") oldLine++;
-      if (type !== "del") newLine++;
-    }
-    const body = [];
-    let oldCount = 0;
-    let newCount = 0;
-    for (let i = from; i <= to; i++) {
-      const op = ops[i];
-      const mark = op.type === "same" ? " " : op.type === "del" ? "-" : "+";
-      body.push(`${mark}${op.text.replace(/\n$/, "")}`);
-      if (!op.text.endsWith("\n")) body.push("\\ No newline at end of file");
-      if (op.type !== "add") oldCount++;
-      if (op.type !== "del") newCount++;
-    }
-    const oldStart = oldCount === 0 ? oldLine - 1 : oldLine;
-    const newStart = newCount === 0 ? newLine - 1 : newLine;
-    out.push(`@@ -${oldStart},${oldCount} +${newStart},${newCount} @@`, ...body);
-    oldLine += oldCount;
-    newLine += newCount;
-    cursor = to + 1;
-  }
-  return `${out.join("\n")}
-`;
 }
 
 // ../core/src/fix/policy.ts
