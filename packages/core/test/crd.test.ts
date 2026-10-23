@@ -73,6 +73,25 @@ describe('schema checks', () => {
     expect(f?.line).toBe(6);
   });
 
+  it('suggests the field for a short typo that is two edits away', () => {
+    const crd = parseCrds(CRD.replace('mode:', 'volumes: { type: object }\n                mode:'));
+    const doc = checkManifest(`${head}spec: { size: 1, volue: {} }`, crd).documents[0];
+    expect(doc?.findings[0]?.message).toContain('Did you mean "volumes"?');
+  });
+
+  it('points a missing field inside a list item at that item', () => {
+    const crd = parseCrds(
+      CRD.replace(
+        'dnsNames:\n                  type: array\n                  items: { type: string }',
+        'rows:\n                  type: array\n                  items:\n                    type: object\n                    required: [id]\n                    properties: { id: { type: string }, note: { type: string } }',
+      ),
+    );
+    const f = checkManifest(`${head}spec:\n  size: 1\n  rows:\n    - note: x\n`, crd).documents[0]
+      ?.findings[0];
+    expect(f?.ruleId).toBe('crd-missing-required');
+    expect(f?.line).toBe(7);
+  });
+
   it('flags a missing required field, a wrong type and a bad value', () => {
     expect(ids(`${head}spec: { mode: fast }`)).toEqual(['crd-missing-required']);
     expect(ids(`${head}spec: { size: three }`)).toEqual(['crd-wrong-type']);

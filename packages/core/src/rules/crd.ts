@@ -310,7 +310,7 @@ function hint(key: string, known: string[]): string {
 /** A known name within one or two edits, e.g. `dnsNmaes` for `dnsNames`. */
 function closest(key: string, known: string[]): string | undefined {
   let best: string | undefined;
-  let bestD = Math.min(2, Math.floor(key.length / 3));
+  let bestD = key.length >= 5 ? 2 : 1;
   for (const k of known) {
     const d = editDistance(key, k);
     if (d <= bestD) {

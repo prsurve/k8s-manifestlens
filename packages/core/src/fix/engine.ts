@@ -20,6 +20,7 @@ import type {
   SkipReason,
   SkippedFix,
   UncheckedDocument,
+  UnfixedFinding,
 } from './types.js';
 
 interface Analysis {
@@ -429,6 +430,16 @@ function finish(
     sourceHash: fingerprint(source),
     skipped,
     withoutFix: original.matches.filter((m) => m.match.rule.autofix === undefined).length,
+    unfixed: original.matches
+      .filter((m) => m.match.rule.autofix === undefined)
+      .map((m): UnfixedFinding => ({
+        ruleId: m.match.rule.id,
+        severity: m.match.finding.severity,
+        message: m.match.finding.message,
+        line: m.match.finding.line,
+        ...(m.kind !== undefined ? { kind: m.kind } : {}),
+        ...(m.name !== undefined ? { name: m.name } : {}),
+      })),
     notChecked: original.notChecked,
   };
   if (text === source) {

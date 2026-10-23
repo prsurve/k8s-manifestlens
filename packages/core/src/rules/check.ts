@@ -88,6 +88,11 @@ function crdMatches(
       why: info.why,
     };
     const node = issue ? fieldsByPath.get(issue.path) : undefined;
+    // A list item has no field of its own: point at its first key. The document itself, at its start.
+    const inside =
+      issue && !node && issue.path !== ''
+        ? doc.fields.filter((f) => f.path.startsWith(`${issue.path}.`)).map((f) => f.line)
+        : [];
     return {
       rule: derived,
       instance: { path: '', data },
@@ -98,7 +103,7 @@ function crdMatches(
         severity: info.severity,
         message,
         why: info.why,
-        line: node?.line ?? doc.startLine,
+        line: node?.line ?? (inside.length > 0 ? Math.min(...inside) : doc.startLine),
         ...(node ? { path: node.path } : {}),
       },
     };

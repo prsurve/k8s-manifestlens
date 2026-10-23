@@ -122,6 +122,9 @@ spec:
     const good = join(dir, 'good.yaml');
     writeFileSync(good, 'apiVersion: example.com/v1\nkind: Widget\nspec:\n  size: 3\n');
     expect(cli('explain', good, '--crd', crd).stdout).toContain('How many sprockets.');
+    const fixed = cli('fix', widget, '--crd', crd);
+    expect(fixed.stderr).toContain('Needs a manual fix:');
+    expect(fixed.stderr).toContain('crd-unknown-field');
     expect(cli('check', widget, '--crd', widget).code).toBe(2);
   });
 

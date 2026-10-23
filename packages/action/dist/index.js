@@ -27976,7 +27976,7 @@ function hint(key, known) {
 }
 function closest(key, known) {
   let best;
-  let bestD = Math.min(2, Math.floor(key.length / 3));
+  let bestD = key.length >= 5 ? 2 : 1;
   for (const k of known) {
     const d = editDistance(key, k);
     if (d <= bestD) {
@@ -28732,6 +28732,7 @@ function crdMatches(doc, kind, rules, fieldsByPath) {
       why: info2.why
     };
     const node = issue2 ? fieldsByPath.get(issue2.path) : void 0;
+    const inside = issue2 && !node && issue2.path !== "" ? doc.fields.filter((f) => f.path.startsWith(`${issue2.path}.`)).map((f) => f.line) : [];
     return {
       rule: derived,
       instance: { path: "", data },
@@ -28742,7 +28743,7 @@ function crdMatches(doc, kind, rules, fieldsByPath) {
         severity: info2.severity,
         message,
         why: info2.why,
-        line: node?.line ?? doc.startLine,
+        line: node?.line ?? (inside.length > 0 ? Math.min(...inside) : doc.startLine),
         ...node ? { path: node.path } : {}
       }
     };
@@ -29470,6 +29471,14 @@ function finish(source, text2, rules, original, applied, skipped) {
     sourceHash: fingerprint(source),
     skipped,
     withoutFix: original.matches.filter((m) => m.match.rule.autofix === void 0).length,
+    unfixed: original.matches.filter((m) => m.match.rule.autofix === void 0).map((m) => ({
+      ruleId: m.match.rule.id,
+      severity: m.match.finding.severity,
+      message: m.match.finding.message,
+      line: m.match.finding.line,
+      ...m.kind !== void 0 ? { kind: m.kind } : {},
+      ...m.name !== void 0 ? { name: m.name } : {}
+    })),
     notChecked: original.notChecked
   };
   if (text2 === source) {
