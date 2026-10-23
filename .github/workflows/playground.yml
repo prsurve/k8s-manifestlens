@@ -1,0 +1,61 @@
+name: Playground
+
+# For every pull request that can change the action or the rules, run that exact commit in
+# prsurve/manifestlens-playground (a separate repo of sample manifests) and wait for the result.
+# Needs the PLAYGROUND_TOKEN secret: a fine-grained token for the playground repo with
+# "Actions: read and write". Without it, or on a fork, this job is skipped with a notice.
+on:
+  pull_request:
+    paths:
+      - action.yml
+      - packages/action/**
+      - packages/core/**
+      - examples/**
+      - .github/workflows/playground.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playground-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PLAYGROUND: prsurve/manifestlens-playground
+
+jobs:
+  playground:
+    # Secrets are not available to pull requests from forks.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Run this commit in the playground
+        env:
+          GH_TOKEN: ${{ secrets.PLAYGROUND_TOKEN }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::PLAYGROUND_TOKEN is not set, so the playground run was skipped."
+            exit 0
+          fi
+          id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          gh workflow run try-feature-branch.yml --repo "$PLAYGROUND" --ref main \
+            -f ref="$SHA" -f correlation="$id"
+
+          # Dispatching returns no run id, so find the run by the id we put in its name.
+          run=""
+          for _ in $(seq 1 30); do
+            run=$(gh run list --repo "$PLAYGROUND" --workflow try-feature-branch.yml \
+              --event workflow_dispatch --limit 20 --json databaseId,displayTitle \
+              --jq "[.[] | select(.displayTitle | endswith(\"$id\"))][0].databaseId // empty")
+            [ -n "$run" ] && break
+            sleep 4
+          done
+          [ -n "$run" ] || { echo "::error::The playground run did not start."; exit 1; }
+
+          url="https://github.com/$PLAYGROUND/actions/runs/$run"
+          echo "Playground run for ${SHA::7}: $url" | tee -a "$GITHUB_STEP_SUMMARY"
+          gh run watch "$run" --repo "$PLAYGROUND" --exit-status --interval 5 \
+            || { echo "::error::The playground run failed: $url"; exit 1; }
