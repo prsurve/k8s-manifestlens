@@ -27519,6 +27519,83 @@ function join(prefix, key) {
   return prefix === "" ? key : `${prefix}.${key}`;
 }
 
+// ../core/src/rules/coverage.ts
+function isCustomResource(apiVersion) {
+  const group = apiVersion?.includes("/") ? apiVersion.slice(0, apiVersion.indexOf("/")) : "";
+  return group.includes(".") && !/^([a-z0-9-]+\.)*k8s\.io$/.test(group);
+}
+function distance(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1]?.toLowerCase() === b[j - 1]?.toLowerCase() ? 0 : 1;
+      row[j] = Math.min((prev[j] ?? 0) + 1, (row[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
+    }
+    prev = row;
+  }
+  return prev[b.length] ?? 0;
+}
+function suggestKind(kind, rules) {
+  const known = [.../* @__PURE__ */ new Set([...supportedKinds(), ...checkedKinds(rules)])];
+  let best;
+  for (const k of known) {
+    const prefix = k.length >= 3 && kind.toLowerCase().startsWith(k.toLowerCase());
+    const d = prefix ? 1 : distance(kind, k);
+    if (!best || d < best.d) best = { kind: k, d };
+  }
+  return best && best.d <= Math.max(2, Math.floor(kind.length / 3)) ? best.kind : void 0;
+}
+function checkedKinds(rules) {
+  const kinds = new Set(Object.keys(POD_SPEC_PATH));
+  for (const rule of rules) for (const kind of rule.kinds) if (kind !== "*") kinds.add(kind);
+  return [...kinds].sort();
+}
+function kindCoverage(kind, apiVersion, rules) {
+  if (kind === void 0) {
+    return describe(
+      "unchecked",
+      'No "kind" field',
+      "Without a kind ManifestLens cannot tell what this is, so nothing was checked."
+    );
+  }
+  if (Object.hasOwn(POD_SPEC_PATH, kind) || rules.some((r) => r.kinds.includes(kind))) {
+    return { level: "checked" };
+  }
+  if (hasDocsFor(kind)) {
+    return describe(
+      "explain-only",
+      `No rules for ${kind}`,
+      `ManifestLens explains ${kind} fields, but no rule checks it.`
+    );
+  }
+  if (isCustomResource(apiVersion)) {
+    return describe(
+      "unchecked",
+      `Custom resource ${kind} (${apiVersion})`,
+      "ManifestLens has no rules for custom resources, so it was not checked."
+    );
+  }
+  return describe(
+    "unchecked",
+    `Unknown kind "${kind}"`,
+    "ManifestLens has no rules for it, so it was not checked.",
+    suggestKind(kind, rules)
+  );
+}
+function describe(level, headline2, detail, suggestion) {
+  const note = '"No findings" does not mean it is safe.';
+  const hint2 = suggestion ? `Did you mean "${suggestion}"?` : void 0;
+  return {
+    level,
+    headline: headline2,
+    detail,
+    note,
+    ...suggestion !== void 0 ? { suggestion } : {},
+    message: [`${headline2}.`, detail, hint2, note].filter(Boolean).join(" ")
+  };
+}
+
 // ../core/src/rules/crd.ts
 var import_yaml3 = __toESM(require_dist(), 1);
 
@@ -27804,6 +27881,11 @@ function isRecord(v) {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 var CRD_ISSUES = {
+  "not-validated": {
+    title: "Part of the schema cannot be checked",
+    severity: "info",
+    why: 'ManifestLens does not evaluate oneOf, anyOf, allOf, not or CEL rules, so this part was not validated. "No findings" here does not mean it is valid.'
+  },
   "unknown-version": {
     title: "apiVersion is not in the CustomResourceDefinition",
     severity: "warning",
@@ -27839,7 +27921,16 @@ function validateAgainst(data, schema2) {
 }
 function walk2(value, schema2, path6, issues, depth, top = false) {
   if (depth > MAX_DEPTH || value === null || value === void 0) return;
-  if (schema2.oneOf || schema2.anyOf || schema2.allOf || schema2.not) return;
+  const cel = schema2["x-kubernetes-validations"];
+  if (schema2.oneOf || schema2.anyOf || schema2.allOf || schema2.not || Array.isArray(cel)) {
+    const where = path6 === "" ? "The document" : `"${path6}"`;
+    issues.push({
+      code: "not-validated",
+      path: path6,
+      message: `${where} uses schema rules (oneOf, anyOf, allOf, not or CEL) that ManifestLens cannot check, so it was only partly validated.`
+    });
+    if (schema2.oneOf || schema2.anyOf || schema2.allOf || schema2.not) return;
+  }
   const label2 = path6 === "" ? "the document" : `"${path6}"`;
   if (schema2["x-kubernetes-int-or-string"]) {
     if (typeof value !== "string" && !isInteger(value)) {
@@ -27997,6 +28088,234 @@ function editDistance(a, b) {
     prev = row;
   }
   return prev[b.length] ?? 0;
+}
+
+// ../core/src/rules/evaluate.ts
+var POD_PREFIX = "$pod.";
+function isPodPath(path6) {
+  return path6.startsWith(POD_PREFIX);
+}
+function resolve(root, path6) {
+  const rel = isPodPath(path6) ? path6.slice(POD_PREFIX.length) : path6;
+  let current = [{ path: "", value: root }];
+  for (const segment of rel.split(".")) {
+    const each = segment.endsWith("[]");
+    const key = each ? segment.slice(0, -2) : segment;
+    const next = [];
+    for (const { path: prefix, value } of current) {
+      if (value === null || typeof value !== "object" || Array.isArray(value)) continue;
+      const child = value[key];
+      const childPath = prefix === "" ? key : `${prefix}.${key}`;
+      if (child === null || child === void 0) continue;
+      if (!each) {
+        next.push({ path: childPath, value: child });
+      } else if (Array.isArray(child)) {
+        child.forEach((item, i) => {
+          if (item !== null && item !== void 0)
+            next.push({ path: `${childPath}[${i}]`, value: item });
+        });
+      }
+    }
+    current = next;
+    if (current.length === 0) break;
+  }
+  return current;
+}
+function matchesFor(ctx, path6) {
+  return resolve(isPodPath(path6) ? ctx.pod : ctx.scope, path6);
+}
+function same(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+function evaluate(cond, ctx) {
+  switch (cond.op) {
+    case "missing":
+      return matchesFor(ctx, cond.path).length === 0;
+    case "present":
+      return matchesFor(ctx, cond.path).length > 0;
+    case "equals":
+      return matchesFor(ctx, cond.path).some((m) => same(m.value, cond.value));
+    case "in":
+      return matchesFor(ctx, cond.path).some((m) => cond.values.some((v) => same(m.value, v)));
+    case "contains":
+      return matchesFor(ctx, cond.path).some(
+        (m) => Array.isArray(m.value) && m.value.some((v) => same(v, cond.value))
+      );
+    case "matches":
+      return matchesFor(ctx, cond.path).some(
+        (m) => (typeof m.value === "string" || typeof m.value === "number" || typeof m.value === "boolean") && cond.pattern.test(String(m.value))
+      );
+    case "all":
+      return cond.conditions.every((c) => evaluate(c, ctx));
+    case "any":
+      return cond.conditions.some((c) => evaluate(c, ctx));
+    case "not":
+      return !evaluate(cond.condition, ctx);
+    case "some":
+      return matchesFor(ctx, cond.path).some(
+        (m) => Array.isArray(m.value) && m.value.some(
+          (item) => item !== null && typeof item === "object" && !Array.isArray(item) && evaluate(cond.condition, { scope: item, pod: ctx.pod })
+        )
+      );
+  }
+}
+
+// ../core/src/rules/check.ts
+var SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
+function checkManifest(source, rules) {
+  return { documents: parseManifest(source).map((doc) => checkDocument(doc, rules)) };
+}
+function matchRules(doc, rules) {
+  const matches = [];
+  if (!doc.data || !doc.kind) return matches;
+  const kind = doc.kind;
+  const fieldsByPath = new Map(doc.fields.map((f) => [f.path, f]));
+  const podPath = Object.hasOwn(POD_SPEC_PATH, kind) ? POD_SPEC_PATH[kind] : void 0;
+  const podData = podPath === void 0 ? void 0 : get(doc.data, podPath);
+  matches.push(...crdMatches(doc, kind, rules, fieldsByPath));
+  for (const rule of rules) {
+    if (rule.crd || !rule.kinds.includes("*") && !rule.kinds.includes(kind)) continue;
+    for (const scope of rule.scopes) {
+      for (const instance of scopeInstances(scope, doc.data, podPath, podData)) {
+        const ctx = { scope: instance.data, pod: podData };
+        if (!evaluate(rule.when, ctx)) continue;
+        matches.push({
+          rule,
+          instance,
+          ctx,
+          finding: buildFinding(rule, instance, ctx, doc, podPath, fieldsByPath)
+        });
+      }
+    }
+  }
+  return matches;
+}
+function crdMatches(doc, kind, rules, fieldsByPath) {
+  if (!doc.data) return [];
+  const known = rules.filter((r) => r.crd && r.crd.kind === kind);
+  if (known.length === 0) return [];
+  const data = doc.data;
+  const here = known.find((r) => r.crd && `${r.crd.group}/${r.crd.version}` === doc.apiVersion);
+  const make = (rule, code2, issue2, message) => {
+    const info2 = CRD_ISSUES[code2];
+    const derived = {
+      ...rule,
+      id: `crd-${code2}`,
+      title: info2.title,
+      severity: info2.severity,
+      why: info2.why
+    };
+    const node = issue2 ? fieldsByPath.get(issue2.path) : void 0;
+    const inside = issue2 && !node && issue2.path !== "" ? doc.fields.filter((f) => f.path.startsWith(`${issue2.path}.`)).map((f) => f.line) : [];
+    return {
+      rule: derived,
+      instance: { path: "", data },
+      ctx: { scope: data, pod: void 0 },
+      finding: {
+        ruleId: derived.id,
+        title: info2.title,
+        severity: info2.severity,
+        message,
+        why: info2.why,
+        line: node?.line ?? (inside.length > 0 ? Math.min(...inside) : doc.startLine),
+        ...node ? { path: node.path } : {}
+      }
+    };
+  };
+  if (!here?.crd) {
+    const versions = known.map((r) => `${r.crd?.group}/${r.crd?.version}`).join(", ");
+    const rule = known[0];
+    return [
+      make(
+        rule,
+        "unknown-version",
+        void 0,
+        `${kind} uses apiVersion "${doc.apiVersion ?? ""}", but its CustomResourceDefinition defines ${versions}.`
+      )
+    ];
+  }
+  return validateAgainst(data, here.crd.schema).map(
+    (issue2) => make(here, issue2.code, issue2, issue2.message)
+  );
+}
+function checkDocument(doc, rules) {
+  const checked = {
+    index: doc.index,
+    startLine: doc.startLine,
+    issues: doc.issues,
+    coverage: kindCoverage(doc.kind, doc.apiVersion, rules),
+    findings: matchRules(doc, rules).map((m) => m.finding),
+    ...doc.apiVersion !== void 0 ? { apiVersion: doc.apiVersion } : {},
+    ...doc.kind !== void 0 ? { kind: doc.kind } : {},
+    ...doc.name !== void 0 ? { name: doc.name } : {}
+  };
+  checked.findings.sort(
+    (a, b) => a.line - b.line || SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || a.ruleId.localeCompare(b.ruleId)
+  );
+  return checked;
+}
+function get(data, path6) {
+  return resolve(data, path6)[0]?.value;
+}
+function scopeInstances(scope, data, podPath, podData) {
+  if (scope === "document") return [{ path: "", data }];
+  if (podPath === void 0 || podData === void 0) return [];
+  if (scope === "pod") return [{ path: podPath, data: podData }];
+  const list = scope === "container" ? "containers" : "initContainers";
+  const items = podData[list];
+  if (!Array.isArray(items)) return [];
+  return items.flatMap((item, i) => {
+    if (item === null || typeof item !== "object") return [];
+    const name = item.name;
+    return [
+      {
+        path: `${podPath}.${list}[${i}]`,
+        data: item,
+        ...typeof name === "string" ? { container: name } : {}
+      }
+    ];
+  });
+}
+function buildFinding(rule, instance, ctx, doc, podPath, fieldsByPath) {
+  let node;
+  let value;
+  for (const reportPath of rule.report) {
+    const base = isPodPath(reportPath) ? ctx.pod : ctx.scope;
+    const basePath = isPodPath(reportPath) ? podPath : instance.path;
+    const match3 = resolve(base, reportPath)[0];
+    if (!match3) continue;
+    const full = basePath ? `${basePath}.${match3.path}` : match3.path;
+    node = fieldsByPath.get(full);
+    value = match3.value;
+    if (node) break;
+  }
+  const line = node?.line ?? scopeLine(instance, doc);
+  const text2 = fill(rule.message, {
+    name: doc.name ?? "",
+    kind: doc.kind ?? "",
+    container: instance.container ?? "",
+    value: typeof value === "object" ? "" : String(value ?? "")
+  });
+  return {
+    ruleId: rule.id,
+    title: rule.title,
+    severity: rule.severity,
+    message: text2,
+    line,
+    ...rule.why !== void 0 ? { why: rule.why } : {},
+    ...rule.fix !== void 0 ? { fix: rule.fix } : {},
+    ...node ? { path: node.path } : {}
+  };
+}
+function scopeLine(instance, doc) {
+  if (instance.path === "") return doc.startLine;
+  const prefix = `${instance.path}.`;
+  const lines = doc.fields.filter((f) => f.path.startsWith(prefix)).map((f) => f.line);
+  const own = doc.fields.find((f) => f.path === instance.path);
+  return lines.length > 0 ? Math.min(...lines) : own?.line ?? doc.startLine;
+}
+function fill(template, values) {
+  return template.replace(/\{(\w+)\}/g, (whole, key) => values[key] ?? whole);
 }
 
 // ../core/src/rules/bundled.ts
@@ -28538,311 +28857,6 @@ why: externalIPs lets whoever can create a Service claim an IP address and pull 
 fix: Use a LoadBalancer Service or an Ingress. If you must keep externalIPs, restrict it with the DenyServiceExternalIPs admission plugin or a policy.
 `
 };
-
-// ../core/src/rules/coverage.ts
-function isCustomResource(apiVersion) {
-  const group = apiVersion?.includes("/") ? apiVersion.slice(0, apiVersion.indexOf("/")) : "";
-  return group.includes(".") && !/^([a-z0-9-]+\.)*k8s\.io$/.test(group);
-}
-function distance(a, b) {
-  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    const row = [i];
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1]?.toLowerCase() === b[j - 1]?.toLowerCase() ? 0 : 1;
-      row[j] = Math.min((prev[j] ?? 0) + 1, (row[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
-    }
-    prev = row;
-  }
-  return prev[b.length] ?? 0;
-}
-function suggestKind(kind, rules) {
-  const known = [.../* @__PURE__ */ new Set([...supportedKinds(), ...checkedKinds(rules)])];
-  let best;
-  for (const k of known) {
-    const prefix = k.length >= 3 && kind.toLowerCase().startsWith(k.toLowerCase());
-    const d = prefix ? 1 : distance(kind, k);
-    if (!best || d < best.d) best = { kind: k, d };
-  }
-  return best && best.d <= Math.max(2, Math.floor(kind.length / 3)) ? best.kind : void 0;
-}
-function checkedKinds(rules) {
-  const kinds = new Set(Object.keys(POD_SPEC_PATH));
-  for (const rule of rules) for (const kind of rule.kinds) if (kind !== "*") kinds.add(kind);
-  return [...kinds].sort();
-}
-function kindCoverage(kind, apiVersion, rules) {
-  if (kind === void 0) {
-    return describe(
-      "unchecked",
-      'No "kind" field',
-      "Without a kind ManifestLens cannot tell what this is, so nothing was checked."
-    );
-  }
-  if (Object.hasOwn(POD_SPEC_PATH, kind) || rules.some((r) => r.kinds.includes(kind))) {
-    return { level: "checked" };
-  }
-  if (hasDocsFor(kind)) {
-    return describe(
-      "explain-only",
-      `No rules for ${kind}`,
-      `ManifestLens explains ${kind} fields, but no rule checks it.`
-    );
-  }
-  if (isCustomResource(apiVersion)) {
-    return describe(
-      "unchecked",
-      `Custom resource ${kind} (${apiVersion})`,
-      "ManifestLens has no rules for custom resources, so it was not checked."
-    );
-  }
-  return describe(
-    "unchecked",
-    `Unknown kind "${kind}"`,
-    "ManifestLens has no rules for it, so it was not checked.",
-    suggestKind(kind, rules)
-  );
-}
-function describe(level, headline2, detail, suggestion) {
-  const note = '"No findings" does not mean it is safe.';
-  const hint2 = suggestion ? `Did you mean "${suggestion}"?` : void 0;
-  return {
-    level,
-    headline: headline2,
-    detail,
-    note,
-    ...suggestion !== void 0 ? { suggestion } : {},
-    message: [`${headline2}.`, detail, hint2, note].filter(Boolean).join(" ")
-  };
-}
-
-// ../core/src/rules/evaluate.ts
-var POD_PREFIX = "$pod.";
-function isPodPath(path6) {
-  return path6.startsWith(POD_PREFIX);
-}
-function resolve(root, path6) {
-  const rel = isPodPath(path6) ? path6.slice(POD_PREFIX.length) : path6;
-  let current = [{ path: "", value: root }];
-  for (const segment of rel.split(".")) {
-    const each = segment.endsWith("[]");
-    const key = each ? segment.slice(0, -2) : segment;
-    const next = [];
-    for (const { path: prefix, value } of current) {
-      if (value === null || typeof value !== "object" || Array.isArray(value)) continue;
-      const child = value[key];
-      const childPath = prefix === "" ? key : `${prefix}.${key}`;
-      if (child === null || child === void 0) continue;
-      if (!each) {
-        next.push({ path: childPath, value: child });
-      } else if (Array.isArray(child)) {
-        child.forEach((item, i) => {
-          if (item !== null && item !== void 0)
-            next.push({ path: `${childPath}[${i}]`, value: item });
-        });
-      }
-    }
-    current = next;
-    if (current.length === 0) break;
-  }
-  return current;
-}
-function matchesFor(ctx, path6) {
-  return resolve(isPodPath(path6) ? ctx.pod : ctx.scope, path6);
-}
-function same(a, b) {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-function evaluate(cond, ctx) {
-  switch (cond.op) {
-    case "missing":
-      return matchesFor(ctx, cond.path).length === 0;
-    case "present":
-      return matchesFor(ctx, cond.path).length > 0;
-    case "equals":
-      return matchesFor(ctx, cond.path).some((m) => same(m.value, cond.value));
-    case "in":
-      return matchesFor(ctx, cond.path).some((m) => cond.values.some((v) => same(m.value, v)));
-    case "contains":
-      return matchesFor(ctx, cond.path).some(
-        (m) => Array.isArray(m.value) && m.value.some((v) => same(v, cond.value))
-      );
-    case "matches":
-      return matchesFor(ctx, cond.path).some(
-        (m) => (typeof m.value === "string" || typeof m.value === "number" || typeof m.value === "boolean") && cond.pattern.test(String(m.value))
-      );
-    case "all":
-      return cond.conditions.every((c) => evaluate(c, ctx));
-    case "any":
-      return cond.conditions.some((c) => evaluate(c, ctx));
-    case "not":
-      return !evaluate(cond.condition, ctx);
-    case "some":
-      return matchesFor(ctx, cond.path).some(
-        (m) => Array.isArray(m.value) && m.value.some(
-          (item) => item !== null && typeof item === "object" && !Array.isArray(item) && evaluate(cond.condition, { scope: item, pod: ctx.pod })
-        )
-      );
-  }
-}
-
-// ../core/src/rules/check.ts
-var SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
-function checkManifest(source, rules) {
-  return { documents: parseManifest(source).map((doc) => checkDocument(doc, rules)) };
-}
-function matchRules(doc, rules) {
-  const matches = [];
-  if (!doc.data || !doc.kind) return matches;
-  const kind = doc.kind;
-  const fieldsByPath = new Map(doc.fields.map((f) => [f.path, f]));
-  const podPath = Object.hasOwn(POD_SPEC_PATH, kind) ? POD_SPEC_PATH[kind] : void 0;
-  const podData = podPath === void 0 ? void 0 : get(doc.data, podPath);
-  matches.push(...crdMatches(doc, kind, rules, fieldsByPath));
-  for (const rule of rules) {
-    if (rule.crd || !rule.kinds.includes("*") && !rule.kinds.includes(kind)) continue;
-    for (const scope of rule.scopes) {
-      for (const instance of scopeInstances(scope, doc.data, podPath, podData)) {
-        const ctx = { scope: instance.data, pod: podData };
-        if (!evaluate(rule.when, ctx)) continue;
-        matches.push({
-          rule,
-          instance,
-          ctx,
-          finding: buildFinding(rule, instance, ctx, doc, podPath, fieldsByPath)
-        });
-      }
-    }
-  }
-  return matches;
-}
-function crdMatches(doc, kind, rules, fieldsByPath) {
-  if (!doc.data) return [];
-  const known = rules.filter((r) => r.crd && r.crd.kind === kind);
-  if (known.length === 0) return [];
-  const data = doc.data;
-  const here = known.find((r) => r.crd && `${r.crd.group}/${r.crd.version}` === doc.apiVersion);
-  const make = (rule, code2, issue2, message) => {
-    const info2 = CRD_ISSUES[code2];
-    const derived = {
-      ...rule,
-      id: `crd-${code2}`,
-      title: info2.title,
-      severity: info2.severity,
-      why: info2.why
-    };
-    const node = issue2 ? fieldsByPath.get(issue2.path) : void 0;
-    const inside = issue2 && !node && issue2.path !== "" ? doc.fields.filter((f) => f.path.startsWith(`${issue2.path}.`)).map((f) => f.line) : [];
-    return {
-      rule: derived,
-      instance: { path: "", data },
-      ctx: { scope: data, pod: void 0 },
-      finding: {
-        ruleId: derived.id,
-        title: info2.title,
-        severity: info2.severity,
-        message,
-        why: info2.why,
-        line: node?.line ?? (inside.length > 0 ? Math.min(...inside) : doc.startLine),
-        ...node ? { path: node.path } : {}
-      }
-    };
-  };
-  if (!here?.crd) {
-    const versions = known.map((r) => `${r.crd?.group}/${r.crd?.version}`).join(", ");
-    const rule = known[0];
-    return [
-      make(
-        rule,
-        "unknown-version",
-        void 0,
-        `${kind} uses apiVersion "${doc.apiVersion ?? ""}", but its CustomResourceDefinition defines ${versions}.`
-      )
-    ];
-  }
-  return validateAgainst(data, here.crd.schema).map(
-    (issue2) => make(here, issue2.code, issue2, issue2.message)
-  );
-}
-function checkDocument(doc, rules) {
-  const checked = {
-    index: doc.index,
-    startLine: doc.startLine,
-    issues: doc.issues,
-    coverage: kindCoverage(doc.kind, doc.apiVersion, rules),
-    findings: matchRules(doc, rules).map((m) => m.finding),
-    ...doc.apiVersion !== void 0 ? { apiVersion: doc.apiVersion } : {},
-    ...doc.kind !== void 0 ? { kind: doc.kind } : {},
-    ...doc.name !== void 0 ? { name: doc.name } : {}
-  };
-  checked.findings.sort(
-    (a, b) => a.line - b.line || SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || a.ruleId.localeCompare(b.ruleId)
-  );
-  return checked;
-}
-function get(data, path6) {
-  return resolve(data, path6)[0]?.value;
-}
-function scopeInstances(scope, data, podPath, podData) {
-  if (scope === "document") return [{ path: "", data }];
-  if (podPath === void 0 || podData === void 0) return [];
-  if (scope === "pod") return [{ path: podPath, data: podData }];
-  const list = scope === "container" ? "containers" : "initContainers";
-  const items = podData[list];
-  if (!Array.isArray(items)) return [];
-  return items.flatMap((item, i) => {
-    if (item === null || typeof item !== "object") return [];
-    const name = item.name;
-    return [
-      {
-        path: `${podPath}.${list}[${i}]`,
-        data: item,
-        ...typeof name === "string" ? { container: name } : {}
-      }
-    ];
-  });
-}
-function buildFinding(rule, instance, ctx, doc, podPath, fieldsByPath) {
-  let node;
-  let value;
-  for (const reportPath of rule.report) {
-    const base = isPodPath(reportPath) ? ctx.pod : ctx.scope;
-    const basePath = isPodPath(reportPath) ? podPath : instance.path;
-    const match3 = resolve(base, reportPath)[0];
-    if (!match3) continue;
-    const full = basePath ? `${basePath}.${match3.path}` : match3.path;
-    node = fieldsByPath.get(full);
-    value = match3.value;
-    if (node) break;
-  }
-  const line = node?.line ?? scopeLine(instance, doc);
-  const text2 = fill(rule.message, {
-    name: doc.name ?? "",
-    kind: doc.kind ?? "",
-    container: instance.container ?? "",
-    value: typeof value === "object" ? "" : String(value ?? "")
-  });
-  return {
-    ruleId: rule.id,
-    title: rule.title,
-    severity: rule.severity,
-    message: text2,
-    line,
-    ...rule.why !== void 0 ? { why: rule.why } : {},
-    ...rule.fix !== void 0 ? { fix: rule.fix } : {},
-    ...node ? { path: node.path } : {}
-  };
-}
-function scopeLine(instance, doc) {
-  if (instance.path === "") return doc.startLine;
-  const prefix = `${instance.path}.`;
-  const lines = doc.fields.filter((f) => f.path.startsWith(prefix)).map((f) => f.line);
-  const own = doc.fields.find((f) => f.path === instance.path);
-  return lines.length > 0 ? Math.min(...lines) : own?.line ?? doc.startLine;
-}
-function fill(template, values) {
-  return template.replace(/\{(\w+)\}/g, (whole, key) => values[key] ?? whole);
-}
 
 // ../core/src/rules/index.ts
 function loadBundledRules() {

@@ -108,6 +108,24 @@ describe('schema checks', () => {
 });
 
 describe('explain', () => {
+  it('reports what the CRD finds wrong instead of hiding it', () => {
+    const doc = explainManifest(`${head}spec:\n  size: 1\n  sise: 2\n`, rules).documents[0];
+    expect(doc?.issues.map((i) => i.line)).toEqual([6]);
+    expect(doc?.issues[0]?.message).toContain('"spec.sise"');
+  });
+
+  it('says so when part of a schema cannot be checked', () => {
+    const crd = parseCrds(
+      CRD.replace(
+        'mode:',
+        'either: { oneOf: [{ type: string }, { type: integer }] }\n                mode:',
+      ),
+    );
+    const f = checkManifest(`${head}spec: { size: 1, either: 3 }`, crd).documents[0]?.findings;
+    expect(f?.map((x) => x.ruleId)).toEqual(['crd-not-validated']);
+    expect(f?.[0]?.severity).toBe('info');
+  });
+
   it('uses the CRD descriptions for the fields of a custom kind', () => {
     const doc = explainManifest(`${head}spec: { size: 2, dnsNames: [a] }`, rules).documents[0];
     expect(doc?.unsupportedKind).toBe(false);

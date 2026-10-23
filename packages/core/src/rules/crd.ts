@@ -79,7 +79,12 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 export type CrdIssueCode =
-  'unknown-version' | 'unknown-field' | 'wrong-type' | 'invalid-value' | 'missing-required';
+  | 'not-validated'
+  | 'unknown-version'
+  | 'unknown-field'
+  | 'wrong-type'
+  | 'invalid-value'
+  | 'missing-required';
 
 export interface CrdIssue {
   code: CrdIssueCode;
@@ -90,6 +95,11 @@ export interface CrdIssue {
 
 export const CRD_ISSUES: Record<CrdIssueCode, { title: string; severity: Severity; why: string }> =
   {
+    'not-validated': {
+      title: 'Part of the schema cannot be checked',
+      severity: 'info',
+      why: 'ManifestLens does not evaluate oneOf, anyOf, allOf, not or CEL rules, so this part was not validated. "No findings" here does not mean it is valid.',
+    },
     'unknown-version': {
       title: 'apiVersion is not in the CustomResourceDefinition',
       severity: 'warning',
@@ -137,8 +147,17 @@ function walk(
   top = false,
 ): void {
   if (depth > MAX_DEPTH || value === null || value === undefined) return;
-  // oneOf/anyOf/allOf/not need a full validator; guessing would give false alarms.
-  if (schema.oneOf || schema.anyOf || schema.allOf || schema.not) return;
+  // oneOf/anyOf/allOf/not need a full validator; guessing would give false alarms, so say so.
+  const cel = (schema as Record<string, unknown>)['x-kubernetes-validations'];
+  if (schema.oneOf || schema.anyOf || schema.allOf || schema.not || Array.isArray(cel)) {
+    const where = path === '' ? 'The document' : `"${path}"`;
+    issues.push({
+      code: 'not-validated',
+      path,
+      message: `${where} uses schema rules (oneOf, anyOf, allOf, not or CEL) that ManifestLens cannot check, so it was only partly validated.`,
+    });
+    if (schema.oneOf || schema.anyOf || schema.allOf || schema.not) return;
+  }
 
   const label = path === '' ? 'the document' : `"${path}"`;
   if (schema['x-kubernetes-int-or-string']) {
