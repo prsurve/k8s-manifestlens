@@ -1,5 +1,6 @@
 import { parseManifestWithTree } from '../parse.js';
 import { matchRules } from '../rules/check.js';
+import { kindCoverage } from '../rules/coverage.js';
 import type { RuleMatch } from '../rules/check.js';
 import { evaluate, resolve } from '../rules/evaluate.js';
 import type { Finding, FixSet, FixSpec, Rule } from '../rules/types.js';
@@ -18,6 +19,7 @@ import type {
   IntroducedFinding,
   SkipReason,
   SkippedFix,
+  UncheckedDocument,
 } from './types.js';
 
 interface Analysis {
@@ -26,13 +28,25 @@ interface Analysis {
   /** Number of YAML problems in the whole file. */
   issues: number;
   documents: { kind?: string; name?: string; canon: string }[];
+  notChecked: UncheckedDocument[];
 }
 
 function analyze(text: string, rules: Rule[]): Analysis {
   const parsed = parseManifestWithTree(text);
-  const out: Analysis = { matches: [], issues: 0, documents: [] };
+  const out: Analysis = { matches: [], issues: 0, documents: [], notChecked: [] };
   for (const { manifest: doc } of parsed) {
     out.issues += doc.issues.length;
+    const coverage = kindCoverage(doc.kind, doc.apiVersion, rules);
+    if (coverage.level !== 'checked' && coverage.message) {
+      out.notChecked.push({
+        document: doc.index,
+        line: doc.startLine,
+        level: coverage.level,
+        message: coverage.message,
+        ...(doc.kind !== undefined ? { kind: doc.kind } : {}),
+        ...(doc.name !== undefined ? { name: doc.name } : {}),
+      });
+    }
     out.documents.push({
       ...(doc.kind !== undefined ? { kind: doc.kind } : {}),
       ...(doc.name !== undefined ? { name: doc.name } : {}),
@@ -405,6 +419,7 @@ function finish(
     sourceHash: fingerprint(source),
     skipped,
     withoutFix: original.matches.filter((m) => m.match.rule.autofix === undefined).length,
+    notChecked: original.notChecked,
   };
   if (text === source) {
     return {

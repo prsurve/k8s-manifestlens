@@ -775,3 +775,26 @@ describe('reported lines', () => {
     expect(original[(second?.line ?? 0) - 1]).toContain('name: other');
   });
 });
+
+describe('fixManifest: kinds without rules', () => {
+  const typo = POD('').replace('kind: Pod', 'kind: Poddsds');
+
+  it('reports a document of an unknown kind instead of silently doing nothing', () => {
+    const r = fixManifest(typo, rules, { maxRisk: 'high' });
+    expect(r.status).toBe('unchanged');
+    expect(r.notChecked).toHaveLength(1);
+    expect(r.notChecked[0]).toMatchObject({ document: 0, kind: 'Poddsds', level: 'unchecked' });
+    expect(r.notChecked[0]?.message).toMatch(/typo for "Pod"/);
+  });
+
+  it('reports nothing for kinds the rules cover', () => {
+    expect(fixManifest(POD(''), rules).notChecked).toEqual([]);
+  });
+
+  it('does not suggest a kind for a custom resource', () => {
+    const crd = 'apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata: {name: c}\n';
+    const [d] = fixManifest(crd, rules).notChecked;
+    expect(d?.message).toMatch(/custom resource/);
+    expect(d?.message).not.toMatch(/typo/);
+  });
+});

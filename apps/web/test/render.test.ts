@@ -375,3 +375,14 @@ describe('fix examples', () => {
     expect(jump).toHaveBeenCalledWith(r.applied[0]?.line);
   });
 });
+
+describe('renderFix: kinds without rules', () => {
+  it('says a misspelt kind was not checked, with a suggestion', () => {
+    const src =
+      'apiVersion: v1\nkind: Poddsds\nmetadata: {name: p}\nspec:\n  containers:\n    - {name: a, image: "x:1"}\n';
+    const result = fixManifest(src, loadBundledRules());
+    const root = renderFix(result, unifiedDiff(src, result.fixed, 'manifest.yaml'));
+    expect(root.querySelector('.summary')?.textContent).toMatch(/not checked/);
+    expect(root.querySelector('.coverage')?.textContent).toMatch(/typo for "Pod"/);
+  });
+});

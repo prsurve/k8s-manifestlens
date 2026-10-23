@@ -25,6 +25,8 @@
   and other unknown kinds, and kinds that are explained but have no rules, are reported as not checked
   in the CLI, the web page, VS Code and the GitHub Action (a "Not checked" section and `notChecked`
   in the JSON report), so "no findings" is never mistaken for "safe".
+- The fix result lists `notChecked` documents, so a misspelt or unknown kind (`Poddsds`) is
+  called out in the CLI and the web Fix tab, with a "did you mean" hint, instead of "no fixes to apply".
 - 18 new rules (34 in total): `default-service-account-token`, `missing-seccomp-profile`,
   `docker-socket-mount`, `sensitive-hostpath`, `host-port`, `dangerous-capabilities`, `secret-in-env`,
   `external-ips`, `ingress-no-tls`, `rbac-wildcard`, `rbac-escalation-verbs`, `cluster-admin-binding`,

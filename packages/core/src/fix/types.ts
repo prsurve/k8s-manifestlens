@@ -87,6 +87,18 @@ export interface FixValidation {
   problems: string[];
 }
 
+/** A document the rules do not cover, so a result without fixes says nothing about it. */
+export interface UncheckedDocument {
+  /** 0-based position among the documents in the file. */
+  document: number;
+  kind?: string;
+  name?: string;
+  /** 1-based line where the document starts. */
+  line: number;
+  level: 'explain-only' | 'unchecked';
+  message: string;
+}
+
 export type FixStatus = 'unchanged' | 'fixed' | 'rejected';
 
 export interface FixResult {
@@ -100,6 +112,8 @@ export interface FixResult {
   skipped: SkippedFix[];
   /** Findings from rules that have no structured fix (nothing is ever done about these). */
   withoutFix: number;
+  /** Documents of a kind no rule covers: nothing was checked or fixed there. */
+  notChecked: UncheckedDocument[];
   /** Findings still present in `fixed`. */
   remaining: number;
   validation: FixValidation;

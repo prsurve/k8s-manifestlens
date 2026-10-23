@@ -27420,6 +27420,9 @@ function lookupPodSpec(kind, pattern) {
   const wildcard = dot === -1 ? "" : `${key.slice(0, dot)}.*`;
   return wildcard !== "" && Object.hasOwn(podSpecDocs, wildcard) ? podSpecDocs[wildcard] : void 0;
 }
+function supportedKinds() {
+  return [.../* @__PURE__ */ new Set([...Object.keys(docsByKind), ...schemaKinds()])].sort();
+}
 
 // ../core/src/parse.ts
 var import_yaml = __toESM(require_dist(), 1);
@@ -28276,6 +28279,33 @@ function isCustomResource(apiVersion) {
   const group = apiVersion?.includes("/") ? apiVersion.slice(0, apiVersion.indexOf("/")) : "";
   return group.includes(".") && !/^([a-z0-9-]+\.)*k8s\.io$/.test(group);
 }
+function distance(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1]?.toLowerCase() === b[j - 1]?.toLowerCase() ? 0 : 1;
+      row[j] = Math.min((prev[j] ?? 0) + 1, (row[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
+    }
+    prev = row;
+  }
+  return prev[b.length] ?? 0;
+}
+function suggestKind(kind, rules) {
+  const known = [.../* @__PURE__ */ new Set([...supportedKinds(), ...checkedKinds(rules)])];
+  let best;
+  for (const k of known) {
+    const prefix = k.length >= 3 && kind.toLowerCase().startsWith(k.toLowerCase());
+    const d = prefix ? 1 : distance(kind, k);
+    if (!best || d < best.d) best = { kind: k, d };
+  }
+  return best && best.d <= Math.max(2, Math.floor(kind.length / 3)) ? best.kind : void 0;
+}
+function checkedKinds(rules) {
+  const kinds = new Set(Object.keys(POD_SPEC_PATH));
+  for (const rule of rules) for (const kind of rule.kinds) if (kind !== "*") kinds.add(kind);
+  return [...kinds].sort();
+}
 function kindCoverage(kind, apiVersion, rules) {
   if (kind === void 0) {
     return {
@@ -28293,10 +28323,13 @@ function kindCoverage(kind, apiVersion, rules) {
       message: `ManifestLens explains ${kind} fields but has no rules that check it. ${caveat}`
     };
   }
-  const what = isCustomResource(apiVersion) ? `${kind} (${apiVersion}) is a custom resource` : `ManifestLens does not know the kind ${kind}`;
+  const custom = isCustomResource(apiVersion);
+  const what = custom ? `${kind} (${apiVersion}) is a custom resource` : `ManifestLens does not know the kind ${kind}`;
+  const guess = custom ? void 0 : suggestKind(kind, rules);
+  const hint = guess ? ` Is "${kind}" a typo for "${guess}"?` : "";
   return {
     level: "unchecked",
-    message: `${what}, so it was not checked: only generic checks, such as removed apiVersions, ran on it. ${caveat}`
+    message: `${what}, so it was not checked: only generic checks, such as removed apiVersions, ran on it.${hint} ${caveat}`
   };
 }
 
@@ -28823,9 +28856,20 @@ var RISK_ORDER = { low: 0, medium: 1, high: 2 };
 // ../core/src/fix/engine.ts
 function analyze(text2, rules) {
   const parsed = parseManifestWithTree(text2);
-  const out = { matches: [], issues: 0, documents: [] };
+  const out = { matches: [], issues: 0, documents: [], notChecked: [] };
   for (const { manifest: doc } of parsed) {
     out.issues += doc.issues.length;
+    const coverage = kindCoverage(doc.kind, doc.apiVersion, rules);
+    if (coverage.level !== "checked" && coverage.message) {
+      out.notChecked.push({
+        document: doc.index,
+        line: doc.startLine,
+        level: coverage.level,
+        message: coverage.message,
+        ...doc.kind !== void 0 ? { kind: doc.kind } : {},
+        ...doc.name !== void 0 ? { name: doc.name } : {}
+      });
+    }
     out.documents.push({
       ...doc.kind !== void 0 ? { kind: doc.kind } : {},
       ...doc.name !== void 0 ? { name: doc.name } : {},
@@ -29090,7 +29134,8 @@ function finish(source, text2, rules, original, applied, skipped) {
     original: source,
     sourceHash: fingerprint(source),
     skipped,
-    withoutFix: original.matches.filter((m) => m.match.rule.autofix === void 0).length
+    withoutFix: original.matches.filter((m) => m.match.rule.autofix === void 0).length,
+    notChecked: original.notChecked
   };
   if (text2 === source) {
     return {
@@ -31781,12 +31826,12 @@ function asList(value, name, p, splitCommas) {
 function suggest(word, candidates) {
   let best;
   for (const name of candidates) {
-    const d = distance(word, name);
+    const d = distance2(word, name);
     if (d <= 2 && (!best || d < best.d)) best = { name, d };
   }
   return best?.name;
 }
-function distance(a, b) {
+function distance2(a, b) {
   const row = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
     let prev = row[0];

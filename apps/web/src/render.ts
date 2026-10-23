@@ -464,7 +464,13 @@ export function renderFix(result: FixResult, diff: string, actions: FixActions =
   } else if (n === 0) {
     root.append(
       toolbar(
-        el('p', { class: 'summary', text: 'No fixes to apply.' }),
+        el('p', {
+          class: 'summary',
+          text:
+            result.notChecked.length > 0
+              ? `No fixes to apply, and ${plural(result.notChecked.length, 'document')} not checked.`
+              : 'No fixes to apply.',
+        }),
         actions.undo ? button('Undo last apply', actions.undo) : false,
       ),
     );
@@ -481,6 +487,15 @@ export function renderFix(result: FixResult, diff: string, actions: FixActions =
       el('p', {
         class: 'note',
         text: `Checked: the YAML parses, only the listed fields changed, ${plural(result.validation.resolved, 'finding')} gone, none added.`,
+      }),
+    );
+  }
+
+  for (const d of result.notChecked) {
+    root.append(
+      el('p', {
+        class: `coverage coverage-${d.level}`,
+        text: `${d.kind ?? 'Document'}${d.name ? ` "${d.name}"` : ''}, line ${d.line}: ${d.message}`,
       }),
     );
   }

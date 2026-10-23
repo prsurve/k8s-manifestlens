@@ -15,4 +15,5 @@ export type {
   IntroducedFinding,
   SkipReason,
   SkippedFix,
+  UncheckedDocument,
 } from './types.js';
