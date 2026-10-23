@@ -801,6 +801,7 @@ ins {
   .tabs button,
   .chip,
   .text-btn,
+  select,
   .filter,
   .ln {
     min-height: 44px;
@@ -827,7 +828,8 @@ ins {
   margin: 0;
   padding: 0.5rem 0;
   overflow-x: auto;
-  font: 0.8125rem/1.5 var(--mono, ui-monospace, monospace);
+  font: 0.8125rem/1.5 var(--font-mono);
+  color: var(--text);
 }
 .dl {
   display: block;
@@ -835,15 +837,47 @@ ins {
   white-space: pre;
 }
 .dl-add {
-  background: color-mix(in srgb, #2da44e 18%, transparent);
+  background: var(--add-bg);
 }
 .dl-del {
-  background: color-mix(in srgb, #cf222e 16%, transparent);
+  background: var(--remove-bg);
 }
 .note,
 label.inline {
   font-size: 0.8125rem;
-  color: var(--muted, inherit);
+  color: var(--muted);
+  font-weight: 400;
+}
+label.inline {
+  display: block;
+  margin: 8px 0 4px;
+}
+.actions label.inline {
+  margin: 0 2px 0 0;
+}
+.actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+select {
+  min-height: 28px;
+  max-width: 11rem;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+select:hover {
+  background: var(--hover);
+}
+select option {
+  background: var(--panel);
+  color: var(--text);
 }
 textarea.short {
   min-height: 5.5rem;
