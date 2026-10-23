@@ -14,6 +14,7 @@ import {
 import type { FixPolicy, FixRisk, Rule } from '@manifestlens/core';
 import { inject } from '@vercel/analytics';
 import './style.css';
+import { fetchCrdText, toRawUrl } from './crd-url.js';
 import { examples, fixExamples } from './examples.js';
 import { initTheme } from './theme.js';
 import {
@@ -220,9 +221,37 @@ function debounce(fn: () => void, ms: number): () => void {
   };
 }
 
+/** Fetch the CRD at the typed URL into the CRD box, or show why that was not possible. */
+async function loadCrdFromUrl(): Promise<void> {
+  const raw = input('crd-url').value;
+  const url = toRawUrl(raw);
+  if (!url) {
+    setError(
+      'crds-error',
+      raw.trim() === ''
+        ? 'Enter a GitHub link to a CRD file.'
+        : 'Only GitHub links work here (github.com or raw.githubusercontent.com, over https). Paste the YAML instead.',
+    );
+    return;
+  }
+  const button = $<HTMLButtonElement>('crd-load');
+  button.disabled = true;
+  try {
+    input('extra-crds').value = await fetchCrdText(url);
+    setError('crds-error', undefined);
+  } catch (err) {
+    setError('crds-error', err instanceof Error ? err.message : String(err));
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function init(): void {
   initTheme($('theme-toggle'));
   const refresh = debounce(() => update(active), 150);
+  $('crd-load').addEventListener('click', () => {
+    void loadCrdFromUrl().then(() => update(active));
+  });
   for (const id of [
     'explain-input',
     'check-input',

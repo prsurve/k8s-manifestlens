@@ -22,6 +22,11 @@ A file may hold several CRDs separated by `---`, or the `items` of a `kind: List
 | CLI           | `manifestlens check app.yaml --crd certificate-crd.yaml` (also `explain`, `diff`, `fix`; a folder works too) |
 | GitHub Action | `crds: k8s/crds` (files or folders inside the repository)                                                    |
 
+The Load button only accepts `github.com/.../blob/...`, `raw.githubusercontent.com` and
+`gist.githubusercontent.com` links over https. The browser downloads the file itself. For any other
+site, copy the text and paste it. The CLI and the Action read files only: use `curl -o crd.yaml <url>`
+first.
+
 ## What is checked
 
 | Finding                | Severity | When                                                                                |

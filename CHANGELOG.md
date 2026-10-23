@@ -7,7 +7,7 @@
 - **Custom resources from a CRD.** Give ManifestLens a CustomResourceDefinition and documents of that
   kind are explained from the CRD's descriptions and checked against its schema: unknown fields (with
   a "did you mean"), wrong types, missing required fields, enum, pattern and range violations, and an
-  `apiVersion` the CRD does not define. Web page: a "Custom resources" box. CLI: `--crd`. GitHub
+  `apiVersion` the CRD does not define. Web page: a "Custom resources" box that also loads a GitHub link. CLI: `--crd`. GitHub
   Action: the `crds` input. Core API: `parseCrds` and an optional `rules` argument for
   `explainManifest`. Schema features that need a full validator (`oneOf`, CEL rules) are skipped.
   See [docs/custom-resources.md](docs/custom-resources.md).
