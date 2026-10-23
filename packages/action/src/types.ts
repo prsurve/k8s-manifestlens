@@ -1,4 +1,4 @@
-import type { Severity } from '@manifestlens/core';
+import type { FixRisk, Severity } from '@manifestlens/core';
 
 export type Scope = 'all' | 'changed' | 'new';
 export type Mode = 'enforce' | 'report';
@@ -52,6 +52,14 @@ export interface Settings {
   reportFile: string;
   /** Names this run, so matrix jobs get separate summaries and separate PR comments. */
   label: string;
+  /** Work out automatic fixes and report them. Nothing in the repository is ever changed. */
+  suggestFixes: boolean;
+  /** Where to write one unified diff of all suggested fixes (apply it with `git apply`); empty means none. */
+  fixPatchFile: string;
+  /** Highest fix risk to suggest. */
+  fixMaxRisk: FixRisk;
+  /** YAML file in the repository with values fixes cannot guess, e.g. `params: { memoryLimit: 256Mi }`. */
+  fixPolicy: string;
   maxFiles: number;
   maxFileSizeKb: number;
 }
@@ -88,12 +96,25 @@ export interface ChangedObject {
   effects: string[];
 }
 
+/** An object ManifestLens read but has no rules for, so "no findings" says nothing about it. */
+export interface NotChecked {
+  file: string;
+  line: number;
+  /** e.g. `Certificate "web-tls"` */
+  object: string;
+  kind?: string;
+  apiVersion?: string;
+  level: 'explain-only' | 'unchecked';
+  message: string;
+}
+
 export interface Analysis {
   findings: LocatedFinding[];
   parseProblems: ParseProblem[];
   suppressed: number;
   filesChecked: number;
   changes: ChangedObject[];
+  notChecked: NotChecked[];
   /** Rule ids named in settings that no rule has: usually a typo. */
   unknownRules: string[];
 }

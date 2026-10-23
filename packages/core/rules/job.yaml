@@ -1,0 +1,22 @@
+# Starter rules for Jobs and CronJobs.
+id: job-no-ttl
+title: Finished Job is never cleaned up
+severity: info
+kinds: [Job]
+when:
+  missing: spec.ttlSecondsAfterFinished
+report: spec
+message: 'Job "{name}" stays in the cluster after it finishes.'
+why: Without ttlSecondsAfterFinished a finished Job and its Pods stay until someone deletes them. Many of them slow the API server and clutter kubectl output.
+fix: Set spec.ttlSecondsAfterFinished, for example 3600 to keep the logs for an hour.
+---
+id: cronjob-concurrency
+title: CronJob may overlap with itself
+severity: info
+kinds: [CronJob]
+when:
+  missing: spec.concurrencyPolicy
+report: spec.schedule
+message: 'CronJob "{name}" starts a new run even if the last one is still going.'
+why: The default policy is Allow. A slow run piles up with the next ones, which can overload the app or corrupt shared data.
+fix: Set spec.concurrencyPolicy to Forbid (skip the new run) or Replace (stop the old one).

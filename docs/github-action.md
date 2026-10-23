@@ -100,6 +100,10 @@ All are optional.
 | `comment`             | `auto`                     | `auto`: comment when there is something to say. `always`. `never`.                            |
 | `summary`             | `true`                     | Write the job summary.                                                                        |
 | `sarif-file`          | none                       | Write SARIF here for code scanning.                                                           |
+| `suggest-fixes`       | `false`                    | List validated automatic fixes in the summary and report. Nothing is changed.                 |
+| `fix-patch-file`      | none                       | Write all suggested fixes as one unified diff for `git apply`. Implies `suggest-fixes`.       |
+| `fix-max-risk`        | `low`                      | Highest fix risk to suggest: `low`, `medium` or `high`.                                       |
+| `fix-policy`          | none                       | YAML file in the repository with values fixes cannot guess ([auto-fix.md](auto-fix.md)).      |
 | `report-file`         | `manifestlens-report.json` | Where to write the JSON report.                                                               |
 | `label`               | none                       | Names the run: separate summary heading and pull request comment per matrix leg.              |
 | `max-files`           | `2000`                     | Safety limit on files matched.                                                                |
@@ -118,6 +122,8 @@ All are optional.
 | `suppressed`                              | Findings silenced by `ignore` or inline comments.                                  |
 | `report-file`                             | Path of the JSON report (every finding, the limits, where each setting came from). |
 | `sarif-file`                              | Path of the SARIF file, or empty.                                                  |
+| `fixes-available`                         | Validated fixes found (`0` when `suggest-fixes` is off).                           |
+| `fix-patch-file`                          | Path of the fix patch, or empty.                                                   |
 
 ## Large result sets
 

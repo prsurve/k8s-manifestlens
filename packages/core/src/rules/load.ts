@@ -1,5 +1,5 @@
 import { isMap, parseAllDocuments } from 'yaml';
-import type { Condition, Rule, RuleScope, Severity } from './types.js';
+import type { Condition, FixRisk, FixSet, FixSpec, Rule, RuleScope, Severity } from './types.js';
 
 export class RuleError extends Error {
   constructor(message: string) {
@@ -21,6 +21,7 @@ const RULE_KEYS = [
   'message',
   'why',
   'fix',
+  'autofix',
 ];
 
 /**
@@ -99,7 +100,79 @@ function toRule(raw: Record<string, unknown>, origin: string, position: number):
     if (typeof value !== 'string') fail(`"${key}" must be a string.`);
     rule[key] = (value as string).trim();
   }
+  if (raw.autofix !== undefined) rule.autofix = toFixSpec(raw.autofix, fail);
   return rule;
+}
+
+const FIX_RISKS: FixRisk[] = ['low', 'medium', 'high'];
+const FIX_KEYS = ['risk', 'summary', 'requires', 'blocked', 'set'];
+const FIX_PATH = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/;
+
+function toFixSpec(raw: unknown, fail: (msg: string) => never): FixSpec {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return fail('"autofix" must be a mapping.');
+  }
+  const obj = raw as Record<string, unknown>;
+  for (const key of Object.keys(obj)) {
+    if (!FIX_KEYS.includes(key)) fail(`unknown key "${key}" in "autofix".`);
+  }
+  if (!FIX_RISKS.includes(obj.risk as FixRisk)) {
+    fail(`"autofix.risk" must be one of ${FIX_RISKS.join(', ')}.`);
+  }
+  if (typeof obj.summary !== 'string' || obj.summary.trim() === '') {
+    fail('"autofix.summary" is required.');
+  }
+  const summary = (obj.summary as string).trim();
+  if (obj.blocked !== undefined && (typeof obj.blocked !== 'string' || obj.blocked.trim() === '')) {
+    fail('"autofix.blocked" must be a non-empty string.');
+  }
+  const set = obj.set;
+  if (
+    set === null ||
+    typeof set !== 'object' ||
+    Array.isArray(set) ||
+    Object.keys(set).length === 0
+  ) {
+    return fail('"autofix.set" must be a non-empty mapping of path to value.');
+  }
+  const sets: FixSet[] = Object.entries(set).map(([path, value]): FixSet => {
+    if (!FIX_PATH.test(path)) {
+      return fail(`"autofix.set" path "${path}" must be plain dotted keys, with no [] or $pod.`);
+    }
+    const isParam =
+      value !== null && typeof value === 'object' && !Array.isArray(value) && '$param' in value;
+    if (!isParam) return { path, value };
+    const { $param: name, pattern, ...extra } = value as Record<string, unknown>;
+    if (
+      Object.keys(extra).length > 0 ||
+      typeof name !== 'string' ||
+      !/^\w+$/.test(name) ||
+      (pattern !== undefined && typeof pattern !== 'string')
+    ) {
+      return fail(
+        `"autofix.set" value for "${path}" must be { $param: name } with an optional "pattern".`,
+      );
+    }
+    if (pattern === undefined) return { path, param: name };
+    try {
+      return { path, param: name, pattern: new RegExp(pattern as string) };
+    } catch {
+      return fail(`invalid regular expression "${pattern as string}" for "${path}".`);
+    }
+  });
+  const paths = sets.map((s) => s.path);
+  for (const a of paths) {
+    if (paths.some((b) => b !== a && b.startsWith(`${a}.`))) {
+      fail(`"autofix.set" paths "${a}" and a path below it cannot both be set.`);
+    }
+  }
+  return {
+    risk: obj.risk as FixRisk,
+    summary,
+    ...(obj.requires !== undefined ? { requires: toCondition(obj.requires, fail) } : {}),
+    ...(obj.blocked !== undefined ? { blockedMessage: (obj.blocked as string).trim() } : {}),
+    set: sets,
+  };
 }
 
 function requiredString(
@@ -139,7 +212,13 @@ function toCondition(raw: unknown, fail: (msg: string) => never): Condition {
       if (op === 'matches') {
         if (typeof value !== 'string') return fail('"matches" takes a regular expression string.');
         try {
-          return { op, path, pattern: new RegExp(value) };
+          // A leading (?i) makes the pattern case-insensitive, as in most regex dialects.
+          const insensitive = value.startsWith('(?i)');
+          return {
+            op,
+            path,
+            pattern: new RegExp(insensitive ? value.slice(4) : value, insensitive ? 'i' : ''),
+          };
         } catch {
           return fail(`invalid regular expression "${value}".`);
         }
@@ -156,6 +235,20 @@ function toCondition(raw: unknown, fail: (msg: string) => never): Condition {
       return { op, conditions: arg.map((c) => toCondition(c, fail)) };
     case 'not':
       return { op: 'not', condition: toCondition(arg, fail) };
+    case 'some': {
+      const obj = arg as Record<string, unknown> | null;
+      if (
+        obj === null ||
+        typeof obj !== 'object' ||
+        Array.isArray(obj) ||
+        typeof obj.in !== 'string' ||
+        obj.where === undefined ||
+        Object.keys(obj).length !== 2
+      ) {
+        return fail('"some" takes { in: path-to-a-list, where: condition }.');
+      }
+      return { op: 'some', path: obj.in, condition: toCondition(obj.where, fail) };
+    }
     default:
       return fail(`unknown operator "${op}".`);
   }

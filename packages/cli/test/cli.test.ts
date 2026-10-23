@@ -1,6 +1,9 @@
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { run } from '../src/main.js';
 
 const fixture = fileURLToPath(new URL('../../../examples/web.yaml', import.meta.url));
@@ -151,5 +154,152 @@ describe('explain docs links', () => {
     const deployment = stdout.split('== Service')[0] ?? '';
     const links = deployment.match(/Docs: \S+/g) ?? [];
     expect(new Set(links).size).toBe(links.length);
+  });
+});
+
+describe('manifestlens fix', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'manifestlens-fix-'));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  const POD = `# keep this comment
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27
+      securityContext:
+        privileged: true
+`;
+  function write(name: string, text: string): string {
+    const path = join(dir, name);
+    writeFileSync(path, text);
+    return path;
+  }
+
+  it('previews a diff on stdout and the report on stderr, and writes nothing', () => {
+    const file = write('preview.yaml', POD.replace('privileged: true', 'runAsUser: 1000'));
+    const { code, stdout, stderr } = cli('fix', file);
+    expect(code).toBe(0);
+    expect(stdout).toContain('+        allowPrivilegeEscalation: false');
+    expect(stdout).toContain(`--- a${file}\n`); // absolute path: no doubled slash
+    expect(stderr).toContain('1 fix ready (preview, nothing written)');
+    expect(stderr).toContain('Validation passed');
+    expect(stderr).toContain('Run again with --write');
+    expect(readFileSync(file, 'utf8')).toBe(POD.replace('privileged: true', 'runAsUser: 1000'));
+  });
+
+  it('prints a diff that git apply accepts', () => {
+    const file = write('git.yaml', POD.replace('privileged: true', 'runAsUser: 1000'));
+    const { stdout } = cli('fix', file, '--max-risk', 'medium');
+    const patch = join(dir, 'p.patch');
+    // The labels hold the absolute path; point them at the file name so git can find it from `dir`.
+    writeFileSync(
+      patch,
+      stdout.replace(/^--- .*$/m, '--- a/git.yaml').replace(/^\+\+\+ .*$/m, '+++ b/git.yaml'),
+    );
+    const out = spawnSync('git', ['apply', '--check', patch], { cwd: dir, encoding: 'utf8' });
+    expect(out.stderr).toBe('');
+    expect(out.status).toBe(0);
+  });
+
+  it('does not apply medium or high risk fixes unless asked', () => {
+    const file = write('risk.yaml', POD);
+    const low = cli('fix', file, '--only', 'privileged-container');
+    expect(low.code).toBe(0);
+    expect(low.stdout).toBe('');
+    expect(low.stderr).toContain('risk-too-high');
+    expect(low.stderr).toContain('--max-risk high');
+    const high = cli('fix', file, '--only', 'privileged-container', '--max-risk', 'high');
+    expect(high.stdout).toContain('-        privileged: true\n+        privileged: false');
+  });
+
+  it('--write applies the fixes, keeps a backup and the comments, and is idempotent', () => {
+    const file = write('apply.yaml', POD);
+    const first = cli('fix', file, '--write', '--max-risk', 'high');
+    expect(first.code).toBe(0);
+    expect(first.stdout).toContain('applied');
+    const fixed = readFileSync(file, 'utf8');
+    expect(fixed).toContain('# keep this comment');
+    expect(fixed).toContain('privileged: false');
+    expect(readFileSync(`${file}.bak`, 'utf8')).toBe(POD);
+
+    const second = cli('fix', file, '--write', '--max-risk', 'high');
+    expect(second.code).toBe(0);
+    expect(second.stdout).toContain('no fixes to apply');
+    expect(readFileSync(file, 'utf8')).toBe(fixed);
+    expect(existsSync(`${file}.bak.1`)).toBe(false);
+  });
+
+  it('--no-backup skips the backup, and is refused without --write', () => {
+    const file = write('nobak.yaml', POD);
+    expect(cli('fix', file, '--write', '--no-backup', '--max-risk', 'high').code).toBe(0);
+    expect(existsSync(`${file}.bak`)).toBe(false);
+    const bad = cli('fix', file, '--no-backup');
+    expect(bad.code).toBe(2);
+    expect(bad.stderr).toContain('--no-backup');
+  });
+
+  it('reads policy values for fixes that need them', () => {
+    const file = write('policy.yaml', POD.replace('privileged: true', 'runAsUser: 1000'));
+    const without = cli('fix', file, '--only', 'missing-memory-limit', '--max-risk', 'medium');
+    expect(without.stdout).toBe('');
+    expect(without.stderr).toContain('needs-input');
+    const policy = write('policy-file.yaml', 'params:\n  memoryLimit: 256Mi\n');
+    const withPolicy = cli(
+      'fix',
+      file,
+      '--only',
+      'missing-memory-limit',
+      '--max-risk',
+      'medium',
+      '--policy',
+      policy,
+    );
+    expect(withPolicy.stdout).toContain('+          memory: 256Mi');
+    const bad = cli('fix', file, '--policy', write('bad-policy.yaml', 'params: 3'));
+    expect(bad.code).toBe(2);
+    expect(bad.stderr).toContain('"params" must be a mapping');
+    expect(cli('fix', file, '--policy', join(dir, 'nope.yaml')).code).toBe(2);
+  });
+
+  it('leaves findings from custom rules without a fix untouched', () => {
+    const file = write('custom.yaml', POD.replace('privileged: true', 'runAsUser: 1000'));
+    const { code, stderr } = cli(
+      'fix',
+      file,
+      '--rules',
+      fileURLToPath(new URL('./fixtures/custom-rules/team.yaml', import.meta.url)),
+      '--only',
+      'allow-privilege-escalation',
+    );
+    expect(code).toBe(0);
+    expect(stderr).toContain('1 fix ready');
+  });
+
+  it('rejects bad usage', () => {
+    const file = write('usage.yaml', POD);
+    expect(cli('fix', file, '--max-risk', 'extreme').code).toBe(2);
+    expect(cli('fix', file, '--only', 'no-such-rule').stderr).toContain('Unknown rule id');
+    expect(cli('fix', join(dir, 'missing.yaml')).code).toBe(2);
+    expect(cli('fix').code).toBe(2);
+  });
+
+  it('exits 1 for files with no Kubernetes documents or with YAML errors, and never writes them', () => {
+    const empty = write('empty.yaml', '# nothing\n');
+    expect(cli('fix', empty).code).toBe(1);
+    const broken = write('broken.yaml', `${POD}      oops: [\n`);
+    const result = cli('fix', broken, '--write', '--no-backup');
+    expect(result.code).toBe(1);
+    expect(readFileSync(broken, 'utf8')).toBe(`${POD}      oops: [\n`);
+  });
+
+  it('does not change what the other commands print', () => {
+    const risky = fileURLToPath(new URL('../../../examples/risky.yaml', import.meta.url));
+    const check = cli('check', risky);
+    expect(check.stdout).not.toContain('autofix');
+    expect(check.stdout).toContain('privileged-container');
   });
 });

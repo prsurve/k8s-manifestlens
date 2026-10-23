@@ -1,13 +1,24 @@
 import { LineCounter, isMap, isScalar, isSeq, parseAllDocuments } from 'yaml';
-import type { Node, ParsedNode, YAMLMap } from 'yaml';
+import type { Document, Node, ParsedNode, YAMLMap } from 'yaml';
 import type { FieldNode, ManifestDocument, ParseIssue } from './types.js';
+
+/** A parsed document together with the YAML syntax tree it came from, for tools that edit the source. */
+export interface ParsedWithTree {
+  manifest: ManifestDocument;
+  tree: Document.Parsed;
+}
 
 /** Parse a multi-document YAML manifest, keeping the source line of every key. */
 export function parseManifest(source: string): ManifestDocument[] {
-  const lineCounter = new LineCounter();
-  const docs = parseAllDocuments(source, { lineCounter, prettyErrors: false });
+  return parseManifestWithTree(source).map((d) => d.manifest);
+}
 
-  const result: ManifestDocument[] = [];
+/** Like {@link parseManifest}, but also returns each document's syntax tree (with source offsets). */
+export function parseManifestWithTree(source: string): ParsedWithTree[] {
+  const lineCounter = new LineCounter();
+  const docs = parseAllDocuments(source, { lineCounter, prettyErrors: false, merge: true });
+
+  const result: ParsedWithTree[] = [];
   docs.forEach((doc) => {
     const issues: ParseIssue[] = [...doc.errors, ...doc.warnings].map((e) => ({
       message: e.message.split('\n')[0] ?? e.message,
@@ -30,12 +41,15 @@ export function parseManifest(source: string): ManifestDocument[] {
     }
 
     result.push({
-      index: result.length,
-      startLine: isEmpty ? 1 : lineOf(root, lineCounter),
-      ...topLevelScalars(root),
-      ...(isMap(root) ? { data: doc.toJS() as Record<string, unknown> } : {}),
-      fields,
-      issues,
+      tree: doc,
+      manifest: {
+        index: result.length,
+        startLine: isEmpty ? 1 : lineOf(root, lineCounter),
+        ...topLevelScalars(root),
+        ...(isMap(root) ? { data: doc.toJS() as Record<string, unknown> } : {}),
+        fields,
+        issues,
+      },
     });
   });
   return result;
@@ -72,6 +86,8 @@ function collect(
   for (const pair of map.items) {
     if (!isScalar(pair.key)) continue;
     const key = String(pair.key.value);
+    // `<<: *base` merges another mapping in; it is not a field of its own.
+    if (key === '<<') continue;
     const path = join(pathPrefix, key);
     const pat = join(patternPrefix, key);
     const keyOffset = pair.key.range?.[0] ?? 0;

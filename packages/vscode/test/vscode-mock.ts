@@ -25,6 +25,21 @@ export class Diagnostic {
     public severity: number,
   ) {}
 }
+export const CodeActionKind = { QuickFix: 'quickfix' } as const;
+export class WorkspaceEdit {
+  replacements: { uri: unknown; range: Range; text: string }[] = [];
+  replace(uri: unknown, range: Range, text: string) {
+    this.replacements.push({ uri, range, text });
+  }
+}
+export class CodeAction {
+  diagnostics?: Diagnostic[];
+  edit?: WorkspaceEdit;
+  constructor(
+    public title: string,
+    public kind: string,
+  ) {}
+}
 export class MarkdownString {
   constructor(public value = '') {}
 }
@@ -72,6 +87,17 @@ export const state = {
   warnings: [] as string[],
   infos: [] as string[],
   openedDocuments: [] as { language: string; content: string }[],
+  codeActionProviders: [] as {
+    provideCodeActions(
+      doc: FakeDocument,
+      range: Range,
+      context: { diagnostics: Diagnostic[] },
+    ): CodeAction[];
+  }[],
+  /** What the user clicks in the next information message, if anything. */
+  choice: undefined as string | undefined,
+  applied: [] as WorkspaceEdit[],
+  executed: [] as unknown[][],
 };
 
 export function reset(): void {
@@ -85,6 +111,10 @@ export function reset(): void {
   state.warnings = [];
   state.infos = [];
   state.openedDocuments = [];
+  state.codeActionProviders.length = 0;
+  state.choice = undefined;
+  state.applied = [];
+  state.executed = [];
 }
 
 export const languages = {
@@ -96,6 +126,13 @@ export const languages = {
       delete: (uri: FakeDocument['uri']) => store.delete(uri.toString()),
       dispose() {},
     };
+  },
+  registerCodeActionsProvider(
+    _selector: string,
+    provider: (typeof state.codeActionProviders)[number],
+  ) {
+    state.codeActionProviders.push(provider);
+    return disposable;
   },
   registerHoverProvider(_selector: string, provider: (typeof state.hoverProviders)[number]) {
     state.hoverProviders.push(provider);
@@ -128,6 +165,10 @@ export const workspace = {
     state.config.push(l);
     return disposable;
   },
+  async applyEdit(edit: WorkspaceEdit) {
+    state.applied.push(edit);
+    return true;
+  },
   async openTextDocument(options: { language: string; content: string }) {
     state.openedDocuments.push(options);
     return fakeDocument('untitled.md', options.language, options.content);
@@ -139,11 +180,17 @@ export const window = {
     return state.activeDocument ? { document: state.activeDocument } : undefined;
   },
   showWarningMessage: async (message: string) => void state.warnings.push(message),
-  showInformationMessage: async (message: string) => void state.infos.push(message),
+  showInformationMessage: async (message: string, ...items: string[]) => {
+    state.infos.push(message);
+    return items.includes(state.choice ?? '') ? state.choice : undefined;
+  },
   showTextDocument: async () => undefined,
 };
 
 export const commands = {
+  async executeCommand(...args: unknown[]) {
+    state.executed.push(args);
+  },
   registerCommand(id: string, fn: () => unknown) {
     state.commands.set(id, fn);
     return disposable;

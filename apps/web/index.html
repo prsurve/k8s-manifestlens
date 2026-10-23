@@ -24,6 +24,7 @@
             Check
           </button>
           <button role="tab" id="tab-diff" aria-controls="panel-diff" data-tab="diff">Diff</button>
+          <button role="tab" id="tab-fix" aria-controls="panel-fix" data-tab="fix">Fix</button>
         </div>
         <p class="privacy">Runs in your browser. Nothing is uploaded.</p>
         <button
@@ -94,6 +95,46 @@
             ></textarea>
           </div>
           <div class="pane output" id="check-output" aria-live="polite"></div>
+        </section>
+
+        <section role="tabpanel" id="panel-fix" aria-labelledby="tab-fix" class="panel" hidden>
+          <div class="pane input">
+            <div class="pane-head">
+              <label for="fix-input">Manifest</label>
+              <span class="actions">
+                <label class="inline" for="fix-risk">Apply up to</label>
+                <select id="fix-risk" aria-label="Highest fix risk to apply">
+                  <option value="low">low risk</option>
+                  <option value="medium">medium risk</option>
+                  <option value="high">high risk</option>
+                </select>
+                <select id="fix-example" aria-label="Load an example">
+                  <option value="">Load example…</option>
+                  <option value="low">Low risk fixes</option>
+                  <option value="medium">Medium risk fixes</option>
+                  <option value="high">High risk fix</option>
+                  <option value="none">Nothing to fix</option>
+                </select>
+                <button type="button" class="text-btn" data-clear="fix">Clear</button>
+              </span>
+            </div>
+            <textarea
+              id="fix-input"
+              spellcheck="false"
+              placeholder="Paste Kubernetes YAML here"
+            ></textarea>
+            <label class="inline" for="fix-policy"
+              >Fix policy (optional values fixes cannot guess)</label
+            >
+            <textarea
+              id="fix-policy"
+              class="short"
+              spellcheck="false"
+              placeholder="params:&#10;  memoryLimit: 256Mi&#10;  loadBalancerSourceRanges: [10.0.0.0/8]"
+            ></textarea>
+            <p id="fix-policy-error" class="error" role="alert" hidden></p>
+          </div>
+          <div class="pane output" id="fix-output" aria-live="polite"></div>
         </section>
 
         <section

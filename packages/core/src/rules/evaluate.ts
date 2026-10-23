@@ -87,5 +87,17 @@ export function evaluate(cond: Condition, ctx: EvalContext): boolean {
       return cond.conditions.some((c) => evaluate(c, ctx));
     case 'not':
       return !evaluate(cond.condition, ctx);
+    case 'some':
+      return matchesFor(ctx, cond.path).some(
+        (m) =>
+          Array.isArray(m.value) &&
+          m.value.some(
+            (item: unknown) =>
+              item !== null &&
+              typeof item === 'object' &&
+              !Array.isArray(item) &&
+              evaluate(cond.condition, { scope: item, pod: ctx.pod }),
+          ),
+      );
   }
 }

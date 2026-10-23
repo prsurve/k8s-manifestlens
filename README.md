@@ -22,11 +22,14 @@ settings ([all options](docs/github-action.md), [Marketplace](https://github.com
   kinds (StatefulSet, DaemonSet, Job, CronJob, Ingress, ConfigMap, Secret, RBAC and others) are explained
   from a dataset generated from the Kubernetes OpenAPI spec, bundled so it works offline.
 - **Check.** `manifestlens check <file>` flags risky settings (missing limits, root containers, `latest`
-  tags, missing probes and more) with 16 starter rules written as plain YAML. See
+  tags, missing probes and more) with 34 starter rules (Pods, Services, Ingress, RBAC, Secrets, Jobs, removed APIs and more) written as plain YAML. See
   [docs/writing-rules.md](docs/writing-rules.md) to add your own.
 - **Diff.** `manifestlens diff <old> <new>` explains what applying a changed manifest will do (scaling,
   rollouts, restarts, rejected changes) and which findings the change adds or removes. Use
   `--fail-on warning` to fail a CI job when a change introduces new problems.
+- **Fix.** `manifestlens fix <file>` previews validated fixes for a few findings as a diff, and writes
+  them only with `--write`. It never invents values: limits and source ranges come from a policy file you
+  review. See [docs/auto-fix.md](docs/auto-fix.md).
 - **Web page.** `apps/web` does all of the above in the browser. Nothing is uploaded: the page makes no
   network requests, and its Content-Security-Policy forbids them. Results are compact: findings are one
   line each, click one for the why and fix, filter by severity, and click a line number to jump to that
@@ -37,7 +40,7 @@ settings ([all options](docs/github-action.md), [Marketplace](https://github.com
   pull request, writes SARIF, and has a report-only mode. See [docs/github-action.md](docs/github-action.md).
 - **VS Code extension.** [Install it from the Marketplace](https://marketplace.visualstudio.com/items?itemName=prsurve.manifestlens-vscode)
   (`packages/vscode`). It shows the findings as warnings in the editor, explains fields on
-  hover and adds an "Explain this manifest" command.
+  hover, adds an "Explain this manifest" command and offers quick fixes.
 
 ## Try it locally
 
@@ -47,6 +50,7 @@ npm run build
 node packages/cli/dist/main.js explain examples/web.yaml
 node packages/cli/dist/main.js check examples/risky.yaml
 node packages/cli/dist/main.js diff examples/diff-old.yaml examples/diff-new.yaml
+node packages/cli/dist/main.js fix examples/fixable.yaml --policy examples/fix-policy.yaml --max-risk medium
 ```
 
 ## Development

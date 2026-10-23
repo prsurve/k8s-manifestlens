@@ -1,4 +1,5 @@
 import type { CheckResult, Finding, Severity } from '@manifestlens/core';
+import { coverageLines } from './format-fix.js';
 
 const LEVELS: Severity[] = ['error', 'warning', 'info'];
 
@@ -17,7 +18,12 @@ export function formatFindings(result: CheckResult): string {
     for (const issue of doc.issues) {
       out.push(`! ${issue.line ? `line ${issue.line}: ` : ''}${issue.message}`);
     }
-    if (doc.findings.length === 0 && doc.issues.length === 0) out.push('No issues found.');
+    if (doc.coverage.level !== 'checked') {
+      out.push(...coverageLines(doc.kind ?? 'Unknown object', doc.startLine, doc.coverage));
+    }
+    if (doc.findings.length === 0 && doc.issues.length === 0) {
+      out.push(doc.coverage.level === 'checked' ? 'No issues found.' : 'No findings.');
+    }
     for (const f of doc.findings) {
       totals[f.severity]++;
       out.push(...formatFinding(f));
@@ -30,6 +36,12 @@ export function formatFindings(result: CheckResult): string {
     `${count} finding${count === 1 ? '' : 's'}: ` +
       LEVELS.map((l) => `${totals[l]} ${l}`).join(', '),
   );
+  const unchecked = result.documents.filter((d) => d.coverage.level !== 'checked').length;
+  if (unchecked > 0) {
+    out.push(
+      `${unchecked} of ${result.documents.length} document${result.documents.length === 1 ? '' : 's'} not fully checked (no rules for their kind).`,
+    );
+  }
   return out.join('\n');
 }
 

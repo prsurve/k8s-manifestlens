@@ -6,6 +6,7 @@ import type {
   ExplainResult,
   FieldChange,
   Finding,
+  FixResult,
   Severity,
 } from '@manifestlens/core';
 import { docsLink, el } from './dom.js';
@@ -241,13 +242,35 @@ function applyHidden(root: HTMLElement, view: View): void {
   for (const s of view.hidden) root.setAttribute(`data-hide-${s}`, '');
 }
 
+/** A "not checked" box: the point first, then why, the likely typo, and what an empty result means. */
+function coverageNote(
+  c: { level: string; headline?: string; detail?: string; suggestion?: string; note?: string },
+  what: string,
+  line: number,
+): HTMLElement {
+  return el('div', { class: `coverage coverage-${c.level}` }, [
+    el('p', { class: 'coverage-head' }, [
+      el('strong', { text: `Not checked: ${c.headline ?? what}` }),
+      el('span', { class: 'coverage-where', text: `${what}, line ${line}` }),
+    ]),
+    c.detail && el('p', { text: c.detail }),
+    c.suggestion && el('p', {}, ['Did you mean ', el('code', { text: c.suggestion }), '?']),
+    c.note && el('p', { class: 'coverage-note', text: c.note }),
+  ]);
+}
+
 export function renderCheck(result: CheckResult, view: View = createView()): HTMLElement {
   const root = el('div');
   applyHidden(root, view);
   const all = result.documents.flatMap((d) => d.findings);
 
+  const unchecked = result.documents.filter((d) => d.coverage.level !== 'checked').length;
   if (all.length === 0) {
-    root.append(toolbar(el('p', { class: 'summary', text: 'No issues found.' })));
+    const text =
+      unchecked === 0
+        ? 'No issues found.'
+        : `No findings, but ${plural(unchecked, 'document')} not checked (no rules for the kind).`;
+    root.append(toolbar(el('p', { class: 'summary', text })));
   } else {
     root.append(
       toolbar(
@@ -264,10 +287,15 @@ export function renderCheck(result: CheckResult, view: View = createView()): HTM
           title(doc),
           el('span', {
             class: 'meta',
-            text: doc.findings.length ? plural(doc.findings.length, 'finding') : 'no findings',
+            text: doc.findings.length
+              ? plural(doc.findings.length, 'finding')
+              : doc.coverage.level === 'checked'
+                ? 'no findings'
+                : 'not checked',
           }),
         ]),
         ...issues(doc.issues),
+        doc.coverage.level !== 'checked' && coverageNote(doc.coverage, title(doc), doc.startLine),
         doc.findings.length > 0 && findingList(doc.findings, view, 'main'),
       ]),
     );
@@ -403,5 +431,126 @@ export function renderDiff(result: DiffResult, view: View = createView()): HTMLE
     );
   }
   for (const doc of shown) root.append(diffDocument(doc, view));
+  return root;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Fix                                                                                         */
+/* ------------------------------------------------------------------------------------------- */
+
+/**
+ * A preview of fixes: what would change, what was held back and why, and the diff. Nothing is
+ * applied in the browser; the user copies the fixed manifest if they want it.
+ */
+function button(label: string, onClick: () => void): HTMLElement {
+  const b = el('button', { class: 'text-btn', text: label, attrs: { type: 'button' } });
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+/** What the Fix tab can do with a result. Applying only edits the text box; undo puts it back. */
+export interface FixActions {
+  copy?: (text: string) => void;
+  apply?: (text: string) => void;
+  /** Select a 1-based line in the input box. */
+  jump?: (line: number) => void;
+  /** Present right after an apply, to restore the text from before it. */
+  undo?: () => void;
+}
+
+export function renderFix(result: FixResult, diff: string, actions: FixActions = {}): HTMLElement {
+  const root = el('div');
+  const n = result.applied.length;
+  const view = createView((_target, line) => actions.jump?.(line));
+  const lines = result.original.split('\n');
+  /** A "go to line" button and the line's text, so the finding can be found in the YAML. */
+  const at = (line: number): HTMLElement[] => [
+    lineButton(view, 'main', line, `Line ${line}`),
+    el('code', { class: 'src', text: ` ${(lines[line - 1] ?? '').trim()}` }),
+  ];
+
+  if (result.status === 'rejected') {
+    root.append(
+      el('p', { class: 'summary', text: 'Nothing changed: the fixes failed validation.' }),
+      ...result.validation.problems.map((p) => el('p', { class: 'issue', text: p })),
+    );
+  } else if (n === 0) {
+    root.append(
+      toolbar(
+        el('p', {
+          class: 'summary',
+          text:
+            result.notChecked.length > 0
+              ? `No fixes to apply, and ${plural(result.notChecked.length, 'document')} not checked.`
+              : 'No fixes to apply.',
+        }),
+        actions.undo ? button('Undo last apply', actions.undo) : false,
+      ),
+    );
+  } else {
+    root.append(
+      toolbar(
+        el('p', { class: 'summary', text: `${plural(n, 'fix')} ready` }),
+        button('Apply to input', () => actions.apply?.(result.fixed)),
+        button('Copy fixed manifest', () => actions.copy?.(result.fixed)),
+        actions.undo ? button('Undo last apply', actions.undo) : false,
+      ),
+    );
+    root.append(
+      el('p', {
+        class: 'note',
+        text: `Checked: the YAML parses, only the listed fields changed, ${plural(result.validation.resolved, 'finding')} gone, none added.`,
+      }),
+    );
+  }
+
+  for (const d of result.notChecked) {
+    root.append(coverageNote(d, `${d.kind ?? 'Document'}${d.name ? ` "${d.name}"` : ''}`, d.line));
+  }
+
+  if (n > 0) {
+    root.append(
+      el('section', { class: 'doc' }, [
+        el('h2', { text: 'Would change' }),
+        ...result.applied.map((a) =>
+          el('details', { class: `finding risk-${a.risk}` }, [
+            el('summary', {}, [
+              el('span', { class: 'badge', text: `${a.risk} risk` }),
+              ` ${a.ruleId} `,
+              ...at(a.line),
+            ]),
+            el('p', { text: a.summary }),
+            ...a.changes.map((c) =>
+              el('p', { class: 'meta', text: `${c.path}: ${c.before} -> ${c.after}` }),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+  if (result.skipped.length > 0) {
+    root.append(
+      el('section', { class: 'doc' }, [
+        el('h2', { text: 'Not applied' }),
+        ...result.skipped.map((s) =>
+          el('p', { class: `issue risk-${s.risk}` }, [
+            el('span', { class: 'badge', text: `${s.risk} risk` }),
+            ` ${s.ruleId} `,
+            ...at(s.line),
+            el('span', { text: ` ${s.detail}` }),
+          ]),
+        ),
+      ]),
+    );
+  }
+  if (diff !== '') {
+    const pre = el('pre', { class: 'diff-text', attrs: { 'aria-label': 'Unified diff' } });
+    for (const line of diff.split('\n')) {
+      if (line === '') continue;
+      const kind = line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : 'ctx';
+      pre.append(el('span', { class: `dl dl-${kind}`, text: `${line}\n` }));
+    }
+    root.append(el('section', { class: 'doc' }, [el('h2', { text: 'Diff' }), pre]));
+  }
   return root;
 }

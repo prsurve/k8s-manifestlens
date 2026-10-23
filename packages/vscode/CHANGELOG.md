@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Quick fixes (lightbulb) for findings that have a safe automatic fix. Each is labelled with its risk.
+- `ManifestLens: Fix this manifest (preview first)` opens a diff and asks before applying. Undo with
+  `Ctrl+Z`.
+- Settings: `manifestlens.fixMaxRisk` and `manifestlens.fixPolicy`.
+
 ## 0.1.0
 
 First release.

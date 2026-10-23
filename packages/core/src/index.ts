@@ -11,5 +11,6 @@ export type {
   ParseIssue,
 } from './types.js';
 export * from './rules/index.js';
+export * from './fix/index.js';
 export * from './diff/index.js';
 export { show as formatValue } from './diff/effects.js';

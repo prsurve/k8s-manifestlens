@@ -1,0 +1,11 @@
+# Starter rules for Ingress.
+id: ingress-no-tls
+title: Ingress serves plain HTTP
+severity: warning
+kinds: [Ingress]
+when:
+  missing: spec.tls
+report: spec.rules
+message: 'Ingress "{name}" has no TLS section, so traffic is not encrypted.'
+why: Without spec.tls the Ingress serves plain HTTP. Passwords, cookies and tokens cross the network readable by anyone on the path.
+fix: Add spec.tls with the hosts and a secretName that holds a certificate (cert-manager can create one).

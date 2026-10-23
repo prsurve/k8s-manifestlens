@@ -22,3 +22,20 @@ report: spec.type
 message: 'Service "{name}" creates a load balancer that accepts traffic from any address.'
 why: By default a LoadBalancer Service is reachable from the whole internet (on most clouds).
 fix: Set spec.loadBalancerSourceRanges to the IP ranges that should have access.
+autofix:
+  risk: medium
+  summary: Set spec.loadBalancerSourceRanges to the loadBalancerSourceRanges from the fix policy.
+  set:
+    spec.loadBalancerSourceRanges:
+      { $param: loadBalancerSourceRanges, pattern: '^[0-9A-Fa-f:.]+/[0-9]{1,3}$' }
+---
+id: external-ips
+title: Service accepts traffic for chosen IP addresses
+severity: warning
+kinds: [Service]
+when:
+  present: spec.externalIPs
+report: spec.externalIPs
+message: 'Service "{name}" sets externalIPs.'
+why: externalIPs lets whoever can create a Service claim an IP address and pull traffic meant for it into the cluster (CVE-2020-8554). Most clusters should not use it at all.
+fix: Use a LoadBalancer Service or an Ingress. If you must keep externalIPs, restrict it with the DenyServiceExternalIPs admission plugin or a policy.

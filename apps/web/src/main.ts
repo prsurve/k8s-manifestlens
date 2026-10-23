@@ -2,20 +2,31 @@ import {
   RuleError,
   checkManifest,
   diffManifests,
+  FixPolicyError,
   explainManifest,
+  fixManifest,
   loadBundledRules,
+  parseFixPolicy,
   parseRules,
+  unifiedDiff,
 } from '@manifestlens/core';
-import type { Rule } from '@manifestlens/core';
+import type { FixPolicy, FixRisk, Rule } from '@manifestlens/core';
 import { inject } from '@vercel/analytics';
 import './style.css';
-import { examples } from './examples.js';
+import { examples, fixExamples } from './examples.js';
 import { initTheme } from './theme.js';
-import { createView, renderCheck, renderDiff, renderExplain, renderMessage } from './render.js';
+import {
+  createView,
+  renderCheck,
+  renderDiff,
+  renderExplain,
+  renderFix,
+  renderMessage,
+} from './render.js';
 import type { JumpTarget } from './render.js';
 
-type Tab = 'explain' | 'check' | 'diff';
-const TABS: Tab[] = ['explain', 'check', 'diff'];
+type Tab = 'explain' | 'check' | 'diff' | 'fix';
+const TABS: Tab[] = ['explain', 'check', 'diff', 'fix'];
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const node = document.getElementById(id);
@@ -63,11 +74,13 @@ const jumpers: Record<Tab, (target: JumpTarget, line: number) => void> = {
   explain: (_t, line) => selectLine(input('explain-input'), line),
   check: (_t, line) => selectLine(input('check-input'), line),
   diff: (target, line) => selectLine(input(target === 'old' ? 'diff-old' : 'diff-new'), line),
+  fix: (_t, line) => selectLine(input('fix-input'), line),
 };
 const views = {
   explain: createView(jumpers.explain),
   check: createView(jumpers.check),
   diff: createView(jumpers.diff),
+  fix: createView(jumpers.fix),
 };
 
 function show(output: HTMLElement, content: HTMLElement): void {
@@ -75,6 +88,24 @@ function show(output: HTMLElement, content: HTMLElement): void {
   const top = output.scrollTop;
   output.replaceChildren(content);
   output.scrollTop = top;
+}
+
+/** The Fix input as it was before the last "Apply to input", so it can be undone. */
+let beforeApply: string | undefined;
+
+/** The policy the user typed, or undefined (with the error shown) when it is not valid. */
+function currentPolicy(): FixPolicy | undefined {
+  const text = input('fix-policy').value;
+  const error = $('fix-policy-error');
+  error.hidden = true;
+  if (text.trim() === '') return undefined;
+  try {
+    return parseFixPolicy(text, 'your policy');
+  } catch (err) {
+    error.textContent = err instanceof FixPolicyError ? err.message : String(err);
+    error.hidden = false;
+    return undefined;
+  }
 }
 
 function update(tab: Tab): void {
@@ -101,6 +132,43 @@ function update(tab: Tab): void {
       result.documents.length
         ? renderCheck(result, views.check)
         : renderMessage('No Kubernetes documents found.'),
+    );
+  } else if (tab === 'fix') {
+    const source = input('fix-input').value;
+    const out = $('fix-output');
+    if (source.trim() === '')
+      return show(out, renderMessage('Paste a manifest to preview automatic fixes.'));
+    if (explainManifest(source).documents.length === 0)
+      return show(out, renderMessage('No Kubernetes documents found.'));
+    const policy = currentPolicy();
+    const result = fixManifest(source, currentRules(), {
+      maxRisk: $<HTMLSelectElement>('fix-risk').value as FixRisk,
+      ...(policy ? { policy } : {}),
+    });
+    show(
+      out,
+      renderFix(
+        result,
+        unifiedDiff(result.original, result.fixed, 'a/manifest.yaml', 'b/manifest.yaml'),
+        {
+          copy: (text) => void navigator.clipboard?.writeText(text),
+          jump: (line) => selectLine(input('fix-input'), line),
+          apply: (text) => {
+            beforeApply = input('fix-input').value;
+            input('fix-input').value = text;
+            update('fix');
+          },
+          ...(beforeApply !== undefined
+            ? {
+                undo: () => {
+                  input('fix-input').value = beforeApply ?? '';
+                  beforeApply = undefined;
+                  update('fix');
+                },
+              }
+            : {}),
+        },
+      ),
     );
   } else {
     const oldText = input('diff-old').value;
@@ -141,7 +209,15 @@ function debounce(fn: () => void, ms: number): () => void {
 function init(): void {
   initTheme($('theme-toggle'));
   const refresh = debounce(() => update(active), 150);
-  for (const id of ['explain-input', 'check-input', 'diff-old', 'diff-new', 'extra-rules']) {
+  for (const id of [
+    'explain-input',
+    'check-input',
+    'diff-old',
+    'diff-new',
+    'extra-rules',
+    'fix-input',
+    'fix-policy',
+  ]) {
     input(id).addEventListener('input', refresh);
   }
 
@@ -180,6 +256,22 @@ function init(): void {
       update(which);
     });
   });
+
+  $('fix-risk').addEventListener('change', refresh);
+  $<HTMLSelectElement>('fix-example').addEventListener('change', (e) => {
+    const select = e.target as HTMLSelectElement;
+    const example = fixExamples[select.value as keyof typeof fixExamples];
+    select.value = '';
+    if (!example) return;
+    beforeApply = undefined;
+    input('fix-input').value = example.text;
+    input('fix-policy').value = example.policy;
+    $<HTMLSelectElement>('fix-risk').value = example.risk;
+    update('fix');
+    $('fix-output').scrollTop = 0;
+  });
+  // Typing starts a new edit: the old undo point no longer makes sense.
+  input('fix-input').addEventListener('input', () => (beforeApply = undefined));
 
   const fromHash = (): Tab => {
     const hash = location.hash.slice(1) as Tab;

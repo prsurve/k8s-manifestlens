@@ -46,7 +46,7 @@ jobs:
           test "${{ steps.lens.outcome }}" = "failure"
           test "${{ steps.lens.outputs.result }}" = "fail"
           test "${{ steps.lens.outputs.errors }}" = "2"
-          test "${{ steps.lens.outputs.findings }}" = "16"
+          test "${{ steps.lens.outputs.findings }}" = "18"
           test -s "${{ steps.lens.outputs.sarif-file }}"
 
   report-mode-does-not-block:
@@ -110,5 +110,6 @@ jobs:
           base-ref: HEAD~1
           mode: report
           comment: never
+          annotations: false
       - name: Expect it to have run
         run: test -n "${{ steps.lens.outputs.result }}"

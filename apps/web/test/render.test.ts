@@ -3,12 +3,23 @@ import {
   checkManifest,
   diffManifests,
   explainManifest,
+  fixManifest,
   loadBundledRules,
+  parseFixPolicy,
+  unifiedDiff,
 } from '@manifestlens/core';
 import { describe, expect, it, vi } from 'vitest';
+import { fixExamples } from '../src/examples.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createView, friendlyPath, renderCheck, renderDiff, renderExplain } from '../src/render.js';
+import {
+  createView,
+  friendlyPath,
+  renderCheck,
+  renderDiff,
+  renderExplain,
+  renderFix,
+} from '../src/render.js';
 
 const hostile = [
   'kind: Pod',
@@ -116,9 +127,19 @@ describe('renderCheck', () => {
   });
 
   it('says so when there is nothing to report', () => {
-    const root = renderCheck(checkManifest('kind: ConfigMap\ndata: {}\n', rules));
+    const root = renderCheck(
+      checkManifest('apiVersion: v1\nkind: Service\nmetadata: {name: s}\n', rules),
+    );
     expect(root.querySelector('.summary')?.textContent).toBe('No issues found.');
     expect(root.querySelectorAll('.chip').length).toBe(0);
+  });
+
+  it('does not call a kind without rules clean', () => {
+    const crd = 'apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata: {name: c}\n';
+    const root = renderCheck(checkManifest(crd, rules));
+    expect(root.querySelector('.summary')?.textContent).toMatch(/not checked/);
+    expect(root.querySelector('.coverage-unchecked')?.textContent).toMatch(/Custom resource/);
+    expect(root.querySelector('.meta')?.textContent).toBe('not checked');
   });
 
   it('hides a severity when its chip is switched off, and remembers it', () => {
@@ -259,5 +280,111 @@ describe('stylesheet', () => {
     // jsdom does not apply CSS, so check the rule that makes `row.hidden = true` work in a browser.
     const css = readFileSync(join(process.cwd(), 'apps/web/src/style.css'), 'utf8');
     expect(css).toMatch(/\[hidden\]\s*\{\s*display:\s*none\s*!important/);
+  });
+});
+
+describe('renderFix', () => {
+  const rules = loadBundledRules();
+  const pod =
+    'kind: Pod\nmetadata:\n  name: "<img src=x onerror=alert(1)>"\nspec:\n  containers:\n    - name: "<b>c</b>"\n      image: x:1\n';
+
+  it('lists the fixes, the diff and a copy button, and never turns YAML into markup', () => {
+    const result = fixManifest(pod, rules, { only: ['allow-privilege-escalation'] });
+    const copy = vi.fn();
+    const apply = vi.fn();
+    const root = renderFix(result, unifiedDiff(result.original, result.fixed), { copy, apply });
+    expect(root.textContent).toContain('1 fix ready');
+    expect(root.textContent).toContain('allowPrivilegeEscalation: false');
+    expect(root.querySelectorAll('.dl-add').length).toBeGreaterThan(0);
+    expect(root.querySelector('details.risk-low .badge')?.textContent).toBe('low risk');
+    expect(injected(root).length).toBe(0);
+    const buttons = [...root.querySelectorAll('button.text-btn')];
+    expect(buttons.map((b) => b.textContent)).toEqual(['Apply to input', 'Copy fixed manifest']);
+    click(buttons[0]);
+    expect(apply).toHaveBeenCalledWith(result.fixed);
+    click(buttons[1]);
+    expect(copy).toHaveBeenCalledWith(result.fixed);
+  });
+
+  it('offers undo only when given one, and never applies by itself', () => {
+    const result = fixManifest(pod, rules, { only: ['allow-privilege-escalation'] });
+    const apply = vi.fn();
+    const undo = vi.fn();
+    const root = renderFix(result, '', { apply, undo });
+    expect(apply).not.toHaveBeenCalled();
+    const labels = [...root.querySelectorAll('button')].map((b) => b.textContent);
+    expect(labels).toContain('Undo last apply');
+    click([...root.querySelectorAll('button')].find((b) => b.textContent === 'Undo last apply'));
+    expect(undo).toHaveBeenCalled();
+    const none = fixManifest(pod, rules, { only: ['missing-memory-limit'], maxRisk: 'medium' });
+    expect(renderFix(none, '', { undo }).querySelector('button')?.textContent).toBe(
+      'Undo last apply',
+    );
+  });
+
+  it('says why fixes were held back', () => {
+    const result = fixManifest(pod, rules, { only: ['missing-memory-limit'], maxRisk: 'medium' });
+    const root = renderFix(result, '');
+    expect(root.textContent).toContain('No fixes to apply');
+    expect(root.textContent).toContain('memoryLimit');
+    expect(root.querySelector('.issue.risk-medium .badge')?.textContent).toBe('medium risk');
+  });
+});
+
+describe('fix examples', () => {
+  const rules = loadBundledRules();
+  const run = (name: keyof typeof fixExamples) => {
+    const example = fixExamples[name];
+    const policy = example.policy ? parseFixPolicy(example.policy) : undefined;
+    return fixManifest(example.text, rules, {
+      maxRisk: example.risk,
+      ...(policy ? { policy } : {}),
+    });
+  };
+  const order = { low: 0, medium: 1, high: 2 } as const;
+  const top = (name: keyof typeof fixExamples) =>
+    Math.max(...run(name).applied.map((a) => order[a.risk]));
+
+  it('low, medium and high each end at the risk they are named for', () => {
+    expect(top('low')).toBe(0);
+    expect(top('medium')).toBe(1);
+    expect(top('high')).toBe(2);
+    for (const name of ['low', 'medium', 'high'] as const) {
+      expect(run(name).validation.ok).toBe(true);
+    }
+  });
+
+  it('the low example holds the memory limit back, so the page has something to explain', () => {
+    expect(run('low').skipped.map((s) => s.ruleId)).toContain('missing-memory-limit');
+  });
+
+  it('the "nothing to fix" example has no fixes and nothing held back', () => {
+    const r = run('none');
+    expect(r.applied).toEqual([]);
+    expect(r.skipped).toEqual([]);
+  });
+
+  it('lines in the result are clickable and show the source line', () => {
+    const r = run('high');
+    const jump = vi.fn();
+    const root = renderFix(r, '', { jump });
+    const first = root.querySelector('button.ln');
+    expect(first?.textContent).toMatch(/^Line \d+$/);
+    expect(root.querySelector('code.src')?.textContent?.trim().length).toBeGreaterThan(0);
+    click(first);
+    expect(jump).toHaveBeenCalledWith(r.applied[0]?.line);
+  });
+});
+
+describe('renderFix: kinds without rules', () => {
+  it('says a misspelt kind was not checked, with a suggestion', () => {
+    const src =
+      'apiVersion: v1\nkind: Poddsds\nmetadata: {name: p}\nspec:\n  containers:\n    - {name: a, image: "x:1"}\n';
+    const result = fixManifest(src, loadBundledRules());
+    const root = renderFix(result, unifiedDiff(src, result.fixed, 'manifest.yaml'));
+    expect(root.querySelector('.summary')?.textContent).toMatch(/not checked/);
+    expect(root.querySelector('.coverage-head')?.textContent).toMatch(/Unknown kind "Poddsds"/);
+    expect(root.querySelector('.coverage code')?.textContent).toBe('Pod');
+    expect(root.querySelector('.coverage-note')?.textContent).toMatch(/does not mean it is safe/);
   });
 });

@@ -28,6 +28,7 @@ const analysis = (counts: {
   suppressed: 0,
   filesChecked: 1,
   changes: [],
+  notChecked: [],
   unknownRules: [],
 });
 const s = (patch: Partial<Settings> = {}): Settings => ({ ...DEFAULTS, ...patch });

@@ -20,12 +20,12 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+var __toESM = (mod, isNodeMode, target2) => (target2 = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
   // If the importer is in node compatibility mode or this is not an ESM
   // file that has been converted to a CommonJS file using a Babel-
   // compatible transform (i.e. "__esModule" has not been set), then set
   // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target2, "default", { value: mod, enumerable: true }) : target2,
   mod
 ));
 
@@ -225,7 +225,7 @@ var require_tunnel = __commonJS({
       }
       return host;
     }
-    function mergeOptions(target) {
+    function mergeOptions(target2) {
       for (var i = 1, len = arguments.length; i < len; ++i) {
         var overrides = arguments[i];
         if (typeof overrides === "object") {
@@ -233,12 +233,12 @@ var require_tunnel = __commonJS({
           for (var j = 0, keyLen = keys.length; j < keyLen; ++j) {
             var k = keys[j];
             if (overrides[k] !== void 0) {
-              target[k] = overrides[k];
+              target2[k] = overrides[k];
             }
           }
         }
       }
-      return target;
+      return target2;
     }
     var debug2;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
@@ -963,7 +963,7 @@ var require_util = __commonJS({
     var net = require("node:net");
     var { Blob: Blob2 } = require("node:buffer");
     var nodeUtil = require("node:util");
-    var { stringify } = require("node:querystring");
+    var { stringify: stringify2 } = require("node:querystring");
     var { EventEmitter: EE } = require("node:events");
     var { InvalidArgumentError } = require_errors();
     var { headerNameLowerCasedRecord } = require_constants();
@@ -1023,7 +1023,7 @@ var require_util = __commonJS({
       if (url.includes("?") || url.includes("#")) {
         throw new Error('Query params cannot be passed when url already contains "?" or "#".');
       }
-      const stringified = stringify(queryParams);
+      const stringified = stringify2(queryParams);
       if (stringified) {
         url += "?" + stringified;
       }
@@ -4503,8 +4503,8 @@ var require_util2 = __commonJS({
          * @param {unknown} target
          * @param {'key' | 'value' | 'key+value'} kind
          */
-        constructor(target, kind) {
-          this.#target = target;
+        constructor(target2, kind) {
+          this.#target = target2;
           this.#kind = kind;
           this.#index = 0;
         }
@@ -4554,8 +4554,8 @@ var require_util2 = __commonJS({
         },
         next: { writable: true, enumerable: true, configurable: true }
       });
-      return function(target, kind) {
-        return new FastIterableIterator(target, kind);
+      return function(target2, kind) {
+        return new FastIterableIterator(target2, kind);
       };
     }
     function iteratorMixin(name, object, kInternalIterator, keyIndex = 0, valueIndex = 1) {
@@ -8422,8 +8422,8 @@ var require_pool = __commonJS({
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
         this.on("connectionError", (origin2, targets, error2) => {
-          for (const target of targets) {
-            const idx = this[kClients].indexOf(target);
+          for (const target2 of targets) {
+            const idx = this[kClients].indexOf(target2);
             if (idx !== -1) {
               this[kClients].splice(idx, 1);
             }
@@ -12610,12 +12610,12 @@ var require_response = __commonJS({
         ...state
       };
       return new Proxy(response, {
-        get(target, p) {
-          return p in state ? state[p] : target[p];
+        get(target2, p) {
+          return p in state ? state[p] : target2[p];
         },
-        set(target, p, value) {
+        set(target2, p, value) {
           assert4(!(p in state));
-          target[p] = value;
+          target2[p] = value;
           return true;
         }
       });
@@ -16230,7 +16230,7 @@ var require_util6 = __commonJS({
         throw new Error("Invalid cookie max-age");
       }
     }
-    function stringify(cookie) {
+    function stringify2(cookie) {
       if (cookie.name.length === 0) {
         return null;
       }
@@ -16288,7 +16288,7 @@ var require_util6 = __commonJS({
       validateCookiePath,
       validateCookieValue,
       toIMFDate,
-      stringify
+      stringify: stringify2
     };
   }
 });
@@ -16434,7 +16434,7 @@ var require_cookies = __commonJS({
   "../../node_modules/undici/lib/web/cookies/index.js"(exports2, module2) {
     "use strict";
     var { parseSetCookie } = require_parse();
-    var { stringify } = require_util6();
+    var { stringify: stringify2 } = require_util6();
     var { webidl } = require_webidl();
     var { Headers: Headers2 } = require_headers();
     function getCookies(headers) {
@@ -16477,7 +16477,7 @@ var require_cookies = __commonJS({
       webidl.argumentLengthCheck(arguments, 2, "setCookie");
       webidl.brandCheck(headers, Headers2, { strict: false });
       cookie = webidl.converters.Cookie(cookie);
-      const str = stringify(cookie);
+      const str = stringify2(cookie);
       if (str) {
         headers.append("Set-Cookie", str);
       }
@@ -16919,9 +16919,9 @@ var require_util7 = __commonJS({
     function isClosed(ws) {
       return ws[kReadyState] === states.CLOSED;
     }
-    function fireEvent(e, target, eventFactory = (type, init) => new Event(type, init), eventInitDict = {}) {
+    function fireEvent(e, target2, eventFactory = (type, init) => new Event(type, init), eventInitDict = {}) {
       const event = eventFactory(e, eventInitDict);
-      target.dispatchEvent(event);
+      target2.dispatchEvent(event);
     }
     function websocketMessageReceived(ws, type, data) {
       if (ws[kReadyState] !== states.OPEN) {
@@ -19154,13 +19154,13 @@ var require_identity = __commonJS({
     var SCALAR = /* @__PURE__ */ Symbol.for("yaml.scalar");
     var SEQ = /* @__PURE__ */ Symbol.for("yaml.seq");
     var NODE_TYPE = /* @__PURE__ */ Symbol.for("yaml.node.type");
-    var isAlias = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === ALIAS;
+    var isAlias2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === ALIAS;
     var isDocument = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === DOC;
-    var isMap3 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === MAP;
+    var isMap5 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === MAP;
     var isPair = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === PAIR;
-    var isScalar2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SCALAR;
-    var isSeq2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SEQ;
-    function isCollection(node) {
+    var isScalar3 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SCALAR;
+    var isSeq3 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SEQ;
+    function isCollection2(node) {
       if (node && typeof node === "object")
         switch (node[NODE_TYPE]) {
           case MAP:
@@ -19180,7 +19180,7 @@ var require_identity = __commonJS({
         }
       return false;
     }
-    var hasAnchor = (node) => (isScalar2(node) || isCollection(node)) && !!node.anchor;
+    var hasAnchor = (node) => (isScalar3(node) || isCollection2(node)) && !!node.anchor;
     exports2.ALIAS = ALIAS;
     exports2.DOC = DOC;
     exports2.MAP = MAP;
@@ -19189,14 +19189,14 @@ var require_identity = __commonJS({
     exports2.SCALAR = SCALAR;
     exports2.SEQ = SEQ;
     exports2.hasAnchor = hasAnchor;
-    exports2.isAlias = isAlias;
-    exports2.isCollection = isCollection;
+    exports2.isAlias = isAlias2;
+    exports2.isCollection = isCollection2;
     exports2.isDocument = isDocument;
-    exports2.isMap = isMap3;
+    exports2.isMap = isMap5;
     exports2.isNode = isNode;
     exports2.isPair = isPair;
-    exports2.isScalar = isScalar2;
-    exports2.isSeq = isSeq2;
+    exports2.isScalar = isScalar3;
+    exports2.isSeq = isSeq3;
   }
 });
 
@@ -20127,7 +20127,7 @@ var require_foldFlowLines = __commonJS({
         else
           end = lineWidth - indentAtStart;
       }
-      let split = void 0;
+      let split2 = void 0;
       let prev = void 0;
       let overflow = false;
       let i = -1;
@@ -20160,18 +20160,18 @@ var require_foldFlowLines = __commonJS({
           if (mode === FOLD_BLOCK)
             i = consumeMoreIndentedLines(text2, i, indent.length);
           end = i + indent.length + endStep;
-          split = void 0;
+          split2 = void 0;
         } else {
           if (ch === " " && prev && prev !== " " && prev !== "\n" && prev !== "	") {
             const next = text2[i + 1];
             if (next && next !== " " && next !== "\n" && next !== "	")
-              split = i;
+              split2 = i;
           }
           if (i >= end) {
-            if (split) {
-              folds.push(split);
-              end = split + endStep;
-              split = void 0;
+            if (split2) {
+              folds.push(split2);
+              end = split2 + endStep;
+              split2 = void 0;
             } else if (mode === FOLD_QUOTED) {
               while (prev === " " || prev === "	") {
                 prev = ch;
@@ -20184,7 +20184,7 @@ var require_foldFlowLines = __commonJS({
               folds.push(j);
               escapedFolds[j] = true;
               end = j + endStep;
-              split = void 0;
+              split2 = void 0;
             } else {
               overflow = true;
             }
@@ -20613,7 +20613,7 @@ var require_stringify = __commonJS({
         props.push(doc.directives.tagString(tag));
       return props.join(" ");
     }
-    function stringify(item, ctx, onComment, onChompKeep) {
+    function stringify2(item, ctx, onComment, onChompKeep) {
       if (identity2.isPair(item))
         return item.toString(ctx, onComment, onChompKeep);
       if (identity2.isAlias(item)) {
@@ -20642,7 +20642,7 @@ var require_stringify = __commonJS({
 ${ctx.indent}${str}`;
     }
     exports2.createStringifyContext = createStringifyContext;
-    exports2.stringify = stringify;
+    exports2.stringify = stringify2;
   }
 });
 
@@ -20652,7 +20652,7 @@ var require_stringifyPair = __commonJS({
     "use strict";
     var identity2 = require_identity();
     var Scalar = require_Scalar();
-    var stringify = require_stringify();
+    var stringify2 = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
       const { allNullValues, doc, indent, indentStep, options: { commentString, indentSeq, simpleKeys } } = ctx;
@@ -20674,7 +20674,7 @@ var require_stringifyPair = __commonJS({
       });
       let keyCommentDone = false;
       let chompKeep = false;
-      let str = stringify.stringify(key, ctx, () => keyCommentDone = true, () => chompKeep = true);
+      let str = stringify2.stringify(key, ctx, () => keyCommentDone = true, () => chompKeep = true);
       if (!explicitKey && !ctx.inFlow && str.length > 1024) {
         if (simpleKeys)
           throw new Error("With simple keys, single line scalar must not span more than 1024 characters");
@@ -20726,7 +20726,7 @@ ${indent}:`;
         ctx.indent = ctx.indent.substring(2);
       }
       let valueCommentDone = false;
-      const valueStr = stringify.stringify(value, ctx, () => valueCommentDone = true, () => chompKeep = true);
+      const valueStr = stringify2.stringify(value, ctx, () => valueCommentDone = true, () => chompKeep = true);
       let ws = " ";
       if (keyComment || vsb || vcb) {
         ws = vsb ? "\n" : "";
@@ -20867,7 +20867,7 @@ var require_addPairToJSMap = __commonJS({
     "use strict";
     var log = require_log();
     var merge = require_merge();
-    var stringify = require_stringify();
+    var stringify2 = require_stringify();
     var identity2 = require_identity();
     var toJS = require_toJS();
     function addPairToJSMap(ctx, map, { key, value }) {
@@ -20903,7 +20903,7 @@ var require_addPairToJSMap = __commonJS({
       if (typeof jsKey !== "object")
         return String(jsKey);
       if (identity2.isNode(key) && ctx?.doc) {
-        const strCtx = stringify.createStringifyContext(ctx.doc, {});
+        const strCtx = stringify2.createStringifyContext(ctx.doc, {});
         strCtx.anchors = /* @__PURE__ */ new Set();
         for (const node of ctx.anchors.keys())
           strCtx.anchors.add(node.anchor);
@@ -20970,12 +20970,12 @@ var require_stringifyCollection = __commonJS({
   "../../node_modules/yaml/dist/stringify/stringifyCollection.js"(exports2) {
     "use strict";
     var identity2 = require_identity();
-    var stringify = require_stringify();
+    var stringify2 = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyCollection(collection, ctx, options) {
       const flow = ctx.inFlow ?? collection.flow;
-      const stringify2 = flow ? stringifyFlowCollection : stringifyBlockCollection;
-      return stringify2(collection, ctx, options);
+      const stringify3 = flow ? stringifyFlowCollection : stringifyBlockCollection;
+      return stringify3(collection, ctx, options);
     }
     function stringifyBlockCollection({ comment, items }, ctx, { blockItemPrefix, flowChars, itemIndent, onChompKeep, onComment }) {
       const { indent, options: { commentString } } = ctx;
@@ -21000,7 +21000,7 @@ var require_stringifyCollection = __commonJS({
           }
         }
         chompKeep = false;
-        let str2 = stringify.stringify(item, itemCtx, () => comment2 = null, () => chompKeep = true);
+        let str2 = stringify2.stringify(item, itemCtx, () => comment2 = null, () => chompKeep = true);
         if (comment2)
           str2 += stringifyComment.lineComment(str2, itemIndent, commentString(comment2));
         if (chompKeep && comment2)
@@ -21067,7 +21067,7 @@ ${indent}${line}` : "\n";
         }
         if (comment)
           reqNewline = true;
-        let str = stringify.stringify(item, itemCtx, () => comment = null);
+        let str = stringify2.stringify(item, itemCtx, () => comment = null);
         reqNewline || (reqNewline = lines.length > linesAtValue || str.includes("\n"));
         if (i < items.length - 1) {
           str += ",";
@@ -22428,7 +22428,7 @@ var require_stringifyDocument = __commonJS({
   "../../node_modules/yaml/dist/stringify/stringifyDocument.js"(exports2) {
     "use strict";
     var identity2 = require_identity();
-    var stringify = require_stringify();
+    var stringify2 = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyDocument(doc, options) {
       const lines = [];
@@ -22443,7 +22443,7 @@ var require_stringifyDocument = __commonJS({
       }
       if (hasDirectives)
         lines.push("---");
-      const ctx = stringify.createStringifyContext(doc, options);
+      const ctx = stringify2.createStringifyContext(doc, options);
       const { commentString } = ctx.options;
       if (doc.commentBefore) {
         if (lines.length !== 1)
@@ -22465,7 +22465,7 @@ var require_stringifyDocument = __commonJS({
           contentComment = doc.contents.comment;
         }
         const onChompKeep = contentComment ? void 0 : () => chompKeep = true;
-        let body = stringify.stringify(doc.contents, ctx, () => contentComment = null, onChompKeep);
+        let body = stringify2.stringify(doc.contents, ctx, () => contentComment = null, onChompKeep);
         if (contentComment)
           body += stringifyComment.lineComment(body, "", commentString(contentComment));
         if ((body[0] === "|" || body[0] === ">") && lines[lines.length - 1] === "---") {
@@ -22473,7 +22473,7 @@ var require_stringifyDocument = __commonJS({
         } else
           lines.push(body);
       } else {
-        lines.push(stringify.stringify(doc.contents, ctx));
+        lines.push(stringify2.stringify(doc.contents, ctx));
       }
       if (doc.directives?.docEnd) {
         if (doc.comment) {
@@ -23304,9 +23304,9 @@ var require_resolve_flow_collection = __commonJS({
     var blockMsg = "Block collections are not allowed within flow collections";
     var isBlock = (token) => token && (token.type === "block-map" || token.type === "block-seq");
     function resolveFlowCollection({ composeNode, composeEmptyNode }, ctx, fc, onError, tag) {
-      const isMap3 = fc.start.source === "{";
-      const fcName = isMap3 ? "flow map" : "flow sequence";
-      const NodeClass = tag?.nodeClass ?? (isMap3 ? YAMLMap.YAMLMap : YAMLSeq.YAMLSeq);
+      const isMap5 = fc.start.source === "{";
+      const fcName = isMap5 ? "flow map" : "flow sequence";
+      const NodeClass = tag?.nodeClass ?? (isMap5 ? YAMLMap.YAMLMap : YAMLSeq.YAMLSeq);
       const coll = new NodeClass(ctx.schema);
       coll.flow = true;
       const atRoot = ctx.atRoot;
@@ -23342,7 +23342,7 @@ var require_resolve_flow_collection = __commonJS({
             offset = props.end;
             continue;
           }
-          if (!isMap3 && ctx.options.strict && utilContainsNewline.containsNewline(key))
+          if (!isMap5 && ctx.options.strict && utilContainsNewline.containsNewline(key))
             onError(
               key,
               // checked by containsNewline()
@@ -23382,7 +23382,7 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap3 && !sep8 && !props.found) {
+        if (!isMap5 && !sep8 && !props.found) {
           const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep8, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
@@ -23405,7 +23405,7 @@ var require_resolve_flow_collection = __commonJS({
             startOnNewline: false
           });
           if (valueProps.found) {
-            if (!isMap3 && !props.found && ctx.options.strict) {
+            if (!isMap5 && !props.found && ctx.options.strict) {
               if (sep8)
                 for (const st of sep8) {
                   if (st === valueProps.found)
@@ -23437,7 +23437,7 @@ var require_resolve_flow_collection = __commonJS({
           const pair = new Pair.Pair(keyNode, valueNode);
           if (ctx.options.keepSourceTokens)
             pair.srcToken = collItem;
-          if (isMap3) {
+          if (isMap5) {
             const map = coll;
             if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
               onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
@@ -23453,7 +23453,7 @@ var require_resolve_flow_collection = __commonJS({
           offset = valueNode ? valueNode.range[2] : valueProps.end;
         }
       }
-      const expectedEnd = isMap3 ? "}" : "]";
+      const expectedEnd = isMap5 ? "}" : "]";
       const [ce, ...ee] = fc.end;
       let cePos = offset;
       if (ce?.source === expectedEnd)
@@ -23718,13 +23718,13 @@ var require_resolve_block_scalar = __commonJS({
       return { mode, indent, chomp, comment, length };
     }
     function splitLines(source) {
-      const split = source.split(/\n( *)/);
-      const first = split[0];
+      const split2 = source.split(/\n( *)/);
+      const first = split2[0];
       const m = first.match(/^( *)/);
       const line0 = m?.[1] ? [m[1], first.slice(m[1].length)] : ["", first];
       const lines = [line0];
-      for (let i = 1; i < split.length; i += 2)
-        lines.push([split[i], split[i + 1]]);
+      for (let i = 1; i < split2.length; i += 2)
+        lines.push([split2[i], split2[i + 1]]);
       return lines;
     }
     exports2.resolveBlockScalar = resolveBlockScalar;
@@ -23938,8 +23938,8 @@ var require_resolve_flow_scalar = __commonJS({
     };
     function parseCharCode(source, offset, length, onError) {
       const cc = source.substr(offset, length);
-      const ok = cc.length === length && /^[0-9a-fA-F]+$/.test(cc);
-      const code2 = ok ? parseInt(cc, 16) : NaN;
+      const ok2 = cc.length === length && /^[0-9a-fA-F]+$/.test(cc);
+      const code2 = ok2 ? parseInt(cc, 16) : NaN;
       try {
         return String.fromCodePoint(code2);
       } catch {
@@ -24609,7 +24609,7 @@ var require_cst_scalar = __commonJS({
 var require_cst_stringify = __commonJS({
   "../../node_modules/yaml/dist/parse/cst-stringify.js"(exports2) {
     "use strict";
-    var stringify = (cst) => "type" in cst ? stringifyToken(cst) : stringifyItem(cst);
+    var stringify2 = (cst) => "type" in cst ? stringifyToken(cst) : stringifyItem(cst);
     function stringifyToken(token) {
       switch (token.type) {
         case "block-scalar": {
@@ -24662,7 +24662,7 @@ var require_cst_stringify = __commonJS({
         res += stringifyToken(value);
       return res;
     }
-    exports2.stringify = stringify;
+    exports2.stringify = stringify2;
   }
 });
 
@@ -24739,8 +24739,8 @@ var require_cst = __commonJS({
     var DOCUMENT = "";
     var FLOW_END = "";
     var SCALAR = "";
-    var isCollection = (token) => !!token && "items" in token;
-    var isScalar2 = (token) => !!token && (token.type === "scalar" || token.type === "single-quoted-scalar" || token.type === "double-quoted-scalar" || token.type === "block-scalar");
+    var isCollection2 = (token) => !!token && "items" in token;
+    var isScalar3 = (token) => !!token && (token.type === "scalar" || token.type === "single-quoted-scalar" || token.type === "double-quoted-scalar" || token.type === "block-scalar");
     function prettyToken(token) {
       switch (token) {
         case BOM:
@@ -24823,8 +24823,8 @@ var require_cst = __commonJS({
     exports2.DOCUMENT = DOCUMENT;
     exports2.FLOW_END = FLOW_END;
     exports2.SCALAR = SCALAR;
-    exports2.isCollection = isCollection;
-    exports2.isScalar = isScalar2;
+    exports2.isCollection = isCollection2;
+    exports2.isScalar = isScalar3;
     exports2.prettyToken = prettyToken;
     exports2.tokenType = tokenType;
   }
@@ -24835,7 +24835,7 @@ var require_lexer = __commonJS({
   "../../node_modules/yaml/dist/parse/lexer.js"(exports2) {
     "use strict";
     var cst = require_cst();
-    function isEmpty(ch) {
+    function isEmpty2(ch) {
       switch (ch) {
         case void 0:
         case " ":
@@ -24913,7 +24913,7 @@ var require_lexer = __commonJS({
         }
         if (ch === "-" || ch === ".") {
           const dt = this.buffer.substr(offset, 3);
-          if ((dt === "---" || dt === "...") && isEmpty(this.buffer[offset + 3]))
+          if ((dt === "---" || dt === "...") && isEmpty2(this.buffer[offset + 3]))
             return -1;
         }
         return offset;
@@ -25012,7 +25012,7 @@ var require_lexer = __commonJS({
           if (!this.atEnd && !this.hasChars(4))
             return this.setNext("line-start");
           const s = this.peek(3);
-          if ((s === "---" || s === "...") && isEmpty(this.charAt(3))) {
+          if ((s === "---" || s === "...") && isEmpty2(this.charAt(3))) {
             yield* this.pushCount(3);
             this.indentValue = 0;
             this.indentNext = 0;
@@ -25020,7 +25020,7 @@ var require_lexer = __commonJS({
           }
         }
         this.indentValue = yield* this.pushSpaces(false);
-        if (this.indentNext > this.indentValue && !isEmpty(this.charAt(1)))
+        if (this.indentNext > this.indentValue && !isEmpty2(this.charAt(1)))
           this.indentNext = this.indentValue;
         return yield* this.parseBlockStart();
       }
@@ -25028,7 +25028,7 @@ var require_lexer = __commonJS({
         const [ch0, ch1] = this.peek(2);
         if (!ch1 && !this.atEnd)
           return this.setNext("block-start");
-        if ((ch0 === "-" || ch0 === "?" || ch0 === ":") && isEmpty(ch1)) {
+        if ((ch0 === "-" || ch0 === "?" || ch0 === ":") && isEmpty2(ch1)) {
           const n = (yield* this.pushCount(1)) + (yield* this.pushSpaces(true));
           this.indentNext = this.indentValue + 1;
           this.indentValue += n;
@@ -25092,7 +25092,7 @@ var require_lexer = __commonJS({
         const line = this.getLine();
         if (line === null)
           return this.setNext("flow");
-        if (indent !== -1 && indent < this.indentNext && line[0] !== "#" || indent === 0 && (line.startsWith("---") || line.startsWith("...")) && isEmpty(line[3])) {
+        if (indent !== -1 && indent < this.indentNext && line[0] !== "#" || indent === 0 && (line.startsWith("---") || line.startsWith("...")) && isEmpty2(line[3])) {
           const atFlowEndMarker = indent === this.indentNext - 1 && this.flowLevel === 1 && (line[0] === "]" || line[0] === "}");
           if (!atFlowEndMarker) {
             this.flowLevel = 0;
@@ -25134,7 +25134,7 @@ var require_lexer = __commonJS({
             return yield* this.parseQuotedScalar();
           case ":": {
             const next = this.charAt(1);
-            if (this.flowKey || isEmpty(next) || next === ",") {
+            if (this.flowKey || isEmpty2(next) || next === ",") {
               this.flowKey = false;
               yield* this.pushCount(1);
               yield* this.pushSpaces(true);
@@ -25197,7 +25197,7 @@ var require_lexer = __commonJS({
           else if (ch !== "-")
             break;
         }
-        return yield* this.pushUntil((ch) => isEmpty(ch) || ch === "#");
+        return yield* this.pushUntil((ch) => isEmpty2(ch) || ch === "#");
       }
       *parseBlockScalar() {
         let nl = this.pos - 1;
@@ -25279,10 +25279,10 @@ var require_lexer = __commonJS({
         while (ch = this.buffer[++i]) {
           if (ch === ":") {
             const next = this.buffer[i + 1];
-            if (isEmpty(next) || inFlow && flowIndicatorChars.has(next))
+            if (isEmpty2(next) || inFlow && flowIndicatorChars.has(next))
               break;
             end = i;
-          } else if (isEmpty(ch)) {
+          } else if (isEmpty2(ch)) {
             let next = this.buffer[i + 1];
             if (ch === "\r") {
               if (next === "\n") {
@@ -25349,7 +25349,7 @@ var require_lexer = __commonJS({
             case ":": {
               const inFlow = this.flowLevel > 0;
               const ch1 = this.charAt(1);
-              if (isEmpty(ch1) || inFlow && flowIndicatorChars.has(ch1)) {
+              if (isEmpty2(ch1) || inFlow && flowIndicatorChars.has(ch1)) {
                 if (!inFlow)
                   this.indentNext = this.indentValue + 1;
                 else if (this.flowKey)
@@ -25368,7 +25368,7 @@ var require_lexer = __commonJS({
         if (this.charAt(1) === "<") {
           let i = this.pos + 2;
           let ch = this.buffer[i];
-          while (!isEmpty(ch) && ch !== ">")
+          while (!isEmpty2(ch) && ch !== ">")
             ch = this.buffer[++i];
           return yield* this.pushToIndex(ch === ">" ? i + 1 : i, false);
         } else {
@@ -25521,12 +25521,12 @@ var require_parser = __commonJS({
       }
       return prev.splice(i, prev.length);
     }
-    function arrayPushArray(target, source) {
+    function arrayPushArray(target2, source) {
       if (source.length < 1e5)
-        Array.prototype.push.apply(target, source);
+        Array.prototype.push.apply(target2, source);
       else
         for (let i = 0; i < source.length; ++i)
-          target.push(source[i]);
+          target2.push(source[i]);
     }
     function fixFlowSeqItems(fc) {
       if (fc.start.type === "flow-seq-start") {
@@ -26354,7 +26354,7 @@ var require_public_api = __commonJS({
         return docs;
       return Object.assign([], { empty: true }, composer$1.streamInfo());
     }
-    function parseDocument(source, options = {}) {
+    function parseDocument2(source, options = {}) {
       const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options);
       const parser$1 = new parser.Parser(lineCounter2?.addNewLine);
       const composer$1 = new composer.Composer(options);
@@ -26380,7 +26380,7 @@ var require_public_api = __commonJS({
       } else if (options === void 0 && reviver && typeof reviver === "object") {
         options = reviver;
       }
-      const doc = parseDocument(src, options);
+      const doc = parseDocument2(src, options);
       if (!doc)
         return null;
       doc.warnings.forEach((warning2) => log.warn(doc.options.logLevel, warning2));
@@ -26392,7 +26392,7 @@ var require_public_api = __commonJS({
       }
       return doc.toJS(Object.assign({ reviver: _reviver }, options));
     }
-    function stringify(value, replacer, options) {
+    function stringify2(value, replacer, options) {
       let _replacer = null;
       if (typeof replacer === "function" || Array.isArray(replacer)) {
         _replacer = replacer;
@@ -26416,8 +26416,8 @@ var require_public_api = __commonJS({
     }
     exports2.parse = parse2;
     exports2.parseAllDocuments = parseAllDocuments3;
-    exports2.parseDocument = parseDocument;
-    exports2.stringify = stringify;
+    exports2.parseDocument = parseDocument2;
+    exports2.stringify = stringify2;
   }
 });
 
@@ -27314,6 +27314,9 @@ var LIST_OF_OBJECTS = 2;
 var MAP_OF_OBJECTS = 5;
 
 // ../core/src/fields/schema.ts
+function schemaKinds() {
+  return Object.keys(schema.kinds);
+}
 var schemaVersion = schema.version;
 var META = {
   metadata: "Identifying information about the object: its name, namespace, labels and annotations.",
@@ -27391,6 +27394,9 @@ var docsByKind = {
   Deployment: deploymentDocs,
   Service: serviceDocs
 };
+function hasDocsFor(kind) {
+  return kind !== void 0 && (Object.hasOwn(docsByKind, kind) || schemaKinds().includes(kind));
+}
 function lookupField(kind, pattern) {
   if (kind === void 0) return void 0;
   return lookupHandWritten(kind, pattern) ?? lookupPodSpec(kind, pattern) ?? lookupSchema(kind, pattern);
@@ -27414,12 +27420,18 @@ function lookupPodSpec(kind, pattern) {
   const wildcard = dot === -1 ? "" : `${key.slice(0, dot)}.*`;
   return wildcard !== "" && Object.hasOwn(podSpecDocs, wildcard) ? podSpecDocs[wildcard] : void 0;
 }
+function supportedKinds() {
+  return [.../* @__PURE__ */ new Set([...Object.keys(docsByKind), ...schemaKinds()])].sort();
+}
 
 // ../core/src/parse.ts
 var import_yaml = __toESM(require_dist(), 1);
 function parseManifest(source) {
+  return parseManifestWithTree(source).map((d) => d.manifest);
+}
+function parseManifestWithTree(source) {
   const lineCounter = new import_yaml.LineCounter();
-  const docs = (0, import_yaml.parseAllDocuments)(source, { lineCounter, prettyErrors: false });
+  const docs = (0, import_yaml.parseAllDocuments)(source, { lineCounter, prettyErrors: false, merge: true });
   const result = [];
   docs.forEach((doc) => {
     const issues = [...doc.errors, ...doc.warnings].map((e) => ({
@@ -27427,24 +27439,27 @@ function parseManifest(source) {
       line: lineCounter.linePos(e.pos[0]).line
     }));
     const root = doc.contents;
-    const isEmpty = root === null || (0, import_yaml.isScalar)(root) && root.value === null;
-    if (isEmpty && issues.length === 0) return;
+    const isEmpty2 = root === null || (0, import_yaml.isScalar)(root) && root.value === null;
+    if (isEmpty2 && issues.length === 0) return;
     const fields = [];
     if ((0, import_yaml.isMap)(root)) {
       collect(root, "", "", 0, lineCounter, fields);
-    } else if (!isEmpty) {
+    } else if (!isEmpty2) {
       issues.push({
         message: "Expected a mapping at the top level of a Kubernetes manifest.",
         line: lineOf(root, lineCounter)
       });
     }
     result.push({
-      index: result.length,
-      startLine: isEmpty ? 1 : lineOf(root, lineCounter),
-      ...topLevelScalars(root),
-      ...(0, import_yaml.isMap)(root) ? { data: doc.toJS() } : {},
-      fields,
-      issues
+      tree: doc,
+      manifest: {
+        index: result.length,
+        startLine: isEmpty2 ? 1 : lineOf(root, lineCounter),
+        ...topLevelScalars(root),
+        ...(0, import_yaml.isMap)(root) ? { data: doc.toJS() } : {},
+        fields,
+        issues
+      }
     });
   });
   return result;
@@ -27470,6 +27485,7 @@ function collect(map, pathPrefix, patternPrefix, depth, lc, out) {
   for (const pair of map.items) {
     if (!(0, import_yaml.isScalar)(pair.key)) continue;
     const key = String(pair.key.value);
+    if (key === "<<") continue;
     const path6 = join(pathPrefix, key);
     const pat = join(patternPrefix, key);
     const keyOffset = pair.key.range?.[0] ?? 0;
@@ -27505,6 +27521,35 @@ function join(prefix, key) {
 
 // ../core/src/rules/bundled.ts
 var bundledRuleSources = {
+  "api.yaml": `# Rules about the manifest itself rather than one kind.
+id: deprecated-api-version
+title: apiVersion has been removed from Kubernetes
+severity: error
+kinds: ['*']
+when:
+  in:
+    apiVersion:
+      - extensions/v1beta1
+      - apps/v1beta1
+      - apps/v1beta2
+      - batch/v1beta1
+      - networking.k8s.io/v1beta1
+      - policy/v1beta1
+      - rbac.authorization.k8s.io/v1beta1
+      - rbac.authorization.k8s.io/v1alpha1
+      - autoscaling/v2beta1
+      - autoscaling/v2beta2
+      - admissionregistration.k8s.io/v1beta1
+      - apiextensions.k8s.io/v1beta1
+      - scheduling.k8s.io/v1beta1
+      - storage.k8s.io/v1beta1
+      - certificates.k8s.io/v1beta1
+      - coordination.k8s.io/v1beta1
+report: apiVersion
+message: '{kind} "{name}" uses apiVersion {value}, which current clusters no longer serve.'
+why: Kubernetes removes old API versions. A manifest that uses one is rejected on upgrade, usually with an unhelpful error.
+fix: 'Move to the current version: Deployment, StatefulSet, DaemonSet and ReplicaSet use apps/v1; Ingress networking.k8s.io/v1; CronJob batch/v1; HorizontalPodAutoscaler autoscaling/v2; PodDisruptionBudget policy/v1; Role and ClusterRole rbac.authorization.k8s.io/v1.'
+`,
   "container.yaml": `# Starter rules for containers in a Pod or Deployment.
 id: image-latest-tag
 title: Image has no fixed version
@@ -27531,6 +27576,14 @@ report: resources
 message: 'Container "{container}" has no memory limit.'
 why: A container without a memory limit can use all the memory on its node, which can starve or crash other workloads.
 fix: 'Add resources.limits.memory, for example: limits: { memory: 256Mi }.'
+autofix:
+  risk: medium
+  summary: Set resources.limits.memory to the memoryLimit from the fix policy.
+  blocked: 'The container sets a memory request, and the limit must not be below it. Set the limit yourself.'
+  requires:
+    missing: resources.requests.memory
+  set:
+    resources.limits.memory: { $param: memoryLimit, pattern: '^[1-9][0-9]*(Ki|Mi|Gi|Ti)$' }
 ---
 id: missing-resource-requests
 title: Container has no CPU or memory request
@@ -27579,6 +27632,11 @@ report: securityContext.privileged
 message: 'Container "{container}" runs in privileged mode.'
 why: A privileged container has almost the same access as a process running directly on the node. If it is compromised, the whole node is at risk.
 fix: Remove privileged, or replace it with the specific capabilities the container needs under securityContext.capabilities.add.
+autofix:
+  risk: high
+  summary: Set securityContext.privileged to false.
+  set:
+    securityContext.privileged: false
 ---
 id: run-as-root-user
 title: Container is set to run as root
@@ -27611,6 +27669,18 @@ report: securityContext
 message: 'Container "{container}" is not prevented from running as root.'
 why: Many images run as root by default. Unless you say otherwise, Kubernetes lets them.
 fix: Set securityContext.runAsNonRoot to true (on the container or on the Pod), or set runAsUser to a non-zero ID.
+autofix:
+  risk: medium
+  summary: Set securityContext.runAsNonRoot to true.
+  blocked: 'runAsUser is 0 or runAsNonRoot is false, which contradicts runAsNonRoot: true. Choose a non-root user ID yourself.'
+  requires:
+    all:
+      - not: { equals: { securityContext.runAsUser: 0 } }
+      - not: { equals: { $pod.securityContext.runAsUser: 0 } }
+      - not: { equals: { securityContext.runAsNonRoot: false } }
+      - not: { equals: { $pod.securityContext.runAsNonRoot: false } }
+  set:
+    securityContext.runAsNonRoot: true
 ---
 id: allow-privilege-escalation
 title: Container may gain extra privileges
@@ -27623,6 +27693,16 @@ report: securityContext.allowPrivilegeEscalation
 message: 'Container "{container}" does not disable privilege escalation.'
 why: Privilege escalation lets a process gain more rights than its parent, for example through setuid programs. It is on by default.
 fix: Set securityContext.allowPrivilegeEscalation to false.
+autofix:
+  risk: low
+  summary: Set securityContext.allowPrivilegeEscalation to false.
+  blocked: 'The container is privileged or adds SYS_ADMIN, which needs privilege escalation.'
+  requires:
+    all:
+      - not: { equals: { securityContext.privileged: true } }
+      - not: { contains: { securityContext.capabilities.add: SYS_ADMIN } }
+  set:
+    securityContext.allowPrivilegeEscalation: false
 ---
 id: writable-root-filesystem
 title: Container can write to its own filesystem
@@ -27647,6 +27727,53 @@ report: securityContext.capabilities
 message: 'Container "{container}" does not drop all Linux capabilities.'
 why: Containers start with a set of Linux capabilities most apps never use. Each one is extra attack surface.
 fix: 'Set securityContext.capabilities.drop to [ALL] and add back only what the app needs.'
+---
+id: host-port
+title: Container binds a port on the node
+severity: warning
+kinds: ['*']
+scope: container
+when:
+  present: ports[].hostPort
+report: ports[].hostPort
+message: 'Container "{container}" binds port {value} on the node itself.'
+why: A hostPort ties the Pod to a node where that port is free, so only one replica fits per node and scheduling fails when it is taken. It also opens the node to that traffic.
+fix: Remove hostPort and expose the container with a Service. Use hostPort only for node-level agents.
+---
+id: dangerous-capabilities
+title: Container adds powerful Linux capabilities
+severity: warning
+kinds: ['*']
+scope: [container, initContainer]
+when:
+  any:
+    - contains: { securityContext.capabilities.add: ALL }
+    - contains: { securityContext.capabilities.add: SYS_ADMIN }
+    - contains: { securityContext.capabilities.add: NET_ADMIN }
+    - contains: { securityContext.capabilities.add: SYS_PTRACE }
+    - contains: { securityContext.capabilities.add: SYS_MODULE }
+report: securityContext.capabilities.add
+message: 'Container "{container}" adds capabilities that are close to root on the node.'
+why: ALL, SYS_ADMIN, SYS_MODULE, SYS_PTRACE and NET_ADMIN let a container mount filesystems, load kernel modules, trace other processes or reconfigure the network. They are the usual first step of a container escape.
+fix: Drop ALL and add back only the one narrow capability the app needs, such as NET_BIND_SERVICE.
+---
+id: secret-in-env
+title: Secret value written in the manifest
+severity: warning
+kinds: ['*']
+scope: [container, initContainer]
+when:
+  some:
+    in: env
+    where:
+      all:
+        - present: value
+        - matches:
+            { name: '(?i)(password|passwd|secret|token|api[_-]?key|private[_-]?key|credential)' }
+report: env
+message: 'Container "{container}" sets what looks like a secret directly in env.'
+why: A value written in the manifest is stored in git and shown to anyone who can read the Pod or Deployment. Secrets belong in a Secret object or an external secret store.
+fix: Move the value into a Secret and reference it with valueFrom.secretKeyRef.
 `,
   "deployment.yaml": `# Starter rules for Deployments.
 id: single-replica
@@ -27661,6 +27788,55 @@ report: spec.replicas
 message: 'Deployment "{name}" runs only one replica.'
 why: With one Pod, any restart, node failure or rolling update means downtime.
 fix: Set spec.replicas to 2 or more for anything that should stay available.
+`,
+  "ingress.yaml": `# Starter rules for Ingress.
+id: ingress-no-tls
+title: Ingress serves plain HTTP
+severity: warning
+kinds: [Ingress]
+when:
+  missing: spec.tls
+report: spec.rules
+message: 'Ingress "{name}" has no TLS section, so traffic is not encrypted.'
+why: Without spec.tls the Ingress serves plain HTTP. Passwords, cookies and tokens cross the network readable by anyone on the path.
+fix: Add spec.tls with the hosts and a secretName that holds a certificate (cert-manager can create one).
+`,
+  "job.yaml": `# Starter rules for Jobs and CronJobs.
+id: job-no-ttl
+title: Finished Job is never cleaned up
+severity: info
+kinds: [Job]
+when:
+  missing: spec.ttlSecondsAfterFinished
+report: spec
+message: 'Job "{name}" stays in the cluster after it finishes.'
+why: Without ttlSecondsAfterFinished a finished Job and its Pods stay until someone deletes them. Many of them slow the API server and clutter kubectl output.
+fix: Set spec.ttlSecondsAfterFinished, for example 3600 to keep the logs for an hour.
+---
+id: cronjob-concurrency
+title: CronJob may overlap with itself
+severity: info
+kinds: [CronJob]
+when:
+  missing: spec.concurrencyPolicy
+report: spec.schedule
+message: 'CronJob "{name}" starts a new run even if the last one is still going.'
+why: The default policy is Allow. A slow run piles up with the next ones, which can overload the app or corrupt shared data.
+fix: Set spec.concurrencyPolicy to Forbid (skip the new run) or Replace (stop the old one).
+`,
+  "pdb.yaml": `# Starter rules for PodDisruptionBudget.
+id: pdb-blocks-eviction
+title: Budget allows no Pod to be evicted
+severity: warning
+kinds: [PodDisruptionBudget]
+when:
+  any:
+    - in: { spec.maxUnavailable: [0, '0', '0%'] }
+    - in: { spec.minAvailable: ['100%'] }
+report: [spec.maxUnavailable, spec.minAvailable]
+message: 'PodDisruptionBudget "{name}" never lets a Pod be evicted.'
+why: With zero Pods allowed to be unavailable, kubectl drain and node upgrades hang forever on these Pods.
+fix: Allow at least one Pod to be unavailable, for example maxUnavailable 1.
 `,
   "pod.yaml": `# Starter rules for the Pod spec (a Pod, or a Deployment's Pod template).
 id: host-namespaces
@@ -27689,6 +27865,155 @@ report: volumes[].hostPath
 message: "The Pod mounts a directory from the node's filesystem."
 why: A hostPath volume gives the Pod access to files on the node. A compromised Pod can read or change them, and the Pod becomes tied to specific nodes.
 fix: Use an emptyDir, a ConfigMap, a Secret or a PersistentVolumeClaim instead.
+---
+id: default-service-account-token
+title: Pod gets an API token it may not need
+severity: info
+kinds: ['*']
+scope: pod
+when:
+  all:
+    - any:
+        - missing: serviceAccountName
+        - equals: { serviceAccountName: default }
+    - not:
+        equals: { automountServiceAccountToken: false }
+report: [serviceAccountName, containers]
+message: 'The Pod uses the default service account and mounts its API token.'
+why: Every container in the Pod can read a token that talks to the Kubernetes API. If the app does not call the API, a compromised container gets access it never needed.
+fix: Set automountServiceAccountToken to false, or give the Pod its own service account with only the permissions it needs.
+autofix:
+  risk: medium
+  summary: Set automountServiceAccountToken to false.
+  blocked: 'The Pod names a service account, so it may be meant to call the API. Decide for yourself.'
+  requires:
+    missing: serviceAccountName
+  set:
+    automountServiceAccountToken: false
+---
+id: missing-seccomp-profile
+title: Container has no syscall filter
+severity: info
+kinds: ['*']
+scope: container
+when:
+  all:
+    - missing: securityContext.seccompProfile
+    - missing: $pod.securityContext.seccompProfile
+report: securityContext
+message: 'Container "{container}" runs without a seccomp profile.'
+why: Without a seccomp profile the container can call every Linux system call. The RuntimeDefault profile blocks the rarely needed and most dangerous ones at no cost for most apps.
+fix: 'Set securityContext.seccompProfile.type to RuntimeDefault on the container or the Pod.'
+autofix:
+  risk: medium
+  summary: Set securityContext.seccompProfile.type to RuntimeDefault.
+  set:
+    securityContext.seccompProfile.type: RuntimeDefault
+---
+id: docker-socket-mount
+title: Pod mounts the container runtime socket
+severity: error
+kinds: ['*']
+scope: pod
+when:
+  matches:
+    volumes[].hostPath.path: '(docker|containerd|crio|cri-dockerd)\\.sock$'
+report: volumes[].hostPath
+message: "The Pod mounts the node's container runtime socket."
+why: Whoever can talk to that socket can start any container on the node, including a privileged one that owns the whole node. It is the same as root on the node.
+fix: Remove the mount. Build images with a tool that needs no socket (Kaniko, BuildKit rootless) and use the Kubernetes API for anything else.
+---
+id: sensitive-hostpath
+title: Pod mounts a sensitive directory from the node
+severity: error
+kinds: ['*']
+scope: pod
+when:
+  any:
+    - matches:
+        volumes[].hostPath.path: '^/$'
+    - matches:
+        volumes[].hostPath.path: '^/(etc|proc|sys|root|boot|dev|var/lib/kubelet|var/lib/docker|var/lib/containerd)(/.*)?$'
+report: volumes[].hostPath
+message: "The Pod mounts a sensitive part of the node's filesystem."
+why: The root directory, /etc, /proc, /sys and the kubelet and runtime folders hold credentials and control files for the whole node. A Pod that can write there can take the node over.
+fix: Mount only the single file or folder the Pod needs, read-only, or use an emptyDir, ConfigMap or Secret instead.
+`,
+  "rbac.yaml": `# Starter rules for Role, ClusterRole and their bindings.
+id: rbac-wildcard
+title: Role grants a wildcard
+severity: warning
+kinds: [Role, ClusterRole]
+when:
+  some:
+    in: rules
+    where:
+      any:
+        - contains: { verbs: '*' }
+        - contains: { resources: '*' }
+report: rules
+message: '{kind} "{name}" uses "*" for verbs or resources.'
+why: A wildcard grants every action, or access to every resource type, now and for any type added later. It is hard to review and easy to over-grant.
+fix: List the exact verbs and resources the subject needs.
+---
+id: rbac-escalation-verbs
+title: Role can raise its own permissions
+severity: warning
+kinds: [Role, ClusterRole]
+when:
+  some:
+    in: rules
+    where:
+      any:
+        - contains: { verbs: escalate }
+        - contains: { verbs: bind }
+        - contains: { verbs: impersonate }
+report: rules
+message: '{kind} "{name}" can escalate, bind or impersonate.'
+why: These verbs let a subject grant itself more permissions or act as someone else, such as an admin. Whoever holds them can usually become cluster-admin.
+fix: Remove escalate, bind and impersonate unless this role belongs to a trusted admin tool.
+---
+id: cluster-admin-binding
+title: Subject is bound to cluster-admin
+severity: error
+kinds: [ClusterRoleBinding, RoleBinding]
+when:
+  equals: { roleRef.name: cluster-admin }
+report: roleRef.name
+message: '{kind} "{name}" gives full control of the cluster to its subjects.'
+why: cluster-admin can do anything to every object in the cluster, including reading all Secrets. A compromised subject means a compromised cluster.
+fix: Bind a role that grants only what the subject needs, such as view or edit, in the namespace it works in.
+---
+id: anonymous-binding
+title: Role is granted to everyone
+severity: error
+kinds: [ClusterRoleBinding, RoleBinding]
+when:
+  some:
+    in: subjects
+    where:
+      any:
+        - equals: { name: 'system:anonymous' }
+        - equals: { name: 'system:unauthenticated' }
+        - equals: { name: 'system:authenticated' }
+report: subjects
+message: '{kind} "{name}" grants a role to anonymous or all authenticated users.'
+why: system:anonymous and system:unauthenticated mean people who never logged in. system:authenticated is every user the cluster knows, including low-trust ones.
+fix: Bind the role to specific users, groups or service accounts.
+`,
+  "secret.yaml": `# Starter rules for Secret objects.
+id: secret-in-manifest
+title: Secret values stored in a manifest
+severity: warning
+kinds: [Secret]
+when:
+  any:
+    - present: data
+    - present: stringData
+report: [data, stringData]
+message: 'Secret "{name}" holds its values in the manifest.'
+why: base64 is an encoding, not encryption. Anyone who can read this file, or the git history, can read the secret.
+fix: Keep real secrets out of git. Use Sealed Secrets, SOPS, External Secrets or your cloud secret manager.
 `,
   "service.yaml": `# Starter rules for Services.
 id: nodeport-service
@@ -27714,6 +28039,23 @@ report: spec.type
 message: 'Service "{name}" creates a load balancer that accepts traffic from any address.'
 why: By default a LoadBalancer Service is reachable from the whole internet (on most clouds).
 fix: Set spec.loadBalancerSourceRanges to the IP ranges that should have access.
+autofix:
+  risk: medium
+  summary: Set spec.loadBalancerSourceRanges to the loadBalancerSourceRanges from the fix policy.
+  set:
+    spec.loadBalancerSourceRanges:
+      { $param: loadBalancerSourceRanges, pattern: '^[0-9A-Fa-f:.]+/[0-9]{1,3}$' }
+---
+id: external-ips
+title: Service accepts traffic for chosen IP addresses
+severity: warning
+kinds: [Service]
+when:
+  present: spec.externalIPs
+report: spec.externalIPs
+message: 'Service "{name}" sets externalIPs.'
+why: externalIPs lets whoever can create a Service claim an IP address and pull traffic meant for it into the cluster (CVE-2020-8554). Most clusters should not use it at all.
+fix: Use a LoadBalancer Service or an Ingress. If you must keep externalIPs, restrict it with the DenyServiceExternalIPs admission plugin or a policy.
 `
 };
 
@@ -27737,7 +28079,8 @@ var RULE_KEYS = [
   "report",
   "message",
   "why",
-  "fix"
+  "fix",
+  "autofix"
 ];
 function parseRules(text2, origin = "rules") {
   const rules = [];
@@ -27798,7 +28141,66 @@ function toRule(raw, origin, position) {
     if (typeof value !== "string") fail(`"${key}" must be a string.`);
     rule[key] = value.trim();
   }
+  if (raw.autofix !== void 0) rule.autofix = toFixSpec(raw.autofix, fail);
   return rule;
+}
+var FIX_RISKS = ["low", "medium", "high"];
+var FIX_KEYS = ["risk", "summary", "requires", "blocked", "set"];
+var FIX_PATH = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/;
+function toFixSpec(raw, fail) {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return fail('"autofix" must be a mapping.');
+  }
+  const obj = raw;
+  for (const key of Object.keys(obj)) {
+    if (!FIX_KEYS.includes(key)) fail(`unknown key "${key}" in "autofix".`);
+  }
+  if (!FIX_RISKS.includes(obj.risk)) {
+    fail(`"autofix.risk" must be one of ${FIX_RISKS.join(", ")}.`);
+  }
+  if (typeof obj.summary !== "string" || obj.summary.trim() === "") {
+    fail('"autofix.summary" is required.');
+  }
+  const summary2 = obj.summary.trim();
+  if (obj.blocked !== void 0 && (typeof obj.blocked !== "string" || obj.blocked.trim() === "")) {
+    fail('"autofix.blocked" must be a non-empty string.');
+  }
+  const set = obj.set;
+  if (set === null || typeof set !== "object" || Array.isArray(set) || Object.keys(set).length === 0) {
+    return fail('"autofix.set" must be a non-empty mapping of path to value.');
+  }
+  const sets = Object.entries(set).map(([path6, value]) => {
+    if (!FIX_PATH.test(path6)) {
+      return fail(`"autofix.set" path "${path6}" must be plain dotted keys, with no [] or $pod.`);
+    }
+    const isParam = value !== null && typeof value === "object" && !Array.isArray(value) && "$param" in value;
+    if (!isParam) return { path: path6, value };
+    const { $param: name, pattern, ...extra } = value;
+    if (Object.keys(extra).length > 0 || typeof name !== "string" || !/^\w+$/.test(name) || pattern !== void 0 && typeof pattern !== "string") {
+      return fail(
+        `"autofix.set" value for "${path6}" must be { $param: name } with an optional "pattern".`
+      );
+    }
+    if (pattern === void 0) return { path: path6, param: name };
+    try {
+      return { path: path6, param: name, pattern: new RegExp(pattern) };
+    } catch {
+      return fail(`invalid regular expression "${pattern}" for "${path6}".`);
+    }
+  });
+  const paths = sets.map((s) => s.path);
+  for (const a of paths) {
+    if (paths.some((b) => b !== a && b.startsWith(`${a}.`))) {
+      fail(`"autofix.set" paths "${a}" and a path below it cannot both be set.`);
+    }
+  }
+  return {
+    risk: obj.risk,
+    summary: summary2,
+    ...obj.requires !== void 0 ? { requires: toCondition(obj.requires, fail) } : {},
+    ...obj.blocked !== void 0 ? { blockedMessage: obj.blocked.trim() } : {},
+    set: sets
+  };
 }
 function requiredString(raw, key, fail) {
   const value = raw[key];
@@ -27830,7 +28232,12 @@ function toCondition(raw, fail) {
       if (op === "matches") {
         if (typeof value !== "string") return fail('"matches" takes a regular expression string.');
         try {
-          return { op, path: path6, pattern: new RegExp(value) };
+          const insensitive = value.startsWith("(?i)");
+          return {
+            op,
+            path: path6,
+            pattern: new RegExp(insensitive ? value.slice(4) : value, insensitive ? "i" : "")
+          };
         } catch {
           return fail(`invalid regular expression "${value}".`);
         }
@@ -27847,6 +28254,13 @@ function toCondition(raw, fail) {
       return { op, conditions: arg.map((c) => toCondition(c, fail)) };
     case "not":
       return { op: "not", condition: toCondition(arg, fail) };
+    case "some": {
+      const obj = arg;
+      if (obj === null || typeof obj !== "object" || Array.isArray(obj) || typeof obj.in !== "string" || obj.where === void 0 || Object.keys(obj).length !== 2) {
+        return fail('"some" takes { in: path-to-a-list, where: condition }.');
+      }
+      return { op: "some", path: obj.in, condition: toCondition(obj.where, fail) };
+    }
     default:
       return fail(`unknown operator "${op}".`);
   }
@@ -27858,6 +28272,83 @@ function singleEntry(op, arg, fail) {
   const entries = Object.entries(arg);
   if (entries.length !== 1) return fail(`"${op}" takes exactly one { path: value } pair.`);
   return entries[0];
+}
+
+// ../core/src/rules/coverage.ts
+function isCustomResource(apiVersion) {
+  const group = apiVersion?.includes("/") ? apiVersion.slice(0, apiVersion.indexOf("/")) : "";
+  return group.includes(".") && !/^([a-z0-9-]+\.)*k8s\.io$/.test(group);
+}
+function distance(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1]?.toLowerCase() === b[j - 1]?.toLowerCase() ? 0 : 1;
+      row[j] = Math.min((prev[j] ?? 0) + 1, (row[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
+    }
+    prev = row;
+  }
+  return prev[b.length] ?? 0;
+}
+function suggestKind(kind, rules) {
+  const known = [.../* @__PURE__ */ new Set([...supportedKinds(), ...checkedKinds(rules)])];
+  let best;
+  for (const k of known) {
+    const prefix = k.length >= 3 && kind.toLowerCase().startsWith(k.toLowerCase());
+    const d = prefix ? 1 : distance(kind, k);
+    if (!best || d < best.d) best = { kind: k, d };
+  }
+  return best && best.d <= Math.max(2, Math.floor(kind.length / 3)) ? best.kind : void 0;
+}
+function checkedKinds(rules) {
+  const kinds = new Set(Object.keys(POD_SPEC_PATH));
+  for (const rule of rules) for (const kind of rule.kinds) if (kind !== "*") kinds.add(kind);
+  return [...kinds].sort();
+}
+function kindCoverage(kind, apiVersion, rules) {
+  if (kind === void 0) {
+    return describe(
+      "unchecked",
+      'No "kind" field',
+      "Without a kind ManifestLens cannot tell what this is, so nothing was checked."
+    );
+  }
+  if (Object.hasOwn(POD_SPEC_PATH, kind) || rules.some((r) => r.kinds.includes(kind))) {
+    return { level: "checked" };
+  }
+  if (hasDocsFor(kind)) {
+    return describe(
+      "explain-only",
+      `No rules for ${kind}`,
+      `ManifestLens explains ${kind} fields, but no rule checks it.`
+    );
+  }
+  if (isCustomResource(apiVersion)) {
+    return describe(
+      "unchecked",
+      `Custom resource ${kind} (${apiVersion})`,
+      "ManifestLens has no rules for custom resources, so it was not checked."
+    );
+  }
+  return describe(
+    "unchecked",
+    `Unknown kind "${kind}"`,
+    "ManifestLens has no rules for it, so it was not checked.",
+    suggestKind(kind, rules)
+  );
+}
+function describe(level, headline2, detail, suggestion) {
+  const note = '"No findings" does not mean it is safe.';
+  const hint = suggestion ? `Did you mean "${suggestion}"?` : void 0;
+  return {
+    level,
+    headline: headline2,
+    detail,
+    note,
+    ...suggestion !== void 0 ? { suggestion } : {},
+    message: [`${headline2}.`, detail, hint, note].filter(Boolean).join(" ")
+  };
 }
 
 // ../core/src/rules/evaluate.ts
@@ -27921,6 +28412,12 @@ function evaluate(cond, ctx) {
       return cond.conditions.some((c) => evaluate(c, ctx));
     case "not":
       return !evaluate(cond.condition, ctx);
+    case "some":
+      return matchesFor(ctx, cond.path).some(
+        (m) => Array.isArray(m.value) && m.value.some(
+          (item) => item !== null && typeof item === "object" && !Array.isArray(item) && evaluate(cond.condition, { scope: item, pod: ctx.pod })
+        )
+      );
   }
 }
 
@@ -27929,17 +28426,9 @@ var SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
 function checkManifest(source, rules) {
   return { documents: parseManifest(source).map((doc) => checkDocument(doc, rules)) };
 }
-function checkDocument(doc, rules) {
-  const checked = {
-    index: doc.index,
-    startLine: doc.startLine,
-    issues: doc.issues,
-    findings: [],
-    ...doc.apiVersion !== void 0 ? { apiVersion: doc.apiVersion } : {},
-    ...doc.kind !== void 0 ? { kind: doc.kind } : {},
-    ...doc.name !== void 0 ? { name: doc.name } : {}
-  };
-  if (!doc.data || !doc.kind) return checked;
+function matchRules(doc, rules) {
+  const matches = [];
+  if (!doc.data || !doc.kind) return matches;
   const kind = doc.kind;
   const fieldsByPath = new Map(doc.fields.map((f) => [f.path, f]));
   const podPath = Object.hasOwn(POD_SPEC_PATH, kind) ? POD_SPEC_PATH[kind] : void 0;
@@ -27950,10 +28439,28 @@ function checkDocument(doc, rules) {
       for (const instance of scopeInstances(scope, doc.data, podPath, podData)) {
         const ctx = { scope: instance.data, pod: podData };
         if (!evaluate(rule.when, ctx)) continue;
-        checked.findings.push(buildFinding(rule, instance, ctx, doc, podPath, fieldsByPath));
+        matches.push({
+          rule,
+          instance,
+          ctx,
+          finding: buildFinding(rule, instance, ctx, doc, podPath, fieldsByPath)
+        });
       }
     }
   }
+  return matches;
+}
+function checkDocument(doc, rules) {
+  const checked = {
+    index: doc.index,
+    startLine: doc.startLine,
+    issues: doc.issues,
+    coverage: kindCoverage(doc.kind, doc.apiVersion, rules),
+    findings: matchRules(doc, rules).map((m) => m.finding),
+    ...doc.apiVersion !== void 0 ? { apiVersion: doc.apiVersion } : {},
+    ...doc.kind !== void 0 ? { kind: doc.kind } : {},
+    ...doc.name !== void 0 ? { name: doc.name } : {}
+  };
   checked.findings.sort(
     (a, b) => a.line - b.line || SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || a.ruleId.localeCompare(b.ruleId)
   );
@@ -28026,6 +28533,706 @@ function fill(template, values) {
 // ../core/src/rules/index.ts
 function loadBundledRules() {
   return Object.entries(bundledRuleSources).flatMap(([file, text2]) => parseRules(text2, file));
+}
+
+// ../core/src/fix/diff.ts
+function split(text2) {
+  return text2.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+}
+var MAX_CELLS = 4e6;
+function diffLines(oldText, newText) {
+  const a = split(oldText);
+  const b = split(newText);
+  let head = 0;
+  while (head < a.length && head < b.length && a[head] === b[head]) head++;
+  let tail = 0;
+  while (tail < a.length - head && tail < b.length - head && a[a.length - 1 - tail] === b[b.length - 1 - tail]) {
+    tail++;
+  }
+  const midA = a.slice(head, a.length - tail);
+  const midB = b.slice(head, b.length - tail);
+  const ops = a.slice(0, head).map((text2) => ({ type: "same", text: text2 }));
+  ops.push(...middle(midA, midB));
+  ops.push(...a.slice(a.length - tail).map((text2) => ({ type: "same", text: text2 })));
+  return ops;
+}
+function middle(a, b) {
+  if (a.length === 0) return b.map((text2) => ({ type: "add", text: text2 }));
+  if (b.length === 0) return a.map((text2) => ({ type: "del", text: text2 }));
+  if (a.length * b.length > MAX_CELLS) {
+    return [
+      ...a.map((text2) => ({ type: "del", text: text2 })),
+      ...b.map((text2) => ({ type: "add", text: text2 }))
+    ];
+  }
+  const w = b.length + 1;
+  const table = new Uint32Array((a.length + 1) * w);
+  for (let i2 = a.length - 1; i2 >= 0; i2--) {
+    for (let j2 = b.length - 1; j2 >= 0; j2--) {
+      table[i2 * w + j2] = a[i2] === b[j2] ? table[(i2 + 1) * w + j2 + 1] + 1 : Math.max(table[(i2 + 1) * w + j2], table[i2 * w + j2 + 1]);
+    }
+  }
+  const ops = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      ops.push({ type: "same", text: a[i] });
+      i++;
+      j++;
+    } else if (table[(i + 1) * w + j] >= table[i * w + j + 1]) {
+      ops.push({ type: "del", text: a[i++] });
+    } else {
+      ops.push({ type: "add", text: b[j++] });
+    }
+  }
+  while (i < a.length) ops.push({ type: "del", text: a[i++] });
+  while (j < b.length) ops.push({ type: "add", text: b[j++] });
+  return ops;
+}
+function unifiedDiff(oldText, newText, oldLabel = "a/manifest.yaml", newLabel = "b/manifest.yaml", context = 3) {
+  if (oldText === newText) return "";
+  const ops = diffLines(oldText, newText);
+  const changed = ops.flatMap((op, i) => op.type === "same" ? [] : [i]);
+  const hunks = [];
+  for (const i of changed) {
+    const from = Math.max(i - context, 0);
+    const to = Math.min(i + context, ops.length - 1);
+    const last = hunks[hunks.length - 1];
+    if (last && from <= last[1] + 1) last[1] = Math.max(last[1], to);
+    else hunks.push([from, to]);
+  }
+  const out = [`--- ${oldLabel}`, `+++ ${newLabel}`];
+  let oldLine = 1;
+  let newLine = 1;
+  let cursor = 0;
+  for (const [from, to] of hunks) {
+    for (; cursor < from; cursor++) {
+      const type = ops[cursor].type;
+      if (type !== "add") oldLine++;
+      if (type !== "del") newLine++;
+    }
+    const body = [];
+    let oldCount = 0;
+    let newCount = 0;
+    for (let i = from; i <= to; i++) {
+      const op = ops[i];
+      const mark = op.type === "same" ? " " : op.type === "del" ? "-" : "+";
+      body.push(`${mark}${op.text.replace(/\n$/, "")}`);
+      if (!op.text.endsWith("\n")) body.push("\\ No newline at end of file");
+      if (op.type !== "add") oldCount++;
+      if (op.type !== "del") newCount++;
+    }
+    const oldStart = oldCount === 0 ? oldLine - 1 : oldLine;
+    const newStart = newCount === 0 ? newLine - 1 : newLine;
+    out.push(`@@ -${oldStart},${oldCount} +${newStart},${newCount} @@`, ...body);
+    oldLine += oldCount;
+    newLine += newCount;
+    cursor = to + 1;
+  }
+  return `${out.join("\n")}
+`;
+}
+
+// ../core/src/fix/edit.ts
+var import_yaml3 = __toESM(require_dist(), 1);
+var INDENT = 2;
+function toSteps(...paths) {
+  const steps = [];
+  for (const path6 of paths) {
+    if (path6 === "") continue;
+    for (const part of path6.split(".")) {
+      const match3 = /^([^[\]]+)((?:\[\d+\])*)$/.exec(part);
+      if (!match3) throw new Error(`Bad path "${path6}".`);
+      steps.push(match3[1]);
+      for (const index2 of match3[2].matchAll(/\[(\d+)\]/g)) {
+        steps.push(Number(index2[1]));
+      }
+    }
+  }
+  return steps;
+}
+var unsupported = (detail) => ({ ok: false, detail });
+function setInSource(source, documentIndex, steps, value) {
+  const tree = parseManifestWithTree(source)[documentIndex]?.tree;
+  if (!tree) return unsupported("the document is no longer there");
+  const eol = source.includes("\r\n") ? "\r\n" : "\n";
+  let node = tree.contents;
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    if ((0, import_yaml3.isAlias)(node)) return unsupported("a list item on the path is a YAML alias");
+    const last = i === steps.length - 1;
+    if (typeof step === "number") {
+      if (!(0, import_yaml3.isSeq)(node)) return unsupported(`expected a list at step ${i + 1}`);
+      node = node.items[step];
+      if (node === void 0) return unsupported("a list item on the path does not exist");
+      if (last) return unsupported("cannot replace a whole list item");
+      continue;
+    }
+    if (!(0, import_yaml3.isMap)(node)) return unsupported(`expected a mapping at "${step}"`);
+    const pair = node.items.find((p) => (0, import_yaml3.isScalar)(p.key) && String(p.key.value) === step);
+    if (!pair) {
+      const rest = steps.slice(i);
+      if (rest.some((s) => typeof s === "number")) {
+        return unsupported("cannot create a list item that does not exist");
+      }
+      return insertKeys(source, node, rest, value, eol);
+    }
+    if ((0, import_yaml3.isAlias)(pair.value)) {
+      if (last) return unsupported("the value is a YAML alias");
+      return overrideAlias(source, tree, node, pair, pair.value, steps.slice(i + 1), value, eol);
+    }
+    if (last) return replaceValue(source, node, pair, value, eol);
+    const child = pair.value;
+    if (child === null || child === void 0 || isEmpty(child)) {
+      const rest = steps.slice(i + 1);
+      if (rest.some((r) => typeof r === "number")) {
+        return unsupported("cannot create a list item that does not exist");
+      }
+      return fillEmpty(source, node, pair, rest, value, eol);
+    }
+    node = child;
+  }
+  return unsupported("empty path");
+}
+function isEmpty(node) {
+  if ((0, import_yaml3.isScalar)(node)) return node.value === null || node.value === void 0;
+  return (0, import_yaml3.isMap)(node) && node.flow === true && node.items.length === 0;
+}
+function lineStart(source, offset) {
+  return source.lastIndexOf("\n", offset - 1) + 1;
+}
+function lineEnd(source, offset) {
+  const i = source.indexOf("\n", offset);
+  if (i === -1) return source.length;
+  return source[i - 1] === "\r" && i - 1 >= offset ? i - 1 : i;
+}
+function indentOf(source, offset) {
+  return offset - lineStart(source, offset);
+}
+function renderBlock(keys, value, indent) {
+  let nested = value;
+  for (const key of [...keys].reverse()) nested = { [key]: nested };
+  const text2 = (0, import_yaml3.stringify)(nested, { indent: INDENT, lineWidth: 0 }).replace(/\n$/, "");
+  return text2.split("\n").map((line) => " ".repeat(indent) + line);
+}
+function isCollection(value) {
+  return value !== null && typeof value === "object";
+}
+function isJsonStyle(map) {
+  const key = map.items[0]?.key;
+  return (0, import_yaml3.isScalar)(key) && key.type === "QUOTE_DOUBLE";
+}
+function renderFlowPairs(keys, value, json) {
+  let nested = value;
+  for (const key of [...keys].reverse()) nested = { [key]: nested };
+  const text2 = (0, import_yaml3.stringify)(nested, {
+    collectionStyle: "flow",
+    lineWidth: 0,
+    flowCollectionPadding: false,
+    ...json ? { defaultKeyType: "QUOTE_DOUBLE", defaultStringType: "QUOTE_DOUBLE" } : {}
+  }).trim();
+  return text2.slice(1, -1);
+}
+function renderFlowValue(value, json) {
+  return (0, import_yaml3.stringify)(value, {
+    collectionStyle: "flow",
+    lineWidth: 0,
+    flowCollectionPadding: false,
+    ...json ? { defaultStringType: "QUOTE_DOUBLE" } : {}
+  }).trim();
+}
+function insertFlowKeys(source, map, rest, value, eol) {
+  const first = map.items[0];
+  const lastPair = map.items[map.items.length - 1];
+  if (!first || !lastPair || !(0, import_yaml3.isScalar)(first.key) || !first.key.range) {
+    return unsupported("the mapping has no keys to align with");
+  }
+  const keyEnd = lastPair.key.range?.[1] ?? 0;
+  const valueEnd = lastPair.value?.range?.[1] ?? keyEnd;
+  const end = Math.max(keyEnd, valueEnd);
+  const pairs = renderFlowPairs(rest, value, isJsonStyle(map));
+  const firstStart = first.key.range[0];
+  const ownLine = source.slice(lineStart(source, firstStart), firstStart).trim() === "";
+  const text2 = ownLine ? `,${eol}${" ".repeat(indentOf(source, firstStart))}${pairs}` : `, ${pairs}`;
+  return ok(source, end, end, text2);
+}
+function overrideAlias(source, tree, parent, pair, alias, rest, value, eol) {
+  if (rest.some((r) => typeof r === "number")) {
+    return unsupported("the path goes through a list inside a YAML alias");
+  }
+  const keys = rest;
+  const target2 = alias.resolve(tree);
+  if (!(0, import_yaml3.isMap)(target2)) return unsupported("the YAML alias is not a mapping");
+  const inherited = target2.items.some((p) => (0, import_yaml3.isScalar)(p.key) && String(p.key.value) === keys[0]);
+  if (keys.length > 1 && inherited) {
+    return unsupported(
+      `"${keys[0]}" comes from a YAML alias and would be replaced as a whole, not merged`
+    );
+  }
+  if (!alias.range || !(0, import_yaml3.isScalar)(pair.key) || !pair.key.range) {
+    return unsupported("cannot locate the alias");
+  }
+  const [start, end] = alias.range;
+  const ref = source.slice(start, end);
+  if ((0, import_yaml3.isMap)(parent) && parent.flow) {
+    const pairs = renderFlowPairs(keys, value, isJsonStyle(parent));
+    return ok(source, start, end, `{<<: ${ref}, ${pairs}}`);
+  }
+  const colon = source.indexOf(":", pair.key.range[1]);
+  if (colon === -1 || colon >= start) return unsupported("cannot locate the key");
+  const indent = indentOf(source, pair.key.range[0]) + INDENT;
+  const lines = [`<<: ${ref}`, ...renderBlock(keys, value, 0)].map((l) => " ".repeat(indent) + l).join(eol);
+  return ok(source, colon + 1, end, `${eol}${lines}`);
+}
+function insertKeys(source, map, rest, value, eol) {
+  if (map.flow) return insertFlowKeys(source, map, rest, value, eol);
+  const first = map.items[0];
+  if (!first || !(0, import_yaml3.isScalar)(first.key) || !first.key.range) {
+    return unsupported("the mapping has no keys to align with");
+  }
+  const indent = indentOf(source, first.key.range[0]);
+  const lines = renderBlock(rest, value, indent).join(eol);
+  const lastPair = map.items[map.items.length - 1];
+  const keyEnd = lastPair.key.range?.[1] ?? 0;
+  const valueEnd = lastPair.value?.range?.[1] ?? keyEnd;
+  const end = Math.max(keyEnd, valueEnd);
+  if (end > keyEnd && source[end - 1] === "\n") return ok(source, end, end, `${lines}${eol}`);
+  const at = lineEnd(source, end);
+  return ok(source, at, at, `${eol}${lines}`);
+}
+function replaceValue(source, parent, pair, value, eol) {
+  const old = pair.value;
+  if (old === null || old === void 0 || isEmpty(old)) {
+    return fillEmpty(source, parent, pair, [], value, eol);
+  }
+  if (!(0, import_yaml3.isScalar)(old) || !old.range) return unsupported("the existing value is a list or mapping");
+  if (isCollection(value)) return unsupported("cannot merge into an existing value");
+  const json = (0, import_yaml3.isMap)(parent) && parent.flow === true && isJsonStyle(parent);
+  const text2 = (0, import_yaml3.stringify)(value, {
+    lineWidth: 0,
+    ...json ? { defaultStringType: "QUOTE_DOUBLE" } : {}
+  }).replace(/\n$/, "");
+  return ok(source, old.range[0], old.range[1], text2);
+}
+function fillEmpty(source, parent, pair, rest, value, eol) {
+  const keyRange = pair.key.range;
+  if (!keyRange || keyRange[0] === void 0 || keyRange[1] === void 0) {
+    return unsupported("cannot locate the key");
+  }
+  const colon = source.indexOf(":", keyRange[1]);
+  if (colon === -1) return unsupported("cannot locate the key");
+  const indent = indentOf(source, keyRange[0]);
+  const flow = pair.value && (0, import_yaml3.isMap)(pair.value) && pair.value.range ? pair.value.range : void 0;
+  const end = flow ? flow[1] : colon + 1;
+  if ((0, import_yaml3.isMap)(parent) && parent.flow) {
+    if (!flow) return unsupported("the key has no value to fill inside a { flow } mapping");
+    const json = isJsonStyle(parent);
+    const text2 = rest.length > 0 ? `{${renderFlowPairs(rest, value, json)}}` : renderFlowValue(value, json);
+    return ok(source, flow[0], flow[1], text2);
+  }
+  const after = source.slice(end, lineEnd(source, end));
+  if (flow && after.trim() !== "") {
+    return unsupported("a comment or text follows the empty { } on its line");
+  }
+  if (!flow && after.trim() !== "" && !after.trim().startsWith("#")) {
+    return unsupported("the key has an unusual value");
+  }
+  if (rest.length === 0 && !isCollection(value)) {
+    const text2 = (0, import_yaml3.stringify)(value, { lineWidth: 0 }).replace(/\n$/, "");
+    return ok(source, colon + 1, end, ` ${text2}`);
+  }
+  let lines;
+  if (rest.length > 0) lines = renderBlock(rest, value, indent + INDENT);
+  else {
+    lines = (0, import_yaml3.stringify)(value, { indent: INDENT, lineWidth: 0 }).replace(/\n$/, "").split("\n").map((l) => " ".repeat(indent + INDENT) + l);
+  }
+  const at = flow ? flow[1] : lineEnd(source, end);
+  return ok(source, flow ? colon + 1 : at, flow ? flow[1] : at, `${eol}${lines.join(eol)}`);
+}
+function ok(source, start, end, text2) {
+  return { ok: true, text: source.slice(0, start) + text2 + source.slice(end) };
+}
+
+// ../core/src/fix/hash.ts
+function fingerprint(text2) {
+  let h1 = 3735928559;
+  let h2 = 1103547991;
+  for (let i = 0; i < text2.length; i++) {
+    const ch = text2.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ h1 >>> 16, 2246822507) ^ Math.imul(h2 ^ h2 >>> 13, 3266489909);
+  h2 = Math.imul(h2 ^ h2 >>> 16, 2246822507) ^ Math.imul(h1 ^ h1 >>> 13, 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, "0");
+}
+
+// ../core/src/fix/types.ts
+var RISK_ORDER = { low: 0, medium: 1, high: 2 };
+
+// ../core/src/fix/engine.ts
+function analyze(text2, rules) {
+  const parsed = parseManifestWithTree(text2);
+  const out = { matches: [], issues: 0, documents: [], notChecked: [] };
+  for (const { manifest: doc } of parsed) {
+    out.issues += doc.issues.length;
+    const coverage = kindCoverage(doc.kind, doc.apiVersion, rules);
+    if (coverage.level !== "checked" && coverage.headline && coverage.detail && coverage.note && coverage.message) {
+      out.notChecked.push({
+        document: doc.index,
+        line: doc.startLine,
+        level: coverage.level,
+        headline: coverage.headline,
+        detail: coverage.detail,
+        note: coverage.note,
+        message: coverage.message,
+        ...coverage.suggestion !== void 0 ? { suggestion: coverage.suggestion } : {},
+        ...doc.kind !== void 0 ? { kind: doc.kind } : {},
+        ...doc.name !== void 0 ? { name: doc.name } : {}
+      });
+    }
+    out.documents.push({
+      ...doc.kind !== void 0 ? { kind: doc.kind } : {},
+      ...doc.name !== void 0 ? { name: doc.name } : {},
+      canon: canon(doc.data)
+    });
+    for (const match3 of matchRules(doc, rules)) {
+      out.matches.push({
+        documentIndex: doc.index,
+        match: match3,
+        ...doc.kind !== void 0 ? { kind: doc.kind } : {},
+        ...doc.name !== void 0 ? { name: doc.name } : {}
+      });
+    }
+  }
+  return out;
+}
+function brokenDocuments(text2) {
+  return new Set(
+    parseManifestWithTree(text2).filter((d) => d.manifest.issues.length > 0).map((d) => d.manifest.index)
+  );
+}
+function canon(value) {
+  return JSON.stringify(
+    value,
+    (_k, v) => v !== null && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v
+  );
+}
+var slot = (a) => `${a.match.rule.id}|${a.documentIndex}|${a.match.instance.path}`;
+function countSlots(matches) {
+  const counts = /* @__PURE__ */ new Map();
+  for (const m of matches) counts.set(slot(m), (counts.get(slot(m)) ?? 0) + 1);
+  return counts;
+}
+function newFindings(before, after) {
+  const known = countSlots(before.matches);
+  const seen = /* @__PURE__ */ new Map();
+  const out = [];
+  for (const m of after.matches) {
+    const key = slot(m);
+    const n = (seen.get(key) ?? 0) + 1;
+    seen.set(key, n);
+    if (n > (known.get(key) ?? 0)) out.push(toIntroduced(m.match.finding));
+  }
+  return out;
+}
+function toIntroduced(f) {
+  return { ruleId: f.ruleId, severity: f.severity, message: f.message, line: f.line };
+}
+function resolveValues(spec, params) {
+  const values = [];
+  for (const set of spec.set) {
+    if (set.param === void 0) {
+      values.push({ set, value: set.value });
+      continue;
+    }
+    if (!Object.hasOwn(params, set.param)) {
+      return {
+        reason: "needs-input",
+        detail: `Needs the policy value "${set.param}": add it under "params:" in the fix policy.`
+      };
+    }
+    const value = params[set.param];
+    const items = Array.isArray(value) ? value : [value];
+    const scalar = (v) => typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+    if (items.length === 0 || !items.every(scalar)) {
+      return {
+        reason: "invalid-input",
+        detail: `Policy parameter "${set.param}" must be a value or a non-empty list of values.`
+      };
+    }
+    if (set.pattern && !items.every((v) => set.pattern?.test(String(v)))) {
+      return {
+        reason: "invalid-input",
+        detail: `Policy parameter "${set.param}" does not look right (must match ${set.pattern.source}).`
+      };
+    }
+    values.push({ set, value });
+  }
+  return { values };
+}
+function setDeep(root, steps, value) {
+  let node = root;
+  steps.forEach((step, i) => {
+    if (i === steps.length - 1) {
+      node[step] = value;
+      return;
+    }
+    const next = node[step];
+    if (next === null || typeof next !== "object") node[step] = {};
+    node = node[step];
+  });
+}
+function originalLine(source, text2, line) {
+  if (source === text2) return line;
+  let before = 0;
+  let after = 0;
+  let last = 0;
+  for (const op of diffLines(source, text2)) {
+    if (op.type !== "del") after++;
+    if (op.type !== "add") before++;
+    if (op.type === "same") last = before;
+    if (after === line) return op.type === "same" ? before : Math.max(last, 1);
+  }
+  return line;
+}
+var fullPath = (scope, path6) => scope === "" ? path6 : `${scope}.${path6}`;
+var target = (documentIndex, kind, name, scope) => ({
+  document: documentIndex,
+  ...kind !== void 0 ? { kind } : {},
+  ...name !== void 0 ? { name } : {},
+  scope
+});
+function fixManifest(source, rules, options = {}) {
+  const maxRisk = RISK_ORDER[options.maxRisk ?? "low"];
+  const params = options.policy?.params ?? {};
+  const only = options.only ? new Set(options.only) : void 0;
+  const budget = options.maxFixes ?? 500;
+  const original = analyze(source, rules);
+  const allowed2 = options.findings ? new Set(
+    original.matches.filter(
+      (m) => options.findings?.some(
+        (f) => f.ruleId === m.match.rule.id && f.line === m.match.finding.line
+      )
+    ).map(slot)
+  ) : void 0;
+  const broken = brokenDocuments(source);
+  const applied = [];
+  const skipped = /* @__PURE__ */ new Map();
+  const attempted = /* @__PURE__ */ new Set();
+  const touched = /* @__PURE__ */ new Map();
+  let text2 = source;
+  for (let attempts = 0; attempts < budget; ) {
+    const state = analyze(text2, rules);
+    const candidates = state.matches.filter(
+      (m) => m.match.rule.autofix !== void 0 && !broken.has(m.documentIndex) && (!only || only.has(m.match.rule.id)) && (!allowed2 || allowed2.has(slot(m)))
+    ).sort(
+      (a, b) => a.documentIndex - b.documentIndex || a.match.finding.line - b.match.finding.line || a.match.rule.id.localeCompare(b.match.rule.id)
+    );
+    let progressed = false;
+    for (const candidate of candidates) {
+      const key = slot(candidate);
+      if (attempted.has(key)) continue;
+      attempted.add(key);
+      attempts++;
+      const outcome = attempt(text2, state, candidate, rules, { maxRisk, params, touched, source });
+      if ("skip" in outcome) {
+        skipped.set(key, outcome.skip);
+      } else {
+        for (const [k, s] of skipped) {
+          if (s.reason !== "precondition-failed" && s.reason !== "conflict") continue;
+          skipped.delete(k);
+          attempted.delete(k);
+        }
+        text2 = outcome.text;
+        applied.push(outcome.applied);
+        for (const c of outcome.applied.changes) {
+          touched.set(`${candidate.documentIndex}|${c.path}`, c.after);
+        }
+        progressed = true;
+        break;
+      }
+      if (attempts >= budget) break;
+    }
+    if (!progressed) break;
+  }
+  return finish(source, text2, rules, original, applied, [...skipped.values()]);
+}
+function attempt(text2, state, candidate, rules, ctx) {
+  const { rule, instance, finding } = candidate.match;
+  const spec = rule.autofix;
+  const reported = originalLine(ctx.source, text2, finding.line);
+  const where = target(candidate.documentIndex, candidate.kind, candidate.name, instance.path);
+  const skip = (reason, detail) => ({
+    skip: { ruleId: rule.id, reason, detail, risk: spec.risk, target: where, line: reported }
+  });
+  if (RISK_ORDER[spec.risk] > ctx.maxRisk) {
+    return skip(
+      "risk-too-high",
+      `Risk is ${spec.risk}. Review the change, then allow it with --max-risk ${spec.risk}.`
+    );
+  }
+  if (spec.requires && !evaluate(spec.requires, candidate.match.ctx)) {
+    return skip(
+      "precondition-failed",
+      spec.blockedMessage ?? "The surrounding settings make this fix unsafe or ambiguous."
+    );
+  }
+  const resolved = resolveValues(spec, ctx.params);
+  if ("reason" in resolved) return skip(resolved.reason, resolved.detail);
+  const changes = [];
+  const edits = [];
+  for (const { set, value } of resolved.values) {
+    const path6 = fullPath(instance.path, set.path);
+    for (const [other, after] of ctx.touched) {
+      const [doc, otherPath] = [
+        other.slice(0, other.indexOf("|")),
+        other.slice(other.indexOf("|") + 1)
+      ];
+      const overlaps = doc === String(candidate.documentIndex) && (otherPath === path6 || otherPath.startsWith(`${path6}.`) || path6.startsWith(`${otherPath}.`));
+      if (overlaps && (otherPath !== path6 || after !== canon(value))) {
+        return skip("conflict", `Another fix already changed ${otherPath} in this run.`);
+      }
+    }
+    const current = resolve(instance.data, set.path)[0]?.value;
+    changes.push({
+      path: path6,
+      before: current === void 0 ? "absent" : JSON.stringify(current) ?? "absent",
+      after: JSON.stringify(value) ?? "null"
+    });
+    edits.push({ steps: toSteps(instance.path, set.path), value });
+  }
+  let next = text2;
+  for (const edit of edits) {
+    const result = setInSource(next, candidate.documentIndex, edit.steps, edit.value);
+    if (!result.ok) return skip("unsupported-layout", `Cannot edit this safely: ${result.detail}.`);
+    next = result.text;
+  }
+  if (next === text2) return skip("precondition-failed", "The field already has this value.");
+  const problem = verifyStep(text2, next, state, candidate, rules, edits);
+  if (problem) return skip("validation-failed", problem);
+  return {
+    text: next,
+    applied: {
+      ruleId: rule.id,
+      risk: spec.risk,
+      summary: spec.summary,
+      target: where,
+      line: reported,
+      changes
+    }
+  };
+}
+function verifyStep(before, after, state, candidate, rules, edits) {
+  const parsed = parseManifestWithTree(after);
+  if (parsed.length !== state.documents.length) return "The number of documents changed.";
+  if (parsed.reduce((n, d) => n + d.manifest.issues.length, 0) > state.issues) {
+    return "The result has YAML problems.";
+  }
+  const expected = parseManifestWithTree(before);
+  for (const [i, d] of parsed.entries()) {
+    let want = expected[i].manifest.data;
+    if (i === candidate.documentIndex) {
+      want = want === void 0 ? want : JSON.parse(JSON.stringify(want));
+      for (const e of edits) setDeep(want, e.steps, e.value);
+    }
+    if (canon(want) !== canon(d.manifest.data)) {
+      return i === candidate.documentIndex ? "The edit changed more than the intended fields." : "The edit changed another document.";
+    }
+  }
+  const now = analyze(after, rules);
+  const slotNow = countSlots(now.matches).get(slot(candidate)) ?? 0;
+  const slotBefore = countSlots(state.matches).get(slot(candidate)) ?? 0;
+  if (slotNow >= slotBefore) return "The finding is still reported after the fix.";
+  const introduced = newFindings(state, now);
+  if (introduced.length > 0) {
+    return `The fix would introduce ${introduced.map((f) => f.ruleId).join(", ")}.`;
+  }
+  return void 0;
+}
+function finish(source, text2, rules, original, applied, skipped) {
+  const base = {
+    original: source,
+    sourceHash: fingerprint(source),
+    skipped,
+    withoutFix: original.matches.filter((m) => m.match.rule.autofix === void 0).length,
+    notChecked: original.notChecked
+  };
+  if (text2 === source) {
+    return {
+      ...base,
+      status: "unchanged",
+      fixed: source,
+      applied: [],
+      remaining: original.matches.length,
+      validation: { ok: true, resolved: 0, introduced: [], problems: [] }
+    };
+  }
+  const final = analyze(text2, rules);
+  const problems = [];
+  if (final.documents.length !== original.documents.length)
+    problems.push("The number of documents changed.");
+  if (final.issues > original.issues) problems.push("The result has YAML problems.");
+  const introduced = newFindings(original, final);
+  if (introduced.length > 0) problems.push("The result has findings the original did not.");
+  const validation = {
+    ok: problems.length === 0,
+    resolved: Math.max(original.matches.length - final.matches.length + introduced.length, 0),
+    introduced,
+    problems
+  };
+  if (!validation.ok) {
+    return {
+      ...base,
+      status: "rejected",
+      fixed: source,
+      applied: [],
+      remaining: original.matches.length,
+      validation
+    };
+  }
+  return {
+    ...base,
+    status: "fixed",
+    fixed: text2,
+    applied,
+    remaining: final.matches.length,
+    validation
+  };
+}
+
+// ../core/src/fix/policy.ts
+var import_yaml4 = __toESM(require_dist(), 1);
+var FixPolicyError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "FixPolicyError";
+  }
+};
+function parseFixPolicy(text2, origin = "fix policy") {
+  const doc = (0, import_yaml4.parseDocument)(text2);
+  if (doc.errors.length > 0) {
+    throw new FixPolicyError(
+      `${origin}: ${doc.errors[0]?.message.split("\n")[0] ?? "invalid YAML"}`
+    );
+  }
+  if (doc.contents === null) return { params: {} };
+  if (!(0, import_yaml4.isMap)(doc.contents)) throw new FixPolicyError(`${origin}: expected a mapping.`);
+  const data = doc.toJS();
+  for (const key of Object.keys(data)) {
+    if (key !== "params") throw new FixPolicyError(`${origin}: unknown key "${key}".`);
+  }
+  const params = data.params ?? {};
+  if (params === null || typeof params !== "object" || Array.isArray(params)) {
+    throw new FixPolicyError(`${origin}: "params" must be a mapping.`);
+  }
+  for (const [name, value] of Object.entries(params)) {
+    if (value === null || value === void 0) {
+      throw new FixPolicyError(`${origin}: parameter "${name}" has no value.`);
+    }
+  }
+  return { params };
 }
 
 // ../core/src/diff/deep.ts
@@ -28629,9 +29836,9 @@ function escapeBraces(str) {
 function unescapeBraces(str) {
   return str.replace(escSlashPattern, "\\").replace(escOpenPattern, "{").replace(escClosePattern, "}").replace(escCommaPattern, ",").replace(escPeriodPattern, ".");
 }
-function pushAll(target, items) {
+function pushAll(target2, items) {
   for (let i = 0; i < items.length; i++) {
-    target.push(items[i]);
+    target2.push(items[i]);
   }
 }
 function parseCommaParts(str) {
@@ -30460,7 +31667,7 @@ function suppressedByConfig(file, ruleId, s) {
   });
 }
 var label = (kind, name) => kind ? `${kind}${name ? ` "${name}"` : ""}` : "object";
-function analyze(files, allRules, s) {
+function analyze2(files, allRules, s) {
   const { rules, unknown } = prepareRules(allRules, s);
   const result = {
     findings: [],
@@ -30468,6 +31675,7 @@ function analyze(files, allRules, s) {
     suppressed: 0,
     filesChecked: files.length,
     changes: [],
+    notChecked: [],
     unknownRules: unknown
   };
   for (const file of files) {
@@ -30507,6 +31715,17 @@ function analyze(files, allRules, s) {
             ...issue2.line ? { line: issue2.line } : {}
           });
         for (const f of doc.findings) keep({ ...pick(f), file: file.path, object });
+        if (doc.coverage.level !== "checked" && doc.coverage.message) {
+          result.notChecked.push({
+            file: file.path,
+            line: doc.startLine,
+            object,
+            level: doc.coverage.level,
+            message: doc.coverage.message,
+            ...doc.kind !== void 0 ? { kind: doc.kind } : {},
+            ...doc.apiVersion !== void 0 ? { apiVersion: doc.apiVersion } : {}
+          });
+        }
       }
     }
   }
@@ -30629,12 +31848,12 @@ function asList(value, name, p, splitCommas) {
 function suggest(word, candidates) {
   let best;
   for (const name of candidates) {
-    const d = distance(word, name);
+    const d = distance2(word, name);
     if (d <= 2 && (!best || d < best.d)) best = { name, d };
   }
   return best?.name;
 }
-function distance(a, b) {
+function distance2(a, b) {
   const row = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
     let prev = row[0];
@@ -30655,7 +31874,7 @@ function distance(a, b) {
 // src/config.ts
 var import_node_fs = require("node:fs");
 var import_node_path = require("node:path");
-var import_yaml3 = __toESM(require_dist());
+var import_yaml5 = __toESM(require_dist());
 
 // src/settings.ts
 var DEFAULTS = {
@@ -30683,6 +31902,10 @@ var DEFAULTS = {
   sarifFile: "",
   reportFile: "manifestlens-report.json",
   label: "",
+  suggestFixes: false,
+  fixPatchFile: "",
+  fixMaxRisk: "low",
+  fixPolicy: "",
   maxFiles: 2e3,
   maxFileSizeKb: 1024
 };
@@ -30719,6 +31942,13 @@ var FIELDS = {
   sarifFile: { name: "sarif-file", parse: text },
   reportFile: { name: "report-file", parse: text },
   label: { name: "label", parse: text },
+  suggestFixes: { name: "suggest-fixes", parse: (v, n, p) => asBool(v, n, p) },
+  fixPatchFile: { name: "fix-patch-file", parse: text },
+  fixMaxRisk: {
+    name: "fix-max-risk",
+    parse: (v, n, p) => asEnum(v, ["low", "medium", "high"], n, p)
+  },
+  fixPolicy: { name: "fix-policy", parse: text },
   maxFiles: { name: "max-files", parse: (v, n, p) => asInt(v, n, p, 1, 1e5) },
   maxFileSizeKb: { name: "max-file-size-kb", parse: (v, n, p) => asInt(v, n, p, 1, 51200) }
 };
@@ -30864,7 +32094,14 @@ function validateSettings(s) {
   if (s.paths.length === 0) problems.push("paths: needs at least one pattern.");
   if (s.paths.every((p) => p.startsWith("!")))
     problems.push("paths: needs at least one pattern that is not an exclusion (!).");
-  for (const key of ["workingDirectory", "configFile", "sarifFile", "reportFile"]) {
+  for (const key of [
+    "workingDirectory",
+    "configFile",
+    "sarifFile",
+    "reportFile",
+    "fixPatchFile",
+    "fixPolicy"
+  ]) {
     const value = s[key];
     if (value !== "" && unsafePath(value)) {
       problems.push(
@@ -30921,7 +32158,7 @@ function loadConfig(workspace, file, explicit, p) {
   }
   let data;
   try {
-    data = (0, import_yaml3.parse)((0, import_node_fs.readFileSync)(real, "utf8"));
+    data = (0, import_yaml5.parse)((0, import_node_fs.readFileSync)(real, "utf8"));
   } catch (err) {
     p.add(
       `${file}: not valid YAML. ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`
@@ -31712,6 +32949,35 @@ function evaluate2(a, s) {
   return { passed, result, blocking: result === "fail", reasons, counts };
 }
 
+// src/fixes.ts
+function suggestFixes(files, rules, analysis, s, policy) {
+  const byId = new Map(rules.map((r) => [r.id, r]));
+  const out = {
+    maxRisk: s.fixMaxRisk,
+    files: [],
+    available: 0,
+    heldBack: 0,
+    patch: ""
+  };
+  for (const file of files) {
+    const wanted = analysis.findings.filter((f) => f.file === file.path && byId.get(f.ruleId)?.autofix !== void 0).map((f) => ({ ruleId: f.ruleId, line: f.line }));
+    if (wanted.length === 0) continue;
+    const result = fixManifest(file.text, rules, {
+      maxRisk: s.fixMaxRisk,
+      findings: wanted,
+      ...policy ? { policy } : {}
+    });
+    const patch = unifiedDiff(result.original, result.fixed, `a/${file.path}`, `b/${file.path}`);
+    out.available += result.applied.length;
+    out.heldBack += result.skipped.length;
+    out.patch += patch;
+    if (result.applied.length > 0 || result.skipped.length > 0) {
+      out.files.push({ file: file.path, applied: result.applied, skipped: result.skipped, patch });
+    }
+  }
+  return out;
+}
+
 // src/git.ts
 var import_node_child_process = require("node:child_process");
 var GitError = class extends Error {
@@ -31838,11 +33104,11 @@ function emitAnnotations(findings, problems, max) {
     total: problems.length + findings.length
   };
 }
-async function api(fetchFn, target, method, path6, body) {
-  const res = await fetchFn(`${target.apiUrl}/repos/${target.repo}${path6}`, {
+async function api(fetchFn, target2, method, path6, body) {
+  const res = await fetchFn(`${target2.apiUrl}/repos/${target2.repo}${path6}`, {
     method,
     headers: {
-      Authorization: `Bearer ${target.token}`,
+      Authorization: `Bearer ${target2.token}`,
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
       "User-Agent": "manifestlens-action",
@@ -31853,25 +33119,25 @@ async function api(fetchFn, target, method, path6, body) {
   if (!res.ok) throw new Error(`GitHub API ${method} ${path6} returned ${res.status}`);
   return res.status === 204 ? void 0 : await res.json();
 }
-async function upsertComment(target, marker, body, onlyIfExists, fetchFn = fetch) {
+async function upsertComment(target2, marker, body, onlyIfExists, fetchFn = fetch) {
   let existing;
   for (let page = 1; page <= 10 && !existing; page++) {
     const batch = await api(
       fetchFn,
-      target,
+      target2,
       "GET",
-      `/issues/${target.number}/comments?per_page=100&page=${page}`
+      `/issues/${target2.number}/comments?per_page=100&page=${page}`
     );
     existing = batch.find((c) => c.user?.type === "Bot" && c.body?.includes(marker));
     if (batch.length < 100) break;
   }
   if (existing) {
     if (existing.body === body) return "unchanged";
-    await api(fetchFn, target, "PATCH", `/issues/comments/${existing.id}`, { body });
+    await api(fetchFn, target2, "PATCH", `/issues/comments/${existing.id}`, { body });
     return "updated";
   }
   if (onlyIfExists) return "skipped";
-  await api(fetchFn, target, "POST", `/issues/${target.number}/comments`, { body });
+  await api(fetchFn, target2, "POST", `/issues/${target2.number}/comments`, { body });
   return "created";
 }
 
@@ -31882,7 +33148,7 @@ var MAX_COMMENT_ROWS = 15;
 var MAX_COMMENT_CHARS = 6e4;
 var ICON = { error: "\u{1F534}", warning: "\u{1F7E0}", info: "\u{1F535}" };
 function md(text2) {
-  return text2.replace(/[\r\n]+/g, " ").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\|/g, "\\|");
+  return text2.replace(/[\r\n]+/g, " ").replace(/\\/g, "\\\\").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\|/g, "\\|");
 }
 var code = (text2) => `<code>${md(text2)}</code>`;
 var plural3 = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -31919,6 +33185,31 @@ var BY_RULE_MIN_FINDINGS = 10;
 var MAX_RULES_IN_SUMMARY = 25;
 var MAX_RULES_IN_COMMENT = 10;
 var SEVERITY_RANK = { error: 0, warning: 1, info: 2 };
+function notCheckedSection(a) {
+  if (a.notChecked.length === 0) return [];
+  const groups = /* @__PURE__ */ new Map();
+  for (const x of a.notChecked) {
+    const key = x.kind ? `${x.kind}|${x.apiVersion ?? ""}|${x.level}` : `(no kind)||${x.level}`;
+    const g = groups.get(key) ?? { n: 0, custom: x.level === "unchecked", files: /* @__PURE__ */ new Set() };
+    g.n++;
+    g.files.add(x.file);
+    groups.set(key, g);
+  }
+  const rows = [...groups].slice(0, 20).map(([key, g]) => {
+    const [kind = "", apiVersion = "", level = ""] = key.split("|");
+    const why = level === "unchecked" ? "unknown kind" : "explained, no rules";
+    return `| ${code(kind)} | ${apiVersion ? code(apiVersion) : ""} | ${g.n} | ${md(why)} | ${md([...g.files].slice(0, 3).join(", "))} |`;
+  });
+  return [
+    "### Not checked",
+    "",
+    '_ManifestLens has no rules for these kinds. "No findings" says nothing about them._',
+    "",
+    "| Kind | apiVersion | Objects | Why | Files |",
+    "| --- | --- | --- | --- | --- |",
+    ...rows
+  ];
+}
 function byRule(findings) {
   const counts = /* @__PURE__ */ new Map();
   for (const f of findings) {
@@ -31987,6 +33278,8 @@ function buildSummary(info2) {
     }
     out.push("", ...howToFix(a.findings), "");
   }
+  out.push(...notCheckedSection(a), "");
+  if (info2.fixes) out.push(...fixSection(info2), "");
   if (a.changes.length > 0) {
     out.push("### What this change does", "");
     for (const c of a.changes.slice(0, 40)) {
@@ -32014,6 +33307,43 @@ function buildSummary(info2) {
     `<sub>ManifestLens ${md(info2.version)} \xB7 <a href="${REPO_URL}">${REPO_URL.replace("https://", "")}</a></sub>`
   );
   return out.join("\n");
+}
+function fixSection(info2) {
+  const f = info2.fixes;
+  const out = ["### Suggested fixes", ""];
+  if (f.available === 0 && f.heldBack === 0) {
+    out.push("No automatic fixes apply to these findings.");
+    return out;
+  }
+  out.push(
+    `${plural3(f.available, "fix")} checked and ready (up to ${f.maxRisk} risk)${f.heldBack ? `; ${plural3(f.heldBack, "more")} held back` : ""}. **Nothing was changed.**`,
+    ""
+  );
+  if (f.available > 0) {
+    out.push("| File | Line | Rule | Risk | Change |", "| --- | ---: | --- | --- | --- |");
+    for (const file of f.files) {
+      for (const a of file.applied.slice(0, 100)) {
+        out.push(
+          `| ${code(file.file)} | ${a.line} | ${code(a.ruleId)} | ${a.risk} | ${md(a.summary)} |`
+        );
+      }
+    }
+    out.push("");
+  }
+  const held = f.files.flatMap((file) => file.skipped.map((s) => ({ file: file.file, s })));
+  if (held.length > 0) {
+    out.push("Held back:", "");
+    for (const { file, s } of held.slice(0, 50)) {
+      out.push(
+        `- ${code(`${file}:${s.line}`)} ${code(s.ruleId)} (${s.risk} risk): ${md(s.detail)}`
+      );
+    }
+    out.push("");
+  }
+  out.push(
+    info2.fixPatchPath ? `Review the patch (${code(info2.settings.fixPatchFile)}, upload it with \`actions/upload-artifact\`) and apply it locally with \`git apply\`.` : "Set `fix-patch-file` to also write these fixes as a patch you can review and apply with `git apply`."
+  );
+  return out;
 }
 function howToFix(findings) {
   const seen = /* @__PURE__ */ new Map();
@@ -32088,6 +33418,12 @@ function buildComment(info2, marker, runUrl) {
       out.push(`- **${md(c.object)}**: ${md([...c.notes, ...c.effects][0] ?? c.status)}`);
     out.push("");
   }
+  if (info2.fixes && info2.fixes.available > 0) {
+    out.push(
+      `**${plural3(info2.fixes.available, "automatic fix")}** available. Nothing was changed; see the job summary.`,
+      ""
+    );
+  }
   out.push(runUrl ? `[Full report and how to fix](${runUrl})` : "");
   return out.join("\n").slice(0, MAX_COMMENT_CHARS);
 }
@@ -32150,7 +33486,21 @@ function buildReport(info2) {
     findings: a.findings,
     parseProblems: a.parseProblems,
     changes: a.changes,
-    sources: info2.sources
+    notChecked: a.notChecked,
+    sources: info2.sources,
+    ...info2.fixes ? {
+      fixes: {
+        maxRisk: info2.fixes.maxRisk,
+        available: info2.fixes.available,
+        heldBack: info2.fixes.heldBack,
+        patchFile: info2.fixPatchPath ?? null,
+        files: info2.fixes.files.map((f) => ({
+          file: f.file,
+          applied: f.applied,
+          skipped: f.skipped
+        }))
+      }
+    } : {}
   };
 }
 
@@ -32209,7 +33559,7 @@ async function execute() {
       `Scope "${settings.scope}": ${files.length} file(s) in this change, compared with ${base.ref.slice(0, 12)} (${base.source}).`
     );
   }
-  const analysis = analyze(files, rules, settings);
+  const analysis = analyze2(files, rules, settings);
   const verdict = evaluate2(analysis, settings);
   const info2 = {
     version: VERSION,
@@ -32223,6 +33573,18 @@ async function execute() {
     matchedFiles: found.matched,
     skipped: found.skipped
   };
+  if (settings.suggestFixes || settings.fixPatchFile !== "") {
+    info2.fixes = suggestFixes(
+      files,
+      prepareRules(rules, settings).rules,
+      analysis,
+      settings,
+      loadFixPolicy(workspace, settings)
+    );
+    info(
+      `Suggested fixes: ${info2.fixes.available} ready, ${info2.fixes.heldBack} held back (up to ${settings.fixMaxRisk} risk). Nothing was changed.`
+    );
+  }
   logFindings(info2);
   setOutputs(info2, workspace);
   if (settings.summary) await writeSummary(buildSummary(info2));
@@ -32253,7 +33615,8 @@ function warnIfUntrusted(s, configPath) {
   if (process.env.GITHUB_EVENT_NAME !== "pull_request_target") return;
   const sources = [
     configPath ? `the config file (${configPath})` : "",
-    s.rules.length > 0 ? "custom rules" : ""
+    s.rules.length > 0 ? "custom rules" : "",
+    s.fixPolicy !== "" ? "the fix policy" : ""
   ].filter(Boolean);
   if (sources.length === 0) return;
   warning(
@@ -32302,6 +33665,24 @@ function loadRules(workspace, s) {
     seen.add(rule.id);
   }
   return rules;
+}
+function loadFixPolicy(workspace, s) {
+  if (s.fixPolicy === "") return void 0;
+  let real;
+  const root = (0, import_node_fs3.realpathSync)(workspace);
+  try {
+    real = (0, import_node_fs3.realpathSync)((0, import_node_path3.join)(workspace, s.fixPolicy));
+  } catch {
+    throw new ConfigError([`fix-policy: "${s.fixPolicy}" does not exist.`]);
+  }
+  if (real !== root && !real.startsWith(root + import_node_path3.sep))
+    throw new ConfigError([`fix-policy: "${s.fixPolicy}" points outside the repository.`]);
+  try {
+    return parseFixPolicy((0, import_node_fs3.readFileSync)(real, "utf8"), s.fixPolicy);
+  } catch (err) {
+    if (err instanceof FixPolicyError) throw new ConfigError([err.message]);
+    throw err;
+  }
 }
 function scopeToChange(s, workspace, found) {
   let event;
@@ -32354,6 +33735,11 @@ function writeFile2(workspace, path6, content) {
 }
 function setOutputs(info2, workspace) {
   const { verdict: v, analysis: a, settings: s } = info2;
+  let patchPath = "";
+  if (s.fixPatchFile !== "") {
+    patchPath = writeFile2(workspace, s.fixPatchFile, info2.fixes?.patch ?? "");
+    info2.fixPatchPath = patchPath;
+  }
   const reportPath = writeFile2(
     workspace,
     s.reportFile,
@@ -32375,6 +33761,8 @@ function setOutputs(info2, workspace) {
   setOutput("suppressed", String(a.suppressed));
   setOutput("report-file", reportPath);
   setOutput("sarif-file", sarifPath);
+  setOutput("fixes-available", String(info2.fixes?.available ?? 0));
+  setOutput("fix-patch-file", patchPath);
 }
 async function writeSummary(markdown) {
   try {

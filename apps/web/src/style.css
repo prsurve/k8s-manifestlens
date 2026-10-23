@@ -14,6 +14,8 @@
   --warning-bg: #fff3d1;
   --info: #1f5fa8;
   --info-bg: #e5effa;
+  --ok: #1a6b32;
+  --ok-bg: #e3f4e8;
   --add: #12703a;
   --add-bg: #e3f5ea;
   --remove: #b42318;
@@ -48,6 +50,8 @@
     --warning-bg: #3a2f14;
     --info: #8bb9f2;
     --info-bg: #17283d;
+    --ok: #7ee2a0;
+    --ok-bg: #16301f;
     --add: #63d584;
     --add-bg: #16311f;
     --remove: #ff8f85;
@@ -72,6 +76,8 @@
   --warning-bg: #3a2f14;
   --info: #8bb9f2;
   --info-bg: #17283d;
+  --ok: #7ee2a0;
+  --ok-bg: #16301f;
   --add: #63d584;
   --add-bg: #16311f;
   --remove: #ff8f85;
@@ -530,6 +536,25 @@ a.docs {
   background: var(--info-bg);
   color: var(--info);
 }
+.src {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.issue .badge {
+  display: inline-block;
+}
+.risk-low .badge {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.risk-medium .badge {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.risk-high .badge {
+  background: var(--error-bg);
+  color: var(--error);
+}
 .msg {
   flex: 1;
   min-width: 0;
@@ -776,6 +801,7 @@ ins {
   .tabs button,
   .chip,
   .text-btn,
+  select,
   .filter,
   .ln {
     min-height: 44px;
@@ -795,4 +821,102 @@ ins {
   * {
     transition: none !important;
   }
+}
+
+/* Fix tab */
+.diff-text {
+  margin: 0;
+  padding: 0.5rem 0;
+  overflow-x: auto;
+  font: 0.8125rem/1.5 var(--font-mono);
+  color: var(--text);
+}
+.dl {
+  display: block;
+  padding: 0 0.75rem;
+  white-space: pre;
+}
+.dl-add {
+  background: var(--add-bg);
+}
+.dl-del {
+  background: var(--remove-bg);
+}
+.note,
+label.inline {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+label.inline {
+  display: block;
+  margin: 8px 0 4px;
+}
+.actions label.inline {
+  margin: 0 2px 0 0;
+}
+.actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+select {
+  min-height: 28px;
+  max-width: 11rem;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+select:hover {
+  background: var(--hover);
+}
+select option {
+  background: var(--panel);
+  color: var(--text);
+}
+textarea.short {
+  min-height: 5.5rem;
+  flex: 0 0 auto;
+}
+
+/* Documents ManifestLens could not fully check */
+.coverage {
+  padding: 8px 12px;
+  border-left: 3px solid var(--warning);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: 0.8125rem;
+}
+.coverage p {
+  margin: 0 0 2px;
+}
+.coverage p:last-child {
+  margin-bottom: 0;
+}
+.coverage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+}
+.coverage-where {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+.coverage-note {
+  opacity: 0.85;
+}
+.coverage code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.coverage-explain-only {
+  border-left-color: var(--info);
+  background: var(--info-bg);
+  color: var(--info);
 }

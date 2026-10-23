@@ -14,7 +14,7 @@ const ids = (a: ReturnType<typeof analyze>) => a.findings.map((f) => f.ruleId);
 describe('analyze: all findings', () => {
   it('finds every problem with its file, line and object, most severe first', () => {
     const a = analyze([{ path: 'k8s/risky.yaml', text: risky }], rules, s());
-    expect(a.findings).toHaveLength(16);
+    expect(a.findings).toHaveLength(18);
     expect(a.filesChecked).toBe(1);
     expect(a.findings.map((f) => f.severity).slice(0, 2)).toEqual(['error', 'error']);
     expect(a.findings[0]).toMatchObject({
@@ -51,7 +51,7 @@ describe('analyze: rule settings', () => {
     );
     expect(ids(a)).not.toContain('image-latest-tag');
     expect(ids(a)).not.toContain('single-replica');
-    expect(a.findings).toHaveLength(14);
+    expect(a.findings).toHaveLength(16);
   });
 
   it('changes a rule severity, or switches it off', () => {
@@ -98,7 +98,7 @@ describe('analyze: ignores', () => {
     ];
     const a = analyze(files, rules, s({ ignore: [{ path: 'examples/**' }] }));
     expect(new Set(a.findings.map((f) => f.file))).toEqual(new Set(['k8s/app.yaml']));
-    expect(a.suppressed).toBe(16);
+    expect(a.suppressed).toBe(18);
   });
 
   it('silences only the named rules for a path', () => {
@@ -210,7 +210,7 @@ describe('analyze: scope new (only what this change introduces)', () => {
 
   it('counts every finding of a file that is new in this change', () => {
     const a = analyze([{ path: 'new.yaml', text: risky, base: null }], rules, newScope);
-    expect(a.findings).toHaveLength(16);
+    expect(a.findings).toHaveLength(18);
     expect(a.changes).toEqual([]);
   });
 
@@ -247,6 +247,6 @@ describe('analyze: scope new (only what this change introduces)', () => {
       s({ scope: 'new', ignore: [{ path: 'x.yaml' }] }),
     );
     expect(a.findings).toEqual([]);
-    expect(a.suppressed).toBe(16);
+    expect(a.suppressed).toBe(18);
   });
 });

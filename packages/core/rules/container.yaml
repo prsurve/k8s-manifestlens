@@ -24,6 +24,14 @@ report: resources
 message: 'Container "{container}" has no memory limit.'
 why: A container without a memory limit can use all the memory on its node, which can starve or crash other workloads.
 fix: 'Add resources.limits.memory, for example: limits: { memory: 256Mi }.'
+autofix:
+  risk: medium
+  summary: Set resources.limits.memory to the memoryLimit from the fix policy.
+  blocked: 'The container sets a memory request, and the limit must not be below it. Set the limit yourself.'
+  requires:
+    missing: resources.requests.memory
+  set:
+    resources.limits.memory: { $param: memoryLimit, pattern: '^[1-9][0-9]*(Ki|Mi|Gi|Ti)$' }
 ---
 id: missing-resource-requests
 title: Container has no CPU or memory request
@@ -72,6 +80,11 @@ report: securityContext.privileged
 message: 'Container "{container}" runs in privileged mode.'
 why: A privileged container has almost the same access as a process running directly on the node. If it is compromised, the whole node is at risk.
 fix: Remove privileged, or replace it with the specific capabilities the container needs under securityContext.capabilities.add.
+autofix:
+  risk: high
+  summary: Set securityContext.privileged to false.
+  set:
+    securityContext.privileged: false
 ---
 id: run-as-root-user
 title: Container is set to run as root
@@ -104,6 +117,18 @@ report: securityContext
 message: 'Container "{container}" is not prevented from running as root.'
 why: Many images run as root by default. Unless you say otherwise, Kubernetes lets them.
 fix: Set securityContext.runAsNonRoot to true (on the container or on the Pod), or set runAsUser to a non-zero ID.
+autofix:
+  risk: medium
+  summary: Set securityContext.runAsNonRoot to true.
+  blocked: 'runAsUser is 0 or runAsNonRoot is false, which contradicts runAsNonRoot: true. Choose a non-root user ID yourself.'
+  requires:
+    all:
+      - not: { equals: { securityContext.runAsUser: 0 } }
+      - not: { equals: { $pod.securityContext.runAsUser: 0 } }
+      - not: { equals: { securityContext.runAsNonRoot: false } }
+      - not: { equals: { $pod.securityContext.runAsNonRoot: false } }
+  set:
+    securityContext.runAsNonRoot: true
 ---
 id: allow-privilege-escalation
 title: Container may gain extra privileges
@@ -116,6 +141,16 @@ report: securityContext.allowPrivilegeEscalation
 message: 'Container "{container}" does not disable privilege escalation.'
 why: Privilege escalation lets a process gain more rights than its parent, for example through setuid programs. It is on by default.
 fix: Set securityContext.allowPrivilegeEscalation to false.
+autofix:
+  risk: low
+  summary: Set securityContext.allowPrivilegeEscalation to false.
+  blocked: 'The container is privileged or adds SYS_ADMIN, which needs privilege escalation.'
+  requires:
+    all:
+      - not: { equals: { securityContext.privileged: true } }
+      - not: { contains: { securityContext.capabilities.add: SYS_ADMIN } }
+  set:
+    securityContext.allowPrivilegeEscalation: false
 ---
 id: writable-root-filesystem
 title: Container can write to its own filesystem
@@ -140,3 +175,50 @@ report: securityContext.capabilities
 message: 'Container "{container}" does not drop all Linux capabilities.'
 why: Containers start with a set of Linux capabilities most apps never use. Each one is extra attack surface.
 fix: 'Set securityContext.capabilities.drop to [ALL] and add back only what the app needs.'
+---
+id: host-port
+title: Container binds a port on the node
+severity: warning
+kinds: ['*']
+scope: container
+when:
+  present: ports[].hostPort
+report: ports[].hostPort
+message: 'Container "{container}" binds port {value} on the node itself.'
+why: A hostPort ties the Pod to a node where that port is free, so only one replica fits per node and scheduling fails when it is taken. It also opens the node to that traffic.
+fix: Remove hostPort and expose the container with a Service. Use hostPort only for node-level agents.
+---
+id: dangerous-capabilities
+title: Container adds powerful Linux capabilities
+severity: warning
+kinds: ['*']
+scope: [container, initContainer]
+when:
+  any:
+    - contains: { securityContext.capabilities.add: ALL }
+    - contains: { securityContext.capabilities.add: SYS_ADMIN }
+    - contains: { securityContext.capabilities.add: NET_ADMIN }
+    - contains: { securityContext.capabilities.add: SYS_PTRACE }
+    - contains: { securityContext.capabilities.add: SYS_MODULE }
+report: securityContext.capabilities.add
+message: 'Container "{container}" adds capabilities that are close to root on the node.'
+why: ALL, SYS_ADMIN, SYS_MODULE, SYS_PTRACE and NET_ADMIN let a container mount filesystems, load kernel modules, trace other processes or reconfigure the network. They are the usual first step of a container escape.
+fix: Drop ALL and add back only the one narrow capability the app needs, such as NET_BIND_SERVICE.
+---
+id: secret-in-env
+title: Secret value written in the manifest
+severity: warning
+kinds: ['*']
+scope: [container, initContainer]
+when:
+  some:
+    in: env
+    where:
+      all:
+        - present: value
+        - matches:
+            { name: '(?i)(password|passwd|secret|token|api[_-]?key|private[_-]?key|credential)' }
+report: env
+message: 'Container "{container}" sets what looks like a secret directly in env.'
+why: A value written in the manifest is stored in git and shown to anyone who can read the Pod or Deployment. Secrets belong in a Secret object or an external secret store.
+fix: Move the value into a Secret and reference it with valueFrom.secretKeyRef.

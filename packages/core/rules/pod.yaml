@@ -25,3 +25,76 @@ report: volumes[].hostPath
 message: "The Pod mounts a directory from the node's filesystem."
 why: A hostPath volume gives the Pod access to files on the node. A compromised Pod can read or change them, and the Pod becomes tied to specific nodes.
 fix: Use an emptyDir, a ConfigMap, a Secret or a PersistentVolumeClaim instead.
+---
+id: default-service-account-token
+title: Pod gets an API token it may not need
+severity: info
+kinds: ['*']
+scope: pod
+when:
+  all:
+    - any:
+        - missing: serviceAccountName
+        - equals: { serviceAccountName: default }
+    - not:
+        equals: { automountServiceAccountToken: false }
+report: [serviceAccountName, containers]
+message: 'The Pod uses the default service account and mounts its API token.'
+why: Every container in the Pod can read a token that talks to the Kubernetes API. If the app does not call the API, a compromised container gets access it never needed.
+fix: Set automountServiceAccountToken to false, or give the Pod its own service account with only the permissions it needs.
+autofix:
+  risk: medium
+  summary: Set automountServiceAccountToken to false.
+  blocked: 'The Pod names a service account, so it may be meant to call the API. Decide for yourself.'
+  requires:
+    missing: serviceAccountName
+  set:
+    automountServiceAccountToken: false
+---
+id: missing-seccomp-profile
+title: Container has no syscall filter
+severity: info
+kinds: ['*']
+scope: container
+when:
+  all:
+    - missing: securityContext.seccompProfile
+    - missing: $pod.securityContext.seccompProfile
+report: securityContext
+message: 'Container "{container}" runs without a seccomp profile.'
+why: Without a seccomp profile the container can call every Linux system call. The RuntimeDefault profile blocks the rarely needed and most dangerous ones at no cost for most apps.
+fix: 'Set securityContext.seccompProfile.type to RuntimeDefault on the container or the Pod.'
+autofix:
+  risk: medium
+  summary: Set securityContext.seccompProfile.type to RuntimeDefault.
+  set:
+    securityContext.seccompProfile.type: RuntimeDefault
+---
+id: docker-socket-mount
+title: Pod mounts the container runtime socket
+severity: error
+kinds: ['*']
+scope: pod
+when:
+  matches:
+    volumes[].hostPath.path: '(docker|containerd|crio|cri-dockerd)\.sock$'
+report: volumes[].hostPath
+message: "The Pod mounts the node's container runtime socket."
+why: Whoever can talk to that socket can start any container on the node, including a privileged one that owns the whole node. It is the same as root on the node.
+fix: Remove the mount. Build images with a tool that needs no socket (Kaniko, BuildKit rootless) and use the Kubernetes API for anything else.
+---
+id: sensitive-hostpath
+title: Pod mounts a sensitive directory from the node
+severity: error
+kinds: ['*']
+scope: pod
+when:
+  any:
+    - matches:
+        volumes[].hostPath.path: '^/$'
+    - matches:
+        volumes[].hostPath.path: '^/(etc|proc|sys|root|boot|dev|var/lib/kubelet|var/lib/docker|var/lib/containerd)(/.*)?$'
+report: volumes[].hostPath
+message: "The Pod mounts a sensitive part of the node's filesystem."
+why: The root directory, /etc, /proc, /sys and the kubelet and runtime folders hold credentials and control files for the whole node. A Pod that can write there can take the node over.
+fix: Mount only the single file or folder the Pod needs, read-only, or use an emptyDir, ConfigMap or Secret instead.

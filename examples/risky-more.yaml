@@ -1,0 +1,90 @@
+# More risky objects: runtime sockets, RBAC, Secrets, removed APIs and more.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: risky-pod
+spec:
+  volumes:
+    - name: docker
+      hostPath:
+        path: /var/run/docker.sock
+    - name: etc
+      hostPath:
+        path: /etc/kubernetes
+  containers:
+    - name: tool
+      image: ghcr.io/example/tool:1.0.0
+      ports:
+        - containerPort: 8080
+          hostPort: 8080
+      env:
+        - name: DB_PASSWORD
+          value: hunter2
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef: { name: db, key: user }
+      securityContext:
+        capabilities:
+          add: [SYS_ADMIN]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: external
+spec:
+  externalIPs: [203.0.113.10]
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: old-ingress
+spec:
+  rules:
+    - host: example.com
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: too-much
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ['*', escalate]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: everyone-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: Group
+    name: system:unauthenticated
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db
+stringData:
+  password: hunter2
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly
+spec:
+  schedule: '0 3 * * *'
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: stuck
+spec:
+  maxUnavailable: 0

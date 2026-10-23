@@ -1,0 +1,61 @@
+# Starter rules for Role, ClusterRole and their bindings.
+id: rbac-wildcard
+title: Role grants a wildcard
+severity: warning
+kinds: [Role, ClusterRole]
+when:
+  some:
+    in: rules
+    where:
+      any:
+        - contains: { verbs: '*' }
+        - contains: { resources: '*' }
+report: rules
+message: '{kind} "{name}" uses "*" for verbs or resources.'
+why: A wildcard grants every action, or access to every resource type, now and for any type added later. It is hard to review and easy to over-grant.
+fix: List the exact verbs and resources the subject needs.
+---
+id: rbac-escalation-verbs
+title: Role can raise its own permissions
+severity: warning
+kinds: [Role, ClusterRole]
+when:
+  some:
+    in: rules
+    where:
+      any:
+        - contains: { verbs: escalate }
+        - contains: { verbs: bind }
+        - contains: { verbs: impersonate }
+report: rules
+message: '{kind} "{name}" can escalate, bind or impersonate.'
+why: These verbs let a subject grant itself more permissions or act as someone else, such as an admin. Whoever holds them can usually become cluster-admin.
+fix: Remove escalate, bind and impersonate unless this role belongs to a trusted admin tool.
+---
+id: cluster-admin-binding
+title: Subject is bound to cluster-admin
+severity: error
+kinds: [ClusterRoleBinding, RoleBinding]
+when:
+  equals: { roleRef.name: cluster-admin }
+report: roleRef.name
+message: '{kind} "{name}" gives full control of the cluster to its subjects.'
+why: cluster-admin can do anything to every object in the cluster, including reading all Secrets. A compromised subject means a compromised cluster.
+fix: Bind a role that grants only what the subject needs, such as view or edit, in the namespace it works in.
+---
+id: anonymous-binding
+title: Role is granted to everyone
+severity: error
+kinds: [ClusterRoleBinding, RoleBinding]
+when:
+  some:
+    in: subjects
+    where:
+      any:
+        - equals: { name: 'system:anonymous' }
+        - equals: { name: 'system:unauthenticated' }
+        - equals: { name: 'system:authenticated' }
+report: subjects
+message: '{kind} "{name}" grants a role to anonymous or all authenticated users.'
+why: system:anonymous and system:unauthenticated mean people who never logged in. system:authenticated is every user the cluster knows, including low-trust ones.
+fix: Bind the role to specific users, groups or service accounts.

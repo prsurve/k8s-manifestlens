@@ -8,7 +8,36 @@ export type Condition =
   | { op: 'in'; path: string; values: unknown[] }
   | { op: 'matches'; path: string; pattern: RegExp }
   | { op: 'all' | 'any'; conditions: Condition[] }
-  | { op: 'not'; condition: Condition };
+  | { op: 'not'; condition: Condition }
+  /** True when some item of the list at `path` satisfies `condition`, evaluated on that item. */
+  | { op: 'some'; path: string; condition: Condition };
+
+/** How much a fix can change what runs. Low is safe to apply in bulk; high is never applied unasked. */
+export type FixRisk = 'low' | 'medium' | 'high';
+
+/** One field a fix sets. The value is either written in the rule or supplied by a team policy. */
+export interface FixSet {
+  /** Plain dotted keys relative to the rule's scope, e.g. `securityContext.allowPrivilegeEscalation`. */
+  path: string;
+  /** Literal value; unused when `param` is set. */
+  value?: unknown;
+  /** Name of a policy parameter that supplies the value. */
+  param?: string;
+  /** Every scalar of a policy value must match this, so a typo cannot reach the manifest. */
+  pattern?: RegExp;
+}
+
+/** A structured, deterministic fix for a rule. Rules without one are never changed automatically. */
+export interface FixSpec {
+  risk: FixRisk;
+  /** What the patch does, in one sentence. */
+  summary: string;
+  /** Extra preconditions, evaluated like `when` in the rule's scope. The fix is skipped if false. */
+  requires?: Condition;
+  /** Shown when `requires` is false, so the reason is specific ("runAsUser is 0"). */
+  blockedMessage?: string;
+  set: FixSet[];
+}
 
 export interface Rule {
   id: string;
@@ -23,6 +52,8 @@ export interface Rule {
   message: string;
   why?: string;
   fix?: string;
+  /** Optional machine-applicable fix. `fix` stays the human advice. */
+  autofix?: FixSpec;
   /** Where the rule was loaded from, for error messages. */
   origin?: string;
 }
@@ -40,6 +71,26 @@ export interface Finding {
   path?: string;
 }
 
+/**
+ * How much of a document the rules looked at. `checked`: rules exist for its kind. `explain-only`:
+ * the kind is known and explained but no rule checks it. `unchecked`: the kind is unknown to
+ * ManifestLens (a custom resource, a newer API, or no `kind` at all).
+ */
+export interface Coverage {
+  level: 'checked' | 'explain-only' | 'unchecked';
+  /** Everything below is absent when the document was checked. */
+  /** The point in a few words, e.g. `Unknown kind "Podds"`. */
+  headline?: string;
+  /** Why, in one sentence. */
+  detail?: string;
+  /** The known kind this is probably a typo for. */
+  suggestion?: string;
+  /** What an empty result does and does not mean. */
+  note?: string;
+  /** All of the above as one paragraph, for places that show a single line. */
+  message?: string;
+}
+
 export interface CheckedDocument {
   index: number;
   startLine: number;
@@ -47,6 +98,7 @@ export interface CheckedDocument {
   kind?: string;
   name?: string;
   issues: { message: string; line?: number }[];
+  coverage: Coverage;
   findings: Finding[];
 }
 

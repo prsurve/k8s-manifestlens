@@ -4,8 +4,10 @@ import { explainManifest, loadBundledRules } from '@manifestlens/core';
 import {
   explainAsMarkdown,
   findProblems,
+  fixTitle,
   hoverMarkdown,
   looksLikeKubernetes,
+  planFix,
 } from '../src/logic.js';
 
 const example = (name: string) =>
@@ -30,7 +32,7 @@ describe('looksLikeKubernetes', () => {
 describe('findProblems', () => {
   it('turns findings into problems on the right line with why and fix', () => {
     const problems = findProblems(example('risky.yaml'), rules);
-    expect(problems).toHaveLength(16);
+    expect(problems).toHaveLength(18);
     const privileged = problems.find((p) => p.ruleId === 'privileged-container');
     expect(privileged).toMatchObject({ line: 16, severity: 'error', startColumn: 12 });
     expect(privileged?.message).toContain('Why:');
@@ -55,7 +57,7 @@ describe('findProblems', () => {
     const errors = findProblems(example('risky.yaml'), rules, 'error');
     expect(errors.map((p) => p.severity)).toEqual(['error', 'error']);
     expect(warnings.length).toBe(11);
-    expect(all.length).toBe(16);
+    expect(all.length).toBe(18);
   });
 
   it('reports YAML syntax errors as errors, but only in Kubernetes files', () => {
@@ -113,5 +115,29 @@ describe('explainAsMarkdown', () => {
     expect(explainAsMarkdown('apiVersion: v1\nkind: Certificate\ndata: {}\n')).toContain(
       'No field explanations',
     );
+  });
+});
+
+describe('planFix', () => {
+  const pod =
+    'apiVersion: v1\nkind: Pod\nmetadata:\n  name: p\nspec:\n  containers:\n    - name: a\n      image: x:1\n';
+
+  it('expresses a fix as line edits that rebuild the fixed text', () => {
+    const { result, edits } = planFix(pod, rules, { only: ['allow-privilege-escalation'] });
+    expect(result.status).toBe('fixed');
+    const lines = pod.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+    let out = '';
+    let at = 0;
+    for (const e of edits) {
+      out += lines.slice(at, e.startLine).join('') + e.text;
+      at = e.startLine + e.deleteCount;
+    }
+    expect(out + lines.slice(at).join('')).toBe(result.fixed);
+  });
+
+  it('has no edits when nothing is fixed, and no title', () => {
+    const plan = planFix(example('hardened.yaml'), rules, {});
+    expect(plan.edits).toEqual([]);
+    expect(fixTitle(plan.result)).toBeUndefined();
   });
 });

@@ -42,7 +42,9 @@ describe('action.yml matches the code', () => {
       [
         'errors',
         'files-checked',
+        'fix-patch-file',
         'findings',
+        'fixes-available',
         'infos',
         'parse-errors',
         'passed',

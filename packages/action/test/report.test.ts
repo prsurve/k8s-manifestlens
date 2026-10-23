@@ -40,6 +40,10 @@ describe('md: untrusted text', () => {
       'a \\| b &lt;img src=x onerror=alert(1)&gt; &amp; more',
     );
   });
+
+  it('escapes a backslash first, so it cannot cancel the escape in front of a pipe', () => {
+    expect(md('a\\|b')).toBe('a\\\\\\|b');
+  });
 });
 
 describe('job summary', () => {
@@ -48,7 +52,7 @@ describe('job summary', () => {
   it('leads with the verdict and the counts', () => {
     expect(failed).toContain('## ManifestLens');
     expect(failed).toMatch(
-      /> ❌ \*\*Failed\*\*: 2 errors, 9 warnings, 5 info findings in 1 file\./,
+      /> ❌ \*\*Failed\*\*: 2 errors, 9 warnings, 7 info findings in 1 file\./,
     );
     expect(failed).toContain('- 2 errors found, none allowed.');
   });
@@ -56,7 +60,7 @@ describe('job summary', () => {
   it('shows found against allowed for each severity', () => {
     expect(failed).toContain('| 🔴 error | 2 | 0 |');
     expect(failed).toContain('| 🟠 warning | 9 | any |');
-    expect(failed).toContain('| **total** | **16** | any |');
+    expect(failed).toContain('| **total** | **18** | any |');
   });
 
   it('lists findings with where, rule and message, and how to fix each rule once', () => {
@@ -291,7 +295,7 @@ describe('pull request comment', () => {
   it('shows only the first findings and counts the rest', () => {
     const body = buildComment(info(example('risky.yaml')), marker, null);
     expect(body.split('\n').filter(isFindingRow)).toHaveLength(15);
-    expect(body).toContain('…and 1 more.');
+    expect(body).toContain('…and 3 more.');
   });
 
   it('stays under the comment size limit', () => {
@@ -342,7 +346,7 @@ describe('SARIF', () => {
   });
 
   it('has one result per finding with the right level and location', () => {
-    expect(run.results).toHaveLength(17);
+    expect(run.results).toHaveLength(19);
     const priv = run.results.find((r) => r.ruleId === 'privileged-container');
     expect(priv).toMatchObject({ level: 'error' });
     expect(priv?.locations[0]?.physicalLocation).toEqual({
@@ -375,12 +379,12 @@ describe('JSON report', () => {
       version: '9.9.9',
       result: 'fail',
       passed: false,
-      counts: { error: 2, warning: 9, info: 5, total: 16 },
+      counts: { error: 2, warning: 9, info: 7, total: 18 },
       thresholds: { error: 0, warning: 0, info: null, total: null },
       scope: 'all',
       filesChecked: 1,
     });
-    expect((report.findings as unknown[]).length).toBe(16);
+    expect((report.findings as unknown[]).length).toBe(18);
     expect(Object.keys(report)).toEqual(
       expect.arrayContaining(['reasons', 'sources', 'parseProblems', 'changes']),
     );
