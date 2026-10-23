@@ -6,7 +6,8 @@ import type { Rule } from './types.js';
 /** True for an apiVersion whose group is not a Kubernetes one, e.g. `cert-manager.io/v1`. */
 function isCustomResource(apiVersion: string | undefined): boolean {
   const group = apiVersion?.includes('/') ? apiVersion.slice(0, apiVersion.indexOf('/')) : '';
-  return group.includes('.') && !group.endsWith('k8s.io');
+  // Built-in groups are `k8s.io` or `<name>.k8s.io`; any other dotted group is a custom resource.
+  return group.includes('.') && !/^([a-z0-9-]+\.)*k8s\.io$/.test(group);
 }
 
 /** Kinds that at least one rule looks at: the ones named by a rule, and everything with a Pod spec. */

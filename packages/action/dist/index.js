@@ -28274,7 +28274,7 @@ function singleEntry(op, arg, fail) {
 // ../core/src/rules/coverage.ts
 function isCustomResource(apiVersion) {
   const group = apiVersion?.includes("/") ? apiVersion.slice(0, apiVersion.indexOf("/")) : "";
-  return group.includes(".") && !group.endsWith("k8s.io");
+  return group.includes(".") && !/^([a-z0-9-]+\.)*k8s\.io$/.test(group);
 }
 function kindCoverage(kind, apiVersion, rules) {
   if (kind === void 0) {
