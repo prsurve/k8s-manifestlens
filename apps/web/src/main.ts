@@ -81,8 +81,55 @@ function selectLine(box: HTMLTextAreaElement, line: number): void {
   const end = start + (lines[line - 1]?.length ?? 0);
   box.focus({ preventScroll: true });
   box.setSelectionRange(start, end);
-  const lineHeight = Number.parseFloat(getComputedStyle(box).lineHeight) || 18;
-  box.scrollTop = Math.max(0, (line - 1) * lineHeight - box.clientHeight / 2);
+  box.scrollTop = Math.max(0, textTop(box, start) - box.clientHeight / 2);
+}
+
+/**
+ * Pixel offset of the text at `index` from the top of a text box's content. Long lines wrap into
+ * several rows, so counting lines times line height lands in the wrong place; instead lay the text
+ * out in a hidden copy of the box and measure it.
+ */
+function textTop(box: HTMLTextAreaElement, index: number): number {
+  const style = getComputedStyle(box);
+  const mirror = document.createElement('div');
+  for (const prop of [
+    'boxSizing',
+    'width',
+    'paddingTop',
+    'paddingRight',
+    'paddingBottom',
+    'paddingLeft',
+    'borderTopWidth',
+    'borderRightWidth',
+    'borderBottomWidth',
+    'borderLeftWidth',
+    'fontFamily',
+    'fontSize',
+    'fontWeight',
+    'lineHeight',
+    'letterSpacing',
+    'tabSize',
+    'whiteSpace',
+    'overflowWrap',
+    'wordBreak',
+  ] as const) {
+    mirror.style[prop] = style[prop];
+  }
+  mirror.style.position = 'absolute';
+  mirror.style.visibility = 'hidden';
+  mirror.style.top = '0';
+  mirror.style.left = '-9999px';
+  // A scrollbar narrows the text area of the real box, so the copy must be as narrow.
+  mirror.style.width = `${box.clientWidth + (Number.parseFloat(style.borderLeftWidth) || 0) + (Number.parseFloat(style.borderRightWidth) || 0)}px`;
+  mirror.style.boxSizing = 'border-box';
+  mirror.textContent = box.value.slice(0, index);
+  const marker = document.createElement('span');
+  marker.textContent = '\u200b';
+  mirror.append(marker);
+  document.body.append(mirror);
+  const top = marker.offsetTop;
+  mirror.remove();
+  return top;
 }
 
 const jumpers: Record<Tab, (target: JumpTarget, line: number) => void> = {
