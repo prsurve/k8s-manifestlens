@@ -8,7 +8,9 @@ export type Condition =
   | { op: 'in'; path: string; values: unknown[] }
   | { op: 'matches'; path: string; pattern: RegExp }
   | { op: 'all' | 'any'; conditions: Condition[] }
-  | { op: 'not'; condition: Condition };
+  | { op: 'not'; condition: Condition }
+  /** True when some item of the list at `path` satisfies `condition`, evaluated on that item. */
+  | { op: 'some'; path: string; condition: Condition };
 
 /** How much a fix can change what runs. Low is safe to apply in bulk; high is never applied unasked. */
 export type FixRisk = 'low' | 'medium' | 'high';
@@ -69,6 +71,17 @@ export interface Finding {
   path?: string;
 }
 
+/**
+ * How much of a document the rules looked at. `checked`: rules exist for its kind. `explain-only`:
+ * the kind is known and explained but no rule checks it. `unchecked`: the kind is unknown to
+ * ManifestLens (a custom resource, a newer API, or no `kind` at all).
+ */
+export interface Coverage {
+  level: 'checked' | 'explain-only' | 'unchecked';
+  /** What to tell the reader; absent when the document was checked. */
+  message?: string;
+}
+
 export interface CheckedDocument {
   index: number;
   startLine: number;
@@ -76,6 +89,7 @@ export interface CheckedDocument {
   kind?: string;
   name?: string;
   issues: { message: string; line?: number }[];
+  coverage: Coverage;
   findings: Finding[];
 }
 

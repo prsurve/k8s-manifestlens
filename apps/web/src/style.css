@@ -883,3 +883,18 @@ textarea.short {
   min-height: 5.5rem;
   flex: 0 0 auto;
 }
+
+/* Documents ManifestLens could not fully check */
+.coverage {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--warning);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: 0.8125rem;
+}
+.coverage-explain-only {
+  border-left-color: var(--info);
+  background: var(--info-bg);
+  color: var(--info);
+}

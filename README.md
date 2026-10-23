@@ -22,7 +22,7 @@ settings ([all options](docs/github-action.md), [Marketplace](https://github.com
   kinds (StatefulSet, DaemonSet, Job, CronJob, Ingress, ConfigMap, Secret, RBAC and others) are explained
   from a dataset generated from the Kubernetes OpenAPI spec, bundled so it works offline.
 - **Check.** `manifestlens check <file>` flags risky settings (missing limits, root containers, `latest`
-  tags, missing probes and more) with 16 starter rules written as plain YAML. See
+  tags, missing probes and more) with 34 starter rules (Pods, Services, Ingress, RBAC, Secrets, Jobs, removed APIs and more) written as plain YAML. See
   [docs/writing-rules.md](docs/writing-rules.md) to add your own.
 - **Diff.** `manifestlens diff <old> <new>` explains what applying a changed manifest will do (scaling,
   rollouts, restarts, rejected changes) and which findings the change adds or removes. Use

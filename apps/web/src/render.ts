@@ -247,8 +247,13 @@ export function renderCheck(result: CheckResult, view: View = createView()): HTM
   applyHidden(root, view);
   const all = result.documents.flatMap((d) => d.findings);
 
+  const unchecked = result.documents.filter((d) => d.coverage.level !== 'checked').length;
   if (all.length === 0) {
-    root.append(toolbar(el('p', { class: 'summary', text: 'No issues found.' })));
+    const text =
+      unchecked === 0
+        ? 'No issues found.'
+        : `No findings, but ${plural(unchecked, 'document')} not checked (no rules for the kind).`;
+    root.append(toolbar(el('p', { class: 'summary', text })));
   } else {
     root.append(
       toolbar(
@@ -265,10 +270,19 @@ export function renderCheck(result: CheckResult, view: View = createView()): HTM
           title(doc),
           el('span', {
             class: 'meta',
-            text: doc.findings.length ? plural(doc.findings.length, 'finding') : 'no findings',
+            text: doc.findings.length
+              ? plural(doc.findings.length, 'finding')
+              : doc.coverage.level === 'checked'
+                ? 'no findings'
+                : 'not checked',
           }),
         ]),
         ...issues(doc.issues),
+        doc.coverage.message &&
+          el('p', {
+            class: `coverage coverage-${doc.coverage.level}`,
+            text: doc.coverage.message,
+          }),
         doc.findings.length > 0 && findingList(doc.findings, view, 'main'),
       ]),
     );

@@ -12,6 +12,10 @@ spec:
       labels:
         app: hardened
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: app
           image: ghcr.io/example/app:1.4.2

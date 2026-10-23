@@ -26,14 +26,14 @@ describe('activate', () => {
   it('checks documents that are already open', () => {
     state.textDocuments = [fakeDocument('a.yaml', 'yaml', risky)];
     activate(context() as never);
-    expect(diagnosticsFor('a.yaml')).toHaveLength(16);
+    expect(diagnosticsFor('a.yaml')).toHaveLength(18);
   });
 
   it('checks documents as they open, with severity, source, code and range', () => {
     activate(context() as never);
     state.open.forEach((l) => l(fakeDocument('b.yaml', 'yaml', risky)));
     const list = diagnosticsFor('b.yaml') ?? [];
-    expect(list).toHaveLength(16);
+    expect(list).toHaveLength(18);
     const privileged = list.find((d) => d.code === 'privileged-container');
     expect(privileged).toMatchObject({ severity: 0, source: 'ManifestLens' });
     expect(privileged?.range.start.line).toBe(16);
@@ -55,7 +55,7 @@ describe('activate', () => {
     state.open.forEach((l) => l(doc));
     const fixed = fakeDocument('d.yaml', 'yaml', example('hardened.yaml'), 2);
     state.change.forEach((l) => l({ document: fixed }));
-    expect(diagnosticsFor('d.yaml')).toHaveLength(16); // not yet
+    expect(diagnosticsFor('d.yaml')).toHaveLength(18); // not yet
     vi.advanceTimersByTime(400);
     expect(diagnosticsFor('d.yaml')).toEqual([]);
     state.close.forEach((l) => l(fixed));
@@ -88,7 +88,7 @@ describe('activate', () => {
     activate(context() as never);
     expect(state.warnings).toHaveLength(1);
     state.open.forEach((l) => l(fakeDocument('g.yaml', 'yaml', risky)));
-    expect(diagnosticsFor('g.yaml')).toHaveLength(16);
+    expect(diagnosticsFor('g.yaml')).toHaveLength(18);
   });
 });
 

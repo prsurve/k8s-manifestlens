@@ -1,5 +1,5 @@
 import { isAlias, isMap, isScalar, isSeq, stringify } from 'yaml';
-import type { Pair, YAMLMap } from 'yaml';
+import type { Alias, Pair, YAMLMap } from 'yaml';
 import { parseManifestWithTree } from '../parse.js';
 
 /** One step down a path: a mapping key, or a list index. */
@@ -31,7 +31,10 @@ const unsupported = (detail: string): EditResult => ({ ok: false, detail });
 /**
  * Set the value at `steps` in one document by editing the source text itself. Only the lines that
  * need to change are touched, so comments, quoting, blank lines and other documents stay as written.
- * Refuses (with a reason) any layout it cannot edit exactly: flow style, aliases, odd structures.
+ * Flow style (`{ a: 1 }`, JSON) is edited in flow style, and a key that holds an alias
+ * (`securityContext: *base`) gets a local override next to a `<<: *base` merge, so the shared anchor
+ * and everything else that uses it stay untouched. Refuses (with a reason) any layout it cannot edit
+ * exactly: other aliases, odd structures.
  */
 export function setInSource(
   source: string,
@@ -46,7 +49,7 @@ export function setInSource(
   let node: unknown = tree.contents;
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i] as Step;
-    if (isAlias(node)) return unsupported('the path goes through a YAML alias');
+    if (isAlias(node)) return unsupported('a list item on the path is a YAML alias');
     const last = i === steps.length - 1;
 
     if (typeof step === 'number') {
@@ -66,12 +69,19 @@ export function setInSource(
       }
       return insertKeys(source, node, rest as string[], value, eol);
     }
-    if (isAlias(pair.value)) return unsupported('the path goes through a YAML alias');
-    if (last) return replaceValue(source, pair, value, eol);
+    if (isAlias(pair.value)) {
+      if (last) return unsupported('the value is a YAML alias');
+      return overrideAlias(source, tree, node, pair, pair.value, steps.slice(i + 1), value, eol);
+    }
+    if (last) return replaceValue(source, node, pair, value, eol);
 
     const child = pair.value;
     if (child === null || child === undefined || isEmpty(child)) {
-      return fillEmpty(source, pair, steps.slice(i + 1) as string[], value, eol);
+      const rest = steps.slice(i + 1);
+      if (rest.some((r) => typeof r === 'number')) {
+        return unsupported('cannot create a list item that does not exist');
+      }
+      return fillEmpty(source, node, pair, rest as string[], value, eol);
     }
     node = child;
   }
@@ -110,7 +120,108 @@ function isCollection(value: unknown): boolean {
   return value !== null && typeof value === 'object';
 }
 
-/** Add `rest` as new keys at the end of a block mapping. */
+/** True when the keys of this mapping are written "like this", as in JSON. */
+function isJsonStyle(map: YAMLMap): boolean {
+  const key = map.items[0]?.key;
+  return isScalar(key) && key.type === 'QUOTE_DOUBLE';
+}
+
+/** `{ b: { c: value } }` on one line, without the outer braces: `b: {c: value}`. */
+function renderFlowPairs(keys: string[], value: unknown, json: boolean): string {
+  let nested: unknown = value;
+  for (const key of [...keys].reverse()) nested = { [key]: nested };
+  const text = stringify(nested, {
+    collectionStyle: 'flow',
+    lineWidth: 0,
+    flowCollectionPadding: false,
+    ...(json ? { defaultKeyType: 'QUOTE_DOUBLE', defaultStringType: 'QUOTE_DOUBLE' } : {}),
+  }).trim();
+  return text.slice(1, -1);
+}
+
+function renderFlowValue(value: unknown, json: boolean): string {
+  return stringify(value, {
+    collectionStyle: 'flow',
+    lineWidth: 0,
+    flowCollectionPadding: false,
+    ...(json ? { defaultStringType: 'QUOTE_DOUBLE' } : {}),
+  }).trim();
+}
+
+/** Add `rest` as new keys at the end of a flow mapping, on the same line or on a new one. */
+function insertFlowKeys(
+  source: string,
+  map: YAMLMap,
+  rest: string[],
+  value: unknown,
+  eol: string,
+): EditResult {
+  const first = map.items[0] as Pair | undefined;
+  const lastPair = map.items[map.items.length - 1] as Pair | undefined;
+  if (!first || !lastPair || !isScalar(first.key) || !first.key.range) {
+    return unsupported('the mapping has no keys to align with');
+  }
+  const keyEnd = (lastPair.key as { range?: number[] }).range?.[1] ?? 0;
+  const valueEnd = (lastPair.value as { range?: number[] } | null)?.range?.[1] ?? keyEnd;
+  const end = Math.max(keyEnd, valueEnd);
+  const pairs = renderFlowPairs(rest, value, isJsonStyle(map));
+
+  // A mapping spread over several lines gets the new key on its own line, like the others.
+  const firstStart = first.key.range[0];
+  const ownLine = source.slice(lineStart(source, firstStart), firstStart).trim() === '';
+  const text = ownLine
+    ? `,${eol}${' '.repeat(indentOf(source, firstStart))}${pairs}`
+    : `, ${pairs}`;
+  return ok(source, end, end, text);
+}
+
+/**
+ * A key whose value is an alias (`securityContext: *base`): put a local override next to a merge of
+ * the alias (`<<: *base`). The anchor, and every other use of it, keeps its meaning exactly, and the
+ * local keys win over merged ones. Only done when the override cannot hide something inherited.
+ */
+function overrideAlias(
+  source: string,
+  tree: { contents: unknown },
+  parent: unknown,
+  pair: Pair,
+  alias: Alias,
+  rest: Step[],
+  value: unknown,
+  eol: string,
+): EditResult {
+  if (rest.some((r) => typeof r === 'number')) {
+    return unsupported('the path goes through a list inside a YAML alias');
+  }
+  const keys = rest as string[];
+  const target = alias.resolve(tree as Parameters<Alias['resolve']>[0]);
+  if (!isMap(target)) return unsupported('the YAML alias is not a mapping');
+  const inherited = target.items.some((p) => isScalar(p.key) && String(p.key.value) === keys[0]);
+  if (keys.length > 1 && inherited) {
+    return unsupported(
+      `"${keys[0]}" comes from a YAML alias and would be replaced as a whole, not merged`,
+    );
+  }
+  if (!alias.range || !isScalar(pair.key) || !pair.key.range) {
+    return unsupported('cannot locate the alias');
+  }
+  const [start, end] = alias.range;
+  const ref = source.slice(start, end);
+
+  if (isMap(parent) && parent.flow) {
+    const pairs = renderFlowPairs(keys, value, isJsonStyle(parent));
+    return ok(source, start, end, `{<<: ${ref}, ${pairs}}`);
+  }
+  const colon = source.indexOf(':', pair.key.range[1]);
+  if (colon === -1 || colon >= start) return unsupported('cannot locate the key');
+  const indent = indentOf(source, pair.key.range[0]) + INDENT;
+  const lines = [`<<: ${ref}`, ...renderBlock(keys, value, 0)]
+    .map((l) => ' '.repeat(indent) + l)
+    .join(eol);
+  return ok(source, colon + 1, end, `${eol}${lines}`);
+}
+
+/** Add `rest` as new keys at the end of a mapping. */
 function insertKeys(
   source: string,
   map: YAMLMap,
@@ -118,7 +229,7 @@ function insertKeys(
   value: unknown,
   eol: string,
 ): EditResult {
-  if (map.flow) return unsupported('the mapping is written in { flow } style');
+  if (map.flow) return insertFlowKeys(source, map, rest, value, eol);
   const first = map.items[0];
   if (!first || !isScalar(first.key) || !first.key.range) {
     return unsupported('the mapping has no keys to align with');
@@ -139,20 +250,31 @@ function insertKeys(
 }
 
 /** Replace the value of an existing key. */
-function replaceValue(source: string, pair: Pair, value: unknown, eol: string): EditResult {
+function replaceValue(
+  source: string,
+  parent: unknown,
+  pair: Pair,
+  value: unknown,
+  eol: string,
+): EditResult {
   const old = pair.value;
   if (old === null || old === undefined || isEmpty(old)) {
-    return fillEmpty(source, pair, [], value, eol);
+    return fillEmpty(source, parent, pair, [], value, eol);
   }
   if (!isScalar(old) || !old.range) return unsupported('the existing value is a list or mapping');
   if (isCollection(value)) return unsupported('cannot merge into an existing value');
-  const text = stringify(value, { lineWidth: 0 }).replace(/\n$/, '');
+  const json = isMap(parent) && parent.flow === true && isJsonStyle(parent);
+  const text = stringify(value, {
+    lineWidth: 0,
+    ...(json ? { defaultStringType: 'QUOTE_DOUBLE' } : {}),
+  }).replace(/\n$/, '');
   return ok(source, old.range[0], old.range[1], text);
 }
 
 /** Give a key that has no value (`key:` or `key: {}`) its value, on the same line or below it. */
 function fillEmpty(
   source: string,
+  parent: unknown,
   pair: Pair,
   rest: string[],
   value: unknown,
@@ -167,6 +289,15 @@ function fillEmpty(
   const indent = indentOf(source, keyRange[0]);
   const flow = pair.value && isMap(pair.value) && pair.value.range ? pair.value.range : undefined;
   const end = flow ? flow[1] : colon + 1;
+
+  // Inside a { flow } mapping the value is written in flow style too, in place.
+  if (isMap(parent) && parent.flow) {
+    if (!flow) return unsupported('the key has no value to fill inside a { flow } mapping');
+    const json = isJsonStyle(parent);
+    const text =
+      rest.length > 0 ? `{${renderFlowPairs(rest, value, json)}}` : renderFlowValue(value, json);
+    return ok(source, flow[0], flow[1], text);
+  }
 
   const after = source.slice(end, lineEnd(source, end));
   if (flow && after.trim() !== '') {

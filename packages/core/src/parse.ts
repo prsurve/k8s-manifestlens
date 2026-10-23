@@ -16,7 +16,7 @@ export function parseManifest(source: string): ManifestDocument[] {
 /** Like {@link parseManifest}, but also returns each document's syntax tree (with source offsets). */
 export function parseManifestWithTree(source: string): ParsedWithTree[] {
   const lineCounter = new LineCounter();
-  const docs = parseAllDocuments(source, { lineCounter, prettyErrors: false });
+  const docs = parseAllDocuments(source, { lineCounter, prettyErrors: false, merge: true });
 
   const result: ParsedWithTree[] = [];
   docs.forEach((doc) => {
@@ -86,6 +86,8 @@ function collect(
   for (const pair of map.items) {
     if (!isScalar(pair.key)) continue;
     const key = String(pair.key.value);
+    // `<<: *base` merges another mapping in; it is not a field of its own.
+    if (key === '<<') continue;
     const path = join(pathPrefix, key);
     const pat = join(patternPrefix, key);
     const keyOffset = pair.key.range?.[0] ?? 0;

@@ -39,6 +39,17 @@ export function findProblems(text: string, rules: Rule[], minimum: Severity = 'i
         line,
       });
     }
+    // A kind nobody knows gets no findings, which would look like a clean bill of health.
+    if (doc.coverage.level === 'unchecked' && doc.coverage.message && minimum === 'info') {
+      const line = Math.max(doc.startLine - 1, 0);
+      problems.push({
+        ...range(lines, line),
+        severity: 'info',
+        message: doc.coverage.message,
+        ruleId: 'unsupported-kind',
+        line,
+      });
+    }
     for (const f of doc.findings) {
       if (ORDER[f.severity] < ORDER[minimum]) continue;
       const line = Math.max(f.line - 1, 0);

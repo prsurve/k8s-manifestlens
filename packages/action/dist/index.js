@@ -27314,6 +27314,9 @@ var LIST_OF_OBJECTS = 2;
 var MAP_OF_OBJECTS = 5;
 
 // ../core/src/fields/schema.ts
+function schemaKinds() {
+  return Object.keys(schema.kinds);
+}
 var schemaVersion = schema.version;
 var META = {
   metadata: "Identifying information about the object: its name, namespace, labels and annotations.",
@@ -27391,6 +27394,9 @@ var docsByKind = {
   Deployment: deploymentDocs,
   Service: serviceDocs
 };
+function hasDocsFor(kind) {
+  return kind !== void 0 && (Object.hasOwn(docsByKind, kind) || schemaKinds().includes(kind));
+}
 function lookupField(kind, pattern) {
   if (kind === void 0) return void 0;
   return lookupHandWritten(kind, pattern) ?? lookupPodSpec(kind, pattern) ?? lookupSchema(kind, pattern);
@@ -27422,7 +27428,7 @@ function parseManifest(source) {
 }
 function parseManifestWithTree(source) {
   const lineCounter = new import_yaml.LineCounter();
-  const docs = (0, import_yaml.parseAllDocuments)(source, { lineCounter, prettyErrors: false });
+  const docs = (0, import_yaml.parseAllDocuments)(source, { lineCounter, prettyErrors: false, merge: true });
   const result = [];
   docs.forEach((doc) => {
     const issues = [...doc.errors, ...doc.warnings].map((e) => ({
@@ -27476,6 +27482,7 @@ function collect(map, pathPrefix, patternPrefix, depth, lc, out) {
   for (const pair of map.items) {
     if (!(0, import_yaml.isScalar)(pair.key)) continue;
     const key = String(pair.key.value);
+    if (key === "<<") continue;
     const path6 = join(pathPrefix, key);
     const pat = join(patternPrefix, key);
     const keyOffset = pair.key.range?.[0] ?? 0;
@@ -27511,6 +27518,35 @@ function join(prefix, key) {
 
 // ../core/src/rules/bundled.ts
 var bundledRuleSources = {
+  "api.yaml": `# Rules about the manifest itself rather than one kind.
+id: deprecated-api-version
+title: apiVersion has been removed from Kubernetes
+severity: error
+kinds: ['*']
+when:
+  in:
+    apiVersion:
+      - extensions/v1beta1
+      - apps/v1beta1
+      - apps/v1beta2
+      - batch/v1beta1
+      - networking.k8s.io/v1beta1
+      - policy/v1beta1
+      - rbac.authorization.k8s.io/v1beta1
+      - rbac.authorization.k8s.io/v1alpha1
+      - autoscaling/v2beta1
+      - autoscaling/v2beta2
+      - admissionregistration.k8s.io/v1beta1
+      - apiextensions.k8s.io/v1beta1
+      - scheduling.k8s.io/v1beta1
+      - storage.k8s.io/v1beta1
+      - certificates.k8s.io/v1beta1
+      - coordination.k8s.io/v1beta1
+report: apiVersion
+message: '{kind} "{name}" uses apiVersion {value}, which current clusters no longer serve.'
+why: Kubernetes removes old API versions. A manifest that uses one is rejected on upgrade, usually with an unhelpful error.
+fix: 'Move to the current version: Deployment, StatefulSet, DaemonSet and ReplicaSet use apps/v1; Ingress networking.k8s.io/v1; CronJob batch/v1; HorizontalPodAutoscaler autoscaling/v2; PodDisruptionBudget policy/v1; Role and ClusterRole rbac.authorization.k8s.io/v1.'
+`,
   "container.yaml": `# Starter rules for containers in a Pod or Deployment.
 id: image-latest-tag
 title: Image has no fixed version
@@ -27688,6 +27724,53 @@ report: securityContext.capabilities
 message: 'Container "{container}" does not drop all Linux capabilities.'
 why: Containers start with a set of Linux capabilities most apps never use. Each one is extra attack surface.
 fix: 'Set securityContext.capabilities.drop to [ALL] and add back only what the app needs.'
+---
+id: host-port
+title: Container binds a port on the node
+severity: warning
+kinds: ['*']
+scope: container
+when:
+  present: ports[].hostPort
+report: ports[].hostPort
+message: 'Container "{container}" binds port {value} on the node itself.'
+why: A hostPort ties the Pod to a node where that port is free, so only one replica fits per node and scheduling fails when it is taken. It also opens the node to that traffic.
+fix: Remove hostPort and expose the container with a Service. Use hostPort only for node-level agents.
+---
+id: dangerous-capabilities
+title: Container adds powerful Linux capabilities
+severity: warning
+kinds: ['*']
+scope: [container, initContainer]
+when:
+  any:
+    - contains: { securityContext.capabilities.add: ALL }
+    - contains: { securityContext.capabilities.add: SYS_ADMIN }
+    - contains: { securityContext.capabilities.add: NET_ADMIN }
+    - contains: { securityContext.capabilities.add: SYS_PTRACE }
+    - contains: { securityContext.capabilities.add: SYS_MODULE }
+report: securityContext.capabilities.add
+message: 'Container "{container}" adds capabilities that are close to root on the node.'
+why: ALL, SYS_ADMIN, SYS_MODULE, SYS_PTRACE and NET_ADMIN let a container mount filesystems, load kernel modules, trace other processes or reconfigure the network. They are the usual first step of a container escape.
+fix: Drop ALL and add back only the one narrow capability the app needs, such as NET_BIND_SERVICE.
+---
+id: secret-in-env
+title: Secret value written in the manifest
+severity: warning
+kinds: ['*']
+scope: [container, initContainer]
+when:
+  some:
+    in: env
+    where:
+      all:
+        - present: value
+        - matches:
+            { name: '(?i)(password|passwd|secret|token|api[_-]?key|private[_-]?key|credential)' }
+report: env
+message: 'Container "{container}" sets what looks like a secret directly in env.'
+why: A value written in the manifest is stored in git and shown to anyone who can read the Pod or Deployment. Secrets belong in a Secret object or an external secret store.
+fix: Move the value into a Secret and reference it with valueFrom.secretKeyRef.
 `,
   "deployment.yaml": `# Starter rules for Deployments.
 id: single-replica
@@ -27702,6 +27785,55 @@ report: spec.replicas
 message: 'Deployment "{name}" runs only one replica.'
 why: With one Pod, any restart, node failure or rolling update means downtime.
 fix: Set spec.replicas to 2 or more for anything that should stay available.
+`,
+  "ingress.yaml": `# Starter rules for Ingress.
+id: ingress-no-tls
+title: Ingress serves plain HTTP
+severity: warning
+kinds: [Ingress]
+when:
+  missing: spec.tls
+report: spec.rules
+message: 'Ingress "{name}" has no TLS section, so traffic is not encrypted.'
+why: Without spec.tls the Ingress serves plain HTTP. Passwords, cookies and tokens cross the network readable by anyone on the path.
+fix: Add spec.tls with the hosts and a secretName that holds a certificate (cert-manager can create one).
+`,
+  "job.yaml": `# Starter rules for Jobs and CronJobs.
+id: job-no-ttl
+title: Finished Job is never cleaned up
+severity: info
+kinds: [Job]
+when:
+  missing: spec.ttlSecondsAfterFinished
+report: spec
+message: 'Job "{name}" stays in the cluster after it finishes.'
+why: Without ttlSecondsAfterFinished a finished Job and its Pods stay until someone deletes them. Many of them slow the API server and clutter kubectl output.
+fix: Set spec.ttlSecondsAfterFinished, for example 3600 to keep the logs for an hour.
+---
+id: cronjob-concurrency
+title: CronJob may overlap with itself
+severity: info
+kinds: [CronJob]
+when:
+  missing: spec.concurrencyPolicy
+report: spec.schedule
+message: 'CronJob "{name}" starts a new run even if the last one is still going.'
+why: The default policy is Allow. A slow run piles up with the next ones, which can overload the app or corrupt shared data.
+fix: Set spec.concurrencyPolicy to Forbid (skip the new run) or Replace (stop the old one).
+`,
+  "pdb.yaml": `# Starter rules for PodDisruptionBudget.
+id: pdb-blocks-eviction
+title: Budget allows no Pod to be evicted
+severity: warning
+kinds: [PodDisruptionBudget]
+when:
+  any:
+    - in: { spec.maxUnavailable: [0, '0', '0%'] }
+    - in: { spec.minAvailable: ['100%'] }
+report: [spec.maxUnavailable, spec.minAvailable]
+message: 'PodDisruptionBudget "{name}" never lets a Pod be evicted.'
+why: With zero Pods allowed to be unavailable, kubectl drain and node upgrades hang forever on these Pods.
+fix: Allow at least one Pod to be unavailable, for example maxUnavailable 1.
 `,
   "pod.yaml": `# Starter rules for the Pod spec (a Pod, or a Deployment's Pod template).
 id: host-namespaces
@@ -27730,6 +27862,155 @@ report: volumes[].hostPath
 message: "The Pod mounts a directory from the node's filesystem."
 why: A hostPath volume gives the Pod access to files on the node. A compromised Pod can read or change them, and the Pod becomes tied to specific nodes.
 fix: Use an emptyDir, a ConfigMap, a Secret or a PersistentVolumeClaim instead.
+---
+id: default-service-account-token
+title: Pod gets an API token it may not need
+severity: info
+kinds: ['*']
+scope: pod
+when:
+  all:
+    - any:
+        - missing: serviceAccountName
+        - equals: { serviceAccountName: default }
+    - not:
+        equals: { automountServiceAccountToken: false }
+report: [serviceAccountName, containers]
+message: 'The Pod uses the default service account and mounts its API token.'
+why: Every container in the Pod can read a token that talks to the Kubernetes API. If the app does not call the API, a compromised container gets access it never needed.
+fix: Set automountServiceAccountToken to false, or give the Pod its own service account with only the permissions it needs.
+autofix:
+  risk: medium
+  summary: Set automountServiceAccountToken to false.
+  blocked: 'The Pod names a service account, so it may be meant to call the API. Decide for yourself.'
+  requires:
+    missing: serviceAccountName
+  set:
+    automountServiceAccountToken: false
+---
+id: missing-seccomp-profile
+title: Container has no syscall filter
+severity: info
+kinds: ['*']
+scope: container
+when:
+  all:
+    - missing: securityContext.seccompProfile
+    - missing: $pod.securityContext.seccompProfile
+report: securityContext
+message: 'Container "{container}" runs without a seccomp profile.'
+why: Without a seccomp profile the container can call every Linux system call. The RuntimeDefault profile blocks the rarely needed and most dangerous ones at no cost for most apps.
+fix: 'Set securityContext.seccompProfile.type to RuntimeDefault on the container or the Pod.'
+autofix:
+  risk: medium
+  summary: Set securityContext.seccompProfile.type to RuntimeDefault.
+  set:
+    securityContext.seccompProfile.type: RuntimeDefault
+---
+id: docker-socket-mount
+title: Pod mounts the container runtime socket
+severity: error
+kinds: ['*']
+scope: pod
+when:
+  matches:
+    volumes[].hostPath.path: '(docker|containerd|crio|cri-dockerd)\\.sock$'
+report: volumes[].hostPath
+message: "The Pod mounts the node's container runtime socket."
+why: Whoever can talk to that socket can start any container on the node, including a privileged one that owns the whole node. It is the same as root on the node.
+fix: Remove the mount. Build images with a tool that needs no socket (Kaniko, BuildKit rootless) and use the Kubernetes API for anything else.
+---
+id: sensitive-hostpath
+title: Pod mounts a sensitive directory from the node
+severity: error
+kinds: ['*']
+scope: pod
+when:
+  any:
+    - matches:
+        volumes[].hostPath.path: '^/$'
+    - matches:
+        volumes[].hostPath.path: '^/(etc|proc|sys|root|boot|dev|var/lib/kubelet|var/lib/docker|var/lib/containerd)(/.*)?$'
+report: volumes[].hostPath
+message: "The Pod mounts a sensitive part of the node's filesystem."
+why: The root directory, /etc, /proc, /sys and the kubelet and runtime folders hold credentials and control files for the whole node. A Pod that can write there can take the node over.
+fix: Mount only the single file or folder the Pod needs, read-only, or use an emptyDir, ConfigMap or Secret instead.
+`,
+  "rbac.yaml": `# Starter rules for Role, ClusterRole and their bindings.
+id: rbac-wildcard
+title: Role grants a wildcard
+severity: warning
+kinds: [Role, ClusterRole]
+when:
+  some:
+    in: rules
+    where:
+      any:
+        - contains: { verbs: '*' }
+        - contains: { resources: '*' }
+report: rules
+message: '{kind} "{name}" uses "*" for verbs or resources.'
+why: A wildcard grants every action, or access to every resource type, now and for any type added later. It is hard to review and easy to over-grant.
+fix: List the exact verbs and resources the subject needs.
+---
+id: rbac-escalation-verbs
+title: Role can raise its own permissions
+severity: warning
+kinds: [Role, ClusterRole]
+when:
+  some:
+    in: rules
+    where:
+      any:
+        - contains: { verbs: escalate }
+        - contains: { verbs: bind }
+        - contains: { verbs: impersonate }
+report: rules
+message: '{kind} "{name}" can escalate, bind or impersonate.'
+why: These verbs let a subject grant itself more permissions or act as someone else, such as an admin. Whoever holds them can usually become cluster-admin.
+fix: Remove escalate, bind and impersonate unless this role belongs to a trusted admin tool.
+---
+id: cluster-admin-binding
+title: Subject is bound to cluster-admin
+severity: error
+kinds: [ClusterRoleBinding, RoleBinding]
+when:
+  equals: { roleRef.name: cluster-admin }
+report: roleRef.name
+message: '{kind} "{name}" gives full control of the cluster to its subjects.'
+why: cluster-admin can do anything to every object in the cluster, including reading all Secrets. A compromised subject means a compromised cluster.
+fix: Bind a role that grants only what the subject needs, such as view or edit, in the namespace it works in.
+---
+id: anonymous-binding
+title: Role is granted to everyone
+severity: error
+kinds: [ClusterRoleBinding, RoleBinding]
+when:
+  some:
+    in: subjects
+    where:
+      any:
+        - equals: { name: 'system:anonymous' }
+        - equals: { name: 'system:unauthenticated' }
+        - equals: { name: 'system:authenticated' }
+report: subjects
+message: '{kind} "{name}" grants a role to anonymous or all authenticated users.'
+why: system:anonymous and system:unauthenticated mean people who never logged in. system:authenticated is every user the cluster knows, including low-trust ones.
+fix: Bind the role to specific users, groups or service accounts.
+`,
+  "secret.yaml": `# Starter rules for Secret objects.
+id: secret-in-manifest
+title: Secret values stored in a manifest
+severity: warning
+kinds: [Secret]
+when:
+  any:
+    - present: data
+    - present: stringData
+report: [data, stringData]
+message: 'Secret "{name}" holds its values in the manifest.'
+why: base64 is an encoding, not encryption. Anyone who can read this file, or the git history, can read the secret.
+fix: Keep real secrets out of git. Use Sealed Secrets, SOPS, External Secrets or your cloud secret manager.
 `,
   "service.yaml": `# Starter rules for Services.
 id: nodeport-service
@@ -27761,6 +28042,17 @@ autofix:
   set:
     spec.loadBalancerSourceRanges:
       { $param: loadBalancerSourceRanges, pattern: '^[0-9A-Fa-f:.]+/[0-9]{1,3}$' }
+---
+id: external-ips
+title: Service accepts traffic for chosen IP addresses
+severity: warning
+kinds: [Service]
+when:
+  present: spec.externalIPs
+report: spec.externalIPs
+message: 'Service "{name}" sets externalIPs.'
+why: externalIPs lets whoever can create a Service claim an IP address and pull traffic meant for it into the cluster (CVE-2020-8554). Most clusters should not use it at all.
+fix: Use a LoadBalancer Service or an Ingress. If you must keep externalIPs, restrict it with the DenyServiceExternalIPs admission plugin or a policy.
 `
 };
 
@@ -27937,7 +28229,12 @@ function toCondition(raw, fail) {
       if (op === "matches") {
         if (typeof value !== "string") return fail('"matches" takes a regular expression string.');
         try {
-          return { op, path: path6, pattern: new RegExp(value) };
+          const insensitive = value.startsWith("(?i)");
+          return {
+            op,
+            path: path6,
+            pattern: new RegExp(insensitive ? value.slice(4) : value, insensitive ? "i" : "")
+          };
         } catch {
           return fail(`invalid regular expression "${value}".`);
         }
@@ -27954,6 +28251,13 @@ function toCondition(raw, fail) {
       return { op, conditions: arg.map((c) => toCondition(c, fail)) };
     case "not":
       return { op: "not", condition: toCondition(arg, fail) };
+    case "some": {
+      const obj = arg;
+      if (obj === null || typeof obj !== "object" || Array.isArray(obj) || typeof obj.in !== "string" || obj.where === void 0 || Object.keys(obj).length !== 2) {
+        return fail('"some" takes { in: path-to-a-list, where: condition }.');
+      }
+      return { op: "some", path: obj.in, condition: toCondition(obj.where, fail) };
+    }
     default:
       return fail(`unknown operator "${op}".`);
   }
@@ -27965,6 +28269,35 @@ function singleEntry(op, arg, fail) {
   const entries = Object.entries(arg);
   if (entries.length !== 1) return fail(`"${op}" takes exactly one { path: value } pair.`);
   return entries[0];
+}
+
+// ../core/src/rules/coverage.ts
+function isCustomResource(apiVersion) {
+  const group = apiVersion?.includes("/") ? apiVersion.slice(0, apiVersion.indexOf("/")) : "";
+  return group.includes(".") && !group.endsWith("k8s.io");
+}
+function kindCoverage(kind, apiVersion, rules) {
+  if (kind === void 0) {
+    return {
+      level: "unchecked",
+      message: 'This document has no "kind", so ManifestLens cannot tell what it is and checked nothing.'
+    };
+  }
+  if (Object.hasOwn(POD_SPEC_PATH, kind) || rules.some((r) => r.kinds.includes(kind))) {
+    return { level: "checked" };
+  }
+  const caveat = '"No findings" here does not mean it is safe.';
+  if (hasDocsFor(kind)) {
+    return {
+      level: "explain-only",
+      message: `ManifestLens explains ${kind} fields but has no rules that check it. ${caveat}`
+    };
+  }
+  const what = isCustomResource(apiVersion) ? `${kind} (${apiVersion}) is a custom resource` : `ManifestLens does not know the kind ${kind}`;
+  return {
+    level: "unchecked",
+    message: `${what}, so it was not checked: only generic checks, such as removed apiVersions, ran on it. ${caveat}`
+  };
 }
 
 // ../core/src/rules/evaluate.ts
@@ -28028,6 +28361,12 @@ function evaluate(cond, ctx) {
       return cond.conditions.some((c) => evaluate(c, ctx));
     case "not":
       return !evaluate(cond.condition, ctx);
+    case "some":
+      return matchesFor(ctx, cond.path).some(
+        (m) => Array.isArray(m.value) && m.value.some(
+          (item) => item !== null && typeof item === "object" && !Array.isArray(item) && evaluate(cond.condition, { scope: item, pod: ctx.pod })
+        )
+      );
   }
 }
 
@@ -28065,6 +28404,7 @@ function checkDocument(doc, rules) {
     index: doc.index,
     startLine: doc.startLine,
     issues: doc.issues,
+    coverage: kindCoverage(doc.kind, doc.apiVersion, rules),
     findings: matchRules(doc, rules).map((m) => m.finding),
     ...doc.apiVersion !== void 0 ? { apiVersion: doc.apiVersion } : {},
     ...doc.kind !== void 0 ? { kind: doc.kind } : {},
@@ -28269,7 +28609,7 @@ function setInSource(source, documentIndex, steps, value) {
   let node = tree.contents;
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
-    if ((0, import_yaml3.isAlias)(node)) return unsupported("the path goes through a YAML alias");
+    if ((0, import_yaml3.isAlias)(node)) return unsupported("a list item on the path is a YAML alias");
     const last = i === steps.length - 1;
     if (typeof step === "number") {
       if (!(0, import_yaml3.isSeq)(node)) return unsupported(`expected a list at step ${i + 1}`);
@@ -28287,11 +28627,18 @@ function setInSource(source, documentIndex, steps, value) {
       }
       return insertKeys(source, node, rest, value, eol);
     }
-    if ((0, import_yaml3.isAlias)(pair.value)) return unsupported("the path goes through a YAML alias");
-    if (last) return replaceValue(source, pair, value, eol);
+    if ((0, import_yaml3.isAlias)(pair.value)) {
+      if (last) return unsupported("the value is a YAML alias");
+      return overrideAlias(source, tree, node, pair, pair.value, steps.slice(i + 1), value, eol);
+    }
+    if (last) return replaceValue(source, node, pair, value, eol);
     const child = pair.value;
     if (child === null || child === void 0 || isEmpty(child)) {
-      return fillEmpty(source, pair, steps.slice(i + 1), value, eol);
+      const rest = steps.slice(i + 1);
+      if (rest.some((r) => typeof r === "number")) {
+        return unsupported("cannot create a list item that does not exist");
+      }
+      return fillEmpty(source, node, pair, rest, value, eol);
     }
     node = child;
   }
@@ -28321,8 +28668,74 @@ function renderBlock(keys, value, indent) {
 function isCollection(value) {
   return value !== null && typeof value === "object";
 }
+function isJsonStyle(map) {
+  const key = map.items[0]?.key;
+  return (0, import_yaml3.isScalar)(key) && key.type === "QUOTE_DOUBLE";
+}
+function renderFlowPairs(keys, value, json) {
+  let nested = value;
+  for (const key of [...keys].reverse()) nested = { [key]: nested };
+  const text2 = (0, import_yaml3.stringify)(nested, {
+    collectionStyle: "flow",
+    lineWidth: 0,
+    flowCollectionPadding: false,
+    ...json ? { defaultKeyType: "QUOTE_DOUBLE", defaultStringType: "QUOTE_DOUBLE" } : {}
+  }).trim();
+  return text2.slice(1, -1);
+}
+function renderFlowValue(value, json) {
+  return (0, import_yaml3.stringify)(value, {
+    collectionStyle: "flow",
+    lineWidth: 0,
+    flowCollectionPadding: false,
+    ...json ? { defaultStringType: "QUOTE_DOUBLE" } : {}
+  }).trim();
+}
+function insertFlowKeys(source, map, rest, value, eol) {
+  const first = map.items[0];
+  const lastPair = map.items[map.items.length - 1];
+  if (!first || !lastPair || !(0, import_yaml3.isScalar)(first.key) || !first.key.range) {
+    return unsupported("the mapping has no keys to align with");
+  }
+  const keyEnd = lastPair.key.range?.[1] ?? 0;
+  const valueEnd = lastPair.value?.range?.[1] ?? keyEnd;
+  const end = Math.max(keyEnd, valueEnd);
+  const pairs = renderFlowPairs(rest, value, isJsonStyle(map));
+  const firstStart = first.key.range[0];
+  const ownLine = source.slice(lineStart(source, firstStart), firstStart).trim() === "";
+  const text2 = ownLine ? `,${eol}${" ".repeat(indentOf(source, firstStart))}${pairs}` : `, ${pairs}`;
+  return ok(source, end, end, text2);
+}
+function overrideAlias(source, tree, parent, pair, alias, rest, value, eol) {
+  if (rest.some((r) => typeof r === "number")) {
+    return unsupported("the path goes through a list inside a YAML alias");
+  }
+  const keys = rest;
+  const target2 = alias.resolve(tree);
+  if (!(0, import_yaml3.isMap)(target2)) return unsupported("the YAML alias is not a mapping");
+  const inherited = target2.items.some((p) => (0, import_yaml3.isScalar)(p.key) && String(p.key.value) === keys[0]);
+  if (keys.length > 1 && inherited) {
+    return unsupported(
+      `"${keys[0]}" comes from a YAML alias and would be replaced as a whole, not merged`
+    );
+  }
+  if (!alias.range || !(0, import_yaml3.isScalar)(pair.key) || !pair.key.range) {
+    return unsupported("cannot locate the alias");
+  }
+  const [start, end] = alias.range;
+  const ref = source.slice(start, end);
+  if ((0, import_yaml3.isMap)(parent) && parent.flow) {
+    const pairs = renderFlowPairs(keys, value, isJsonStyle(parent));
+    return ok(source, start, end, `{<<: ${ref}, ${pairs}}`);
+  }
+  const colon = source.indexOf(":", pair.key.range[1]);
+  if (colon === -1 || colon >= start) return unsupported("cannot locate the key");
+  const indent = indentOf(source, pair.key.range[0]) + INDENT;
+  const lines = [`<<: ${ref}`, ...renderBlock(keys, value, 0)].map((l) => " ".repeat(indent) + l).join(eol);
+  return ok(source, colon + 1, end, `${eol}${lines}`);
+}
 function insertKeys(source, map, rest, value, eol) {
-  if (map.flow) return unsupported("the mapping is written in { flow } style");
+  if (map.flow) return insertFlowKeys(source, map, rest, value, eol);
   const first = map.items[0];
   if (!first || !(0, import_yaml3.isScalar)(first.key) || !first.key.range) {
     return unsupported("the mapping has no keys to align with");
@@ -28337,17 +28750,21 @@ function insertKeys(source, map, rest, value, eol) {
   const at = lineEnd(source, end);
   return ok(source, at, at, `${eol}${lines}`);
 }
-function replaceValue(source, pair, value, eol) {
+function replaceValue(source, parent, pair, value, eol) {
   const old = pair.value;
   if (old === null || old === void 0 || isEmpty(old)) {
-    return fillEmpty(source, pair, [], value, eol);
+    return fillEmpty(source, parent, pair, [], value, eol);
   }
   if (!(0, import_yaml3.isScalar)(old) || !old.range) return unsupported("the existing value is a list or mapping");
   if (isCollection(value)) return unsupported("cannot merge into an existing value");
-  const text2 = (0, import_yaml3.stringify)(value, { lineWidth: 0 }).replace(/\n$/, "");
+  const json = (0, import_yaml3.isMap)(parent) && parent.flow === true && isJsonStyle(parent);
+  const text2 = (0, import_yaml3.stringify)(value, {
+    lineWidth: 0,
+    ...json ? { defaultStringType: "QUOTE_DOUBLE" } : {}
+  }).replace(/\n$/, "");
   return ok(source, old.range[0], old.range[1], text2);
 }
-function fillEmpty(source, pair, rest, value, eol) {
+function fillEmpty(source, parent, pair, rest, value, eol) {
   const keyRange = pair.key.range;
   if (!keyRange || keyRange[0] === void 0 || keyRange[1] === void 0) {
     return unsupported("cannot locate the key");
@@ -28357,6 +28774,12 @@ function fillEmpty(source, pair, rest, value, eol) {
   const indent = indentOf(source, keyRange[0]);
   const flow = pair.value && (0, import_yaml3.isMap)(pair.value) && pair.value.range ? pair.value.range : void 0;
   const end = flow ? flow[1] : colon + 1;
+  if ((0, import_yaml3.isMap)(parent) && parent.flow) {
+    if (!flow) return unsupported("the key has no value to fill inside a { flow } mapping");
+    const json = isJsonStyle(parent);
+    const text2 = rest.length > 0 ? `{${renderFlowPairs(rest, value, json)}}` : renderFlowValue(value, json);
+    return ok(source, flow[0], flow[1], text2);
+  }
   const after = source.slice(end, lineEnd(source, end));
   if (flow && after.trim() !== "") {
     return unsupported("a comment or text follows the empty { } on its line");
@@ -31185,6 +31608,7 @@ function analyze2(files, allRules, s) {
     suppressed: 0,
     filesChecked: files.length,
     changes: [],
+    notChecked: [],
     unknownRules: unknown
   };
   for (const file of files) {
@@ -31224,6 +31648,17 @@ function analyze2(files, allRules, s) {
             ...issue2.line ? { line: issue2.line } : {}
           });
         for (const f of doc.findings) keep({ ...pick(f), file: file.path, object });
+        if (doc.coverage.level !== "checked" && doc.coverage.message) {
+          result.notChecked.push({
+            file: file.path,
+            line: doc.startLine,
+            object,
+            level: doc.coverage.level,
+            message: doc.coverage.message,
+            ...doc.kind !== void 0 ? { kind: doc.kind } : {},
+            ...doc.apiVersion !== void 0 ? { apiVersion: doc.apiVersion } : {}
+          });
+        }
       }
     }
   }
@@ -32683,6 +33118,31 @@ var BY_RULE_MIN_FINDINGS = 10;
 var MAX_RULES_IN_SUMMARY = 25;
 var MAX_RULES_IN_COMMENT = 10;
 var SEVERITY_RANK = { error: 0, warning: 1, info: 2 };
+function notCheckedSection(a) {
+  if (a.notChecked.length === 0) return [];
+  const groups = /* @__PURE__ */ new Map();
+  for (const x of a.notChecked) {
+    const key = x.kind ? `${x.kind}|${x.apiVersion ?? ""}|${x.level}` : `(no kind)||${x.level}`;
+    const g = groups.get(key) ?? { n: 0, custom: x.level === "unchecked", files: /* @__PURE__ */ new Set() };
+    g.n++;
+    g.files.add(x.file);
+    groups.set(key, g);
+  }
+  const rows = [...groups].slice(0, 20).map(([key, g]) => {
+    const [kind = "", apiVersion = "", level = ""] = key.split("|");
+    const why = level === "unchecked" ? "unknown kind" : "explained, no rules";
+    return `| ${code(kind)} | ${apiVersion ? code(apiVersion) : ""} | ${g.n} | ${md(why)} | ${md([...g.files].slice(0, 3).join(", "))} |`;
+  });
+  return [
+    "### Not checked",
+    "",
+    '_ManifestLens has no rules for these kinds. "No findings" says nothing about them._',
+    "",
+    "| Kind | apiVersion | Objects | Why | Files |",
+    "| --- | --- | --- | --- | --- |",
+    ...rows
+  ];
+}
 function byRule(findings) {
   const counts = /* @__PURE__ */ new Map();
   for (const f of findings) {
@@ -32751,6 +33211,7 @@ function buildSummary(info2) {
     }
     out.push("", ...howToFix(a.findings), "");
   }
+  out.push(...notCheckedSection(a), "");
   if (info2.fixes) out.push(...fixSection(info2), "");
   if (a.changes.length > 0) {
     out.push("### What this change does", "");
@@ -32958,6 +33419,7 @@ function buildReport(info2) {
     findings: a.findings,
     parseProblems: a.parseProblems,
     changes: a.changes,
+    notChecked: a.notChecked,
     sources: info2.sources,
     ...info2.fixes ? {
       fixes: {

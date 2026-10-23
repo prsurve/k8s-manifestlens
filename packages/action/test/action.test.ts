@@ -104,8 +104,8 @@ describe('pass and fail', () => {
       passed: 'false',
       errors: '2',
       warnings: '9',
-      infos: '5',
-      findings: '16',
+      infos: '7',
+      findings: '18',
     });
     expect(r.summary).toContain('❌ **Failed**');
     expect(r.log).toContain('::error::ManifestLens: 2 errors found, none allowed.');
@@ -115,7 +115,7 @@ describe('pass and fail', () => {
     const r = await runAction({ files: { 'a.yaml': risky }, inputs: { 'fail-on': 'none' } });
     expect(r.exitCode).toBeUndefined();
     expect(r.outputs.result).toBe('pass');
-    expect(r.outputs.findings).toBe('16');
+    expect(r.outputs.findings).toBe('18');
   });
 
   it('applies thresholds', async () => {
@@ -228,7 +228,7 @@ describe('the three levels of configuration', () => {
       files: { 'a.yaml': risky, '.github/manifestlens.yml': 'disable-rules: [single-replica]\n' },
       inputs: { 'disable-rules': 'image-latest-tag', 'fail-on': 'none' },
     });
-    expect(r.outputs.findings).toBe('14');
+    expect(r.outputs.findings).toBe('16');
   });
 
   it('changes severities and ignores paths from the config file', async () => {
@@ -243,7 +243,7 @@ describe('the three levels of configuration', () => {
     const r = await runAction({
       files: { 'a.yaml': risky, 'examples/demo.yaml': risky, '.github/manifestlens.yml': yml },
     });
-    expect(r.outputs.suppressed).toBe('16');
+    expect(r.outputs.suppressed).toBe('18');
     expect(r.outputs.errors).toBe('2'); // run-as-root-user and image-latest-tag; privileged-container is now info
   });
 });
@@ -368,8 +368,8 @@ describe('outputs and report files', () => {
     const path = join(r.workspace, 'out/report.json');
     expect(r.outputs['report-file']).toBe(path);
     const report = JSON.parse(readFileSync(path, 'utf8'));
-    expect(report).toMatchObject({ result: 'fail', counts: { error: 2, total: 16 } });
-    expect(report.findings).toHaveLength(16);
+    expect(report).toMatchObject({ result: 'fail', counts: { error: 2, total: 18 } });
+    expect(report.findings).toHaveLength(18);
   });
 
   it('writes SARIF only when asked', async () => {
@@ -382,7 +382,7 @@ describe('outputs and report files', () => {
     expect(r.outputs['sarif-file']).toBe(join(r.workspace, 'results.sarif'));
     const sarif = JSON.parse(readFileSync(join(r.workspace, 'results.sarif'), 'utf8'));
     expect(sarif.version).toBe('2.1.0');
-    expect(sarif.runs[0].results).toHaveLength(16);
+    expect(sarif.runs[0].results).toHaveLength(18);
   });
 
   it('can leave the job summary out', async () => {
@@ -416,7 +416,7 @@ describe('scope: only what this change introduces', () => {
   it('ignores problems that were already there', async () => {
     const { dir, push } = repoWithChange();
     const all = await runAction({ workspace: dir, ...push });
-    expect(all.outputs.findings).toBe('17'); // 16 old + 1 new
+    expect(all.outputs.findings).toBe('19'); // 18 old + 1 new
     expect(all.exitCode).toBe(1);
 
     const added = await runAction({ workspace: dir, ...push, inputs: { scope: 'new' } });
@@ -459,7 +459,7 @@ describe('scope: only what this change introduces', () => {
       event: { before: commit },
       inputs: { scope: 'new' },
     });
-    expect(r.outputs.findings).toBe('16');
+    expect(r.outputs.findings).toBe('18');
     expect(r.exitCode).toBe(1);
   });
 
@@ -655,7 +655,7 @@ describe('fix suggestions', () => {
     expect(r.outputs['fix-patch-file']).toBe('');
     expect(readFileSync(join(r.workspace, 'a.yaml'), 'utf8')).toBe(files['a.yaml']);
     const report = JSON.parse(readFileSync(r.outputs['report-file'] as string, 'utf8'));
-    expect(report.fixes).toMatchObject({ available: 1, heldBack: 1, maxRisk: 'low' });
+    expect(report.fixes).toMatchObject({ available: 1, heldBack: 3, maxRisk: 'low' });
     expect(report.fixes.files[0].applied[0].ruleId).toBe('allow-privilege-escalation');
     expect(report.fixes.files[0]).not.toHaveProperty('patch');
     expect(report.counts.total).toBe(report.findings.length); // findings unchanged

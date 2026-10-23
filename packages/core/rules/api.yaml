@@ -1,0 +1,28 @@
+# Rules about the manifest itself rather than one kind.
+id: deprecated-api-version
+title: apiVersion has been removed from Kubernetes
+severity: error
+kinds: ['*']
+when:
+  in:
+    apiVersion:
+      - extensions/v1beta1
+      - apps/v1beta1
+      - apps/v1beta2
+      - batch/v1beta1
+      - networking.k8s.io/v1beta1
+      - policy/v1beta1
+      - rbac.authorization.k8s.io/v1beta1
+      - rbac.authorization.k8s.io/v1alpha1
+      - autoscaling/v2beta1
+      - autoscaling/v2beta2
+      - admissionregistration.k8s.io/v1beta1
+      - apiextensions.k8s.io/v1beta1
+      - scheduling.k8s.io/v1beta1
+      - storage.k8s.io/v1beta1
+      - certificates.k8s.io/v1beta1
+      - coordination.k8s.io/v1beta1
+report: apiVersion
+message: '{kind} "{name}" uses apiVersion {value}, which current clusters no longer serve.'
+why: Kubernetes removes old API versions. A manifest that uses one is rejected on upgrade, usually with an unhelpful error.
+fix: 'Move to the current version: Deployment, StatefulSet, DaemonSet and ReplicaSet use apps/v1; Ingress networking.k8s.io/v1; CronJob batch/v1; HorizontalPodAutoscaler autoscaling/v2; PodDisruptionBudget policy/v1; Role and ClusterRole rbac.authorization.k8s.io/v1.'

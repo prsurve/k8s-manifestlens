@@ -86,14 +86,50 @@ describe('setInSource', () => {
     expect(out).toBe('a: 1\n---\nb:\n  c: 1\n  e: 3\n---\nd: 2\n');
   });
 
+  it('adds a key inside a { flow } mapping, on the same line', () => {
+    expect(set('a: { b: 1 }\n', 'a.c', true)).toBe('a: { b: 1, c: true }\n');
+    expect(set('a: {b: 1}\n', 'a.c.d', 2)).toBe('a: {b: 1, c: {d: 2}}\n');
+  });
+
+  it('adds to a flow mapping inside a flow list item and keeps a trailing comment', () => {
+    expect(set('l:\n  - {n: a, s: {x: 1}} # c\n', 'l[0].s.y', false)).toBe(
+      'l:\n  - {n: a, s: {x: 1, y: false}} # c\n',
+    );
+  });
+
+  it('puts the new key of a multi-line flow mapping on its own line', () => {
+    expect(set('a: {\n  b: 1,\n  c: 2\n}\n', 'a.d', 3)).toBe('a: {\n  b: 1,\n  c: 2,\n  d: 3\n}\n');
+  });
+
+  it('fills an empty { } nested in flow style, in flow style', () => {
+    expect(set('a: {n: x, s: {}}\n', 'a.s.k', true)).toBe('a: {n: x, s: {k: true}}\n');
+  });
+
+  it('edits JSON in JSON style', () => {
+    expect(set('{"a": {"b": true}}', 'a.c', 'x')).toBe('{"a": {"b": true, "c": "x"}}');
+    expect(set('{"a": {"b": true}}', 'a.b', false)).toBe('{"a": {"b": false}}');
+    expect(set('{\n  "a": {\n    "b": 1\n  }\n}\n', 'a.c', 2)).toBe(
+      '{\n  "a": {\n    "b": 1,\n    "c": 2\n  }\n}\n',
+    );
+  });
+
+  it('overrides next to a merge when the value is an alias, leaving the anchor alone', () => {
+    const src = 'base: &b\n  x: 1\nuse: *b\nother: *b\n';
+    expect(set(src, 'use.y', 2)).toBe('base: &b\n  x: 1\nuse:\n  <<: *b\n  y: 2\nother: *b\n');
+    expect(set(src, 'use.x', 9)).toBe('base: &b\n  x: 1\nuse:\n  <<: *b\n  x: 9\nother: *b\n');
+    expect(set('base: &b {x: 1}\nl: {use: *b}\n', 'l.use.y', 2)).toBe(
+      'base: &b {x: 1}\nl: {use: {<<: *b, y: 2}}\n',
+    );
+  });
+
   it('refuses layouts it cannot edit exactly', () => {
     const refuse = (src: string, path: string) => {
       const r = setInSource(src, 0, toSteps(path), true);
       expect(r.ok, src).toBe(false);
     };
-    refuse('a: { b: 1 }\n', 'a.c');
     refuse('a: { }  # note\n', 'a.c');
-    refuse('base: &x\n  b: 1\nuse: *x\n', 'use.c');
+    refuse('base: &x\n  b: {c: 1}\nuse: *x\n', 'use.b.d');
+    refuse('base: &x\n  b: 1\nuse: *x\n', 'use');
     refuse('a: [1, 2]\n', 'a.b');
     refuse('a:\n  - 1\n', 'a[3].b');
     refuse('a:\n  b: {x: 1}\n', 'a.b');
@@ -433,11 +469,93 @@ describe('fixManifest: safety', () => {
   it('skips a fix whose layout it cannot edit exactly', () => {
     const src = POD('').replace(
       '      image: nginx:1.27\n',
-      '      image: nginx:1.27\n      securityContext: {runAsNonRoot: true}\n',
+      '      image: nginx:1.27\n      securityContext: {}  # none yet\n',
     );
     const r = fixManifest(src, rules, only('allow-privilege-escalation'));
     expect(r.status).toBe('unchanged');
     expect(r.skipped[0]).toMatchObject({ reason: 'unsupported-layout' });
+  });
+});
+
+describe('fixManifest: complex YAML', () => {
+  const fixed = (src: string, extra: FixOptions = {}) => {
+    const r = fixManifest(src, rules, { maxRisk: 'high', ...extra });
+    expect(r.validation.ok).toBe(true);
+    return r;
+  };
+
+  it('fixes flow-style containers and keeps them in flow style', () => {
+    const src = POD('').replace(
+      '    - name: app\n      image: nginx:1.27\n',
+      '    - {name: app, image: "nginx:1.27", securityContext: {privileged: true}}\n',
+    );
+    const r = fixed(src, { only: ['privileged-container'] });
+    expect(r.fixed).toContain(
+      '- {name: app, image: "nginx:1.27", securityContext: {privileged: false}}',
+    );
+  });
+
+  it('fixes a manifest written as JSON', () => {
+    const src = JSON.stringify(
+      {
+        apiVersion: 'v1',
+        kind: 'Pod',
+        metadata: { name: 'j' },
+        spec: {
+          containers: [{ name: 'a', image: 'nginx:1.27', securityContext: { privileged: true } }],
+        },
+      },
+      null,
+      2,
+    );
+    const r = fixed(src, { only: ['privileged-container'] });
+    expect(JSON.parse(r.fixed).spec.containers[0].securityContext.privileged).toBe(false);
+    expect(r.fixed).toContain('"privileged": false');
+  });
+
+  it('fixes a container whose securityContext is an alias, without touching the anchor', () => {
+    const src = `x: &sec
+  readOnlyRootFilesystem: true
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p
+spec:
+  containers:
+    - name: a
+      image: nginx:1.27
+      securityContext: *sec
+    - name: b
+      image: nginx:1.27
+      securityContext: *sec
+`;
+    const r = fixed(src, { only: ['allow-privilege-escalation'] });
+    expect(r.fixed).toContain('x: &sec\n  readOnlyRootFilesystem: true\n');
+    expect(r.fixed).toContain(
+      '      securityContext:\n        <<: *sec\n        allowPrivilegeEscalation: false\n',
+    );
+    expect(r.applied).toHaveLength(2);
+    expect(fixManifest(r.fixed, rules, { only: ['allow-privilege-escalation'] }).status).toBe(
+      'unchanged',
+    );
+  });
+
+  it('sees through merge keys when checking', () => {
+    const src = `d: &d
+  allowPrivilegeEscalation: false
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p
+spec:
+  containers:
+    - name: a
+      image: nginx:1.27
+      securityContext:
+        <<: *d
+`;
+    const ids = checkManifest(src, rules).documents[0]?.findings.map((f) => f.ruleId);
+    expect(ids).not.toContain('allow-privilege-escalation');
   });
 });
 
@@ -588,11 +706,14 @@ describe('the shipped example', () => {
     expect(r.status).toBe('fixed');
     expect(r.applied.map((a) => a.ruleId).sort()).toEqual([
       'allow-privilege-escalation',
+      'default-service-account-token',
       'loadbalancer-open-to-world',
       'may-run-as-root',
       'may-run-as-root',
       'missing-memory-limit',
       'missing-memory-limit',
+      'missing-seccomp-profile',
+      'missing-seccomp-profile',
     ]);
     // The privileged sidecar is held back, and so is the escalation fix that depends on it.
     expect(r.skipped.map((s) => s.ruleId).sort()).toEqual([
@@ -647,7 +768,7 @@ describe('reported lines', () => {
       const text = original[a.line - 1] ?? '';
       // Each finding points at a real line of the container it is about.
       expect(text, `${a.ruleId} line ${a.line}`).toMatch(
-        /name: (app|other)|image:|securityContext|resources/,
+        /name: (app|other)|image:|securityContext|resources|containers:/,
       );
     }
     const second = r.applied.find((a) => a.target.scope.endsWith('containers[1]'));

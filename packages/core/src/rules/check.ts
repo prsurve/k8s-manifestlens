@@ -1,6 +1,7 @@
 import { POD_SPEC_PATH } from '../fields/locate.js';
 import { parseManifest } from '../parse.js';
 import type { FieldNode, ManifestDocument } from '../types.js';
+import { kindCoverage } from './coverage.js';
 import { evaluate, isPodPath, resolve } from './evaluate.js';
 import type { EvalContext } from './evaluate.js';
 import type { CheckResult, CheckedDocument, Finding, Rule, RuleScope } from './types.js';
@@ -61,6 +62,7 @@ function checkDocument(doc: ManifestDocument, rules: Rule[]): CheckedDocument {
     index: doc.index,
     startLine: doc.startLine,
     issues: doc.issues,
+    coverage: kindCoverage(doc.kind, doc.apiVersion, rules),
     findings: matchRules(doc, rules).map((m) => m.finding),
     ...(doc.apiVersion !== undefined ? { apiVersion: doc.apiVersion } : {}),
     ...(doc.kind !== undefined ? { kind: doc.kind } : {}),

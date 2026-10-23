@@ -1,6 +1,12 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { RuleError, checkManifest, loadBundledRules, parseRules } from '../src/index.js';
+import {
+  RuleError,
+  checkManifest,
+  checkedKinds,
+  loadBundledRules,
+  parseRules,
+} from '../src/index.js';
 import { bundledRuleSources } from '../src/rules/bundled.js';
 
 const read = (name: string) =>
@@ -36,8 +42,8 @@ describe('bundled rules', () => {
 
   it('all fire on the risky fixture', () => {
     const fired = new Set(
-      checkManifest(read('risky.yaml'), rules).documents.flatMap((d) =>
-        d.findings.map((f) => f.ruleId),
+      ['risky.yaml', 'risky-more.yaml'].flatMap((file) =>
+        checkManifest(read(file), rules).documents.flatMap((d) => d.findings.map((f) => f.ruleId)),
       ),
     );
     expect([...fired].sort()).toEqual(rules.map((r) => r.id).sort());
@@ -144,5 +150,79 @@ describe('parseRules validation', () => {
 
   it('names the file and rule in errors', () => {
     expect(() => parseRules(`${base}extra: 1\n`, 'my.yaml')).toThrow(/my\.yaml: rule "ok"/);
+  });
+});
+
+describe('kind coverage', () => {
+  const rules = loadBundledRules();
+  const cov = (src: string) => checkManifest(src, rules).documents.map((d) => d.coverage);
+
+  it('is checked for kinds with rules or a Pod spec', () => {
+    expect(cov('apiVersion: v1\nkind: Service\nmetadata: {name: s}\n')[0]).toEqual({
+      level: 'checked',
+    });
+    expect(cov('apiVersion: batch/v1\nkind: CronJob\nmetadata: {name: s}\n')[0]?.level).toBe(
+      'checked',
+    );
+  });
+
+  it('says a known kind without rules is explained but not checked', () => {
+    const [c] = cov('apiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\n');
+    expect(c?.level).toBe('explain-only');
+    expect(c?.message).toMatch(/no rules that check it/);
+  });
+
+  it('flags unknown kinds, naming custom resources', () => {
+    const [crd] = cov('apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata: {name: c}\n');
+    expect(crd?.level).toBe('unchecked');
+    expect(crd?.message).toMatch(/Certificate \(cert-manager.io\/v1\) is a custom resource/);
+    const [core] = cov('apiVersion: coordination.k8s.io/v1\nkind: Lease\nmetadata: {name: l}\n');
+    expect(core?.message).toMatch(/does not know the kind Lease/);
+    const [none] = cov('metadata: {name: x}\n');
+    expect(none?.message).toMatch(/no "kind"/);
+  });
+
+  it('lists the kinds the rules cover', () => {
+    const kinds = checkedKinds(rules);
+    expect(kinds).toEqual(
+      expect.arrayContaining(['Deployment', 'Ingress', 'ClusterRole', 'Secret']),
+    );
+    expect(kinds).not.toContain('*');
+  });
+});
+
+describe('rule language additions', () => {
+  it('"some" tests one list item as a whole, not its fields separately', () => {
+    const rule = parseRules(`
+id: env-secret
+title: t
+severity: warning
+kinds: ['*']
+scope: container
+when:
+  some:
+    in: env
+    where:
+      all:
+        - present: value
+        - matches: { name: '(?i)password' }
+message: m
+`);
+    const pod = (env: string) =>
+      `apiVersion: v1\nkind: Pod\nmetadata: {name: p}\nspec:\n  containers:\n    - name: a\n      image: x:1\n      env:\n${env}`;
+    const hits = (env: string) => checkManifest(pod(env), rule).documents[0]?.findings.length;
+    expect(hits('        - { name: DB_PASSWORD, value: x }\n')).toBe(1);
+    // The name matches in one item and a value exists in another: not a hit.
+    expect(
+      hits(
+        '        - { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: s, key: k } } }\n        - { name: A, value: b }\n',
+      ),
+    ).toBe(0);
+  });
+
+  it('rejects a malformed "some"', () => {
+    expect(() =>
+      parseRules('id: a\ntitle: t\nseverity: info\nkinds: [Pod]\nwhen: { some: x }\nmessage: m\n'),
+    ).toThrow(/some/);
   });
 });

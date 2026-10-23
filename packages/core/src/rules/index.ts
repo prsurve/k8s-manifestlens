@@ -3,10 +3,12 @@ import { parseRules } from './load.js';
 import type { Rule } from './types.js';
 
 export { checkManifest } from './check.js';
+export { checkedKinds, kindCoverage } from './coverage.js';
 export { RuleError, parseRules } from './load.js';
 export type {
   CheckResult,
   CheckedDocument,
+  Coverage,
   Finding,
   FixRisk,
   FixSet,

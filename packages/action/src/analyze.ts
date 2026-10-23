@@ -78,6 +78,7 @@ export function analyze(files: FileToAnalyze[], allRules: Rule[], s: Settings): 
     suppressed: 0,
     filesChecked: files.length,
     changes: [],
+    notChecked: [],
     unknownRules: unknown,
   };
 
@@ -119,6 +120,17 @@ export function analyze(files: FileToAnalyze[], allRules: Rule[], s: Settings): 
             ...(issue.line ? { line: issue.line } : {}),
           });
         for (const f of doc.findings) keep({ ...pick(f), file: file.path, object });
+        if (doc.coverage.level !== 'checked' && doc.coverage.message) {
+          result.notChecked.push({
+            file: file.path,
+            line: doc.startLine,
+            object,
+            level: doc.coverage.level,
+            message: doc.coverage.message,
+            ...(doc.kind !== undefined ? { kind: doc.kind } : {}),
+            ...(doc.apiVersion !== undefined ? { apiVersion: doc.apiVersion } : {}),
+          });
+        }
       }
     }
   }

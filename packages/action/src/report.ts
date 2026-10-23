@@ -89,6 +89,33 @@ const MAX_RULES_IN_SUMMARY = 25;
 const MAX_RULES_IN_COMMENT = 10;
 const SEVERITY_RANK = { error: 0, warning: 1, info: 2 } as const;
 
+/** Objects no rule looks at, grouped by kind, so a clean run is not mistaken for a safe one. */
+function notCheckedSection(a: Analysis): string[] {
+  if (a.notChecked.length === 0) return [];
+  const groups = new Map<string, { n: number; custom: boolean; files: Set<string> }>();
+  for (const x of a.notChecked) {
+    const key = x.kind ? `${x.kind}|${x.apiVersion ?? ''}|${x.level}` : `(no kind)||${x.level}`;
+    const g = groups.get(key) ?? { n: 0, custom: x.level === 'unchecked', files: new Set() };
+    g.n++;
+    g.files.add(x.file);
+    groups.set(key, g);
+  }
+  const rows = [...groups].slice(0, 20).map(([key, g]) => {
+    const [kind = '', apiVersion = '', level = ''] = key.split('|');
+    const why = level === 'unchecked' ? 'unknown kind' : 'explained, no rules';
+    return `| ${code(kind)} | ${apiVersion ? code(apiVersion) : ''} | ${g.n} | ${md(why)} | ${md([...g.files].slice(0, 3).join(', '))} |`;
+  });
+  return [
+    '### Not checked',
+    '',
+    '_ManifestLens has no rules for these kinds. "No findings" says nothing about them._',
+    '',
+    '| Kind | apiVersion | Objects | Why | Files |',
+    '| --- | --- | --- | --- | --- |',
+    ...rows,
+  ];
+}
+
 /** Findings counted per rule, most severe first and then most common, so the big problems lead. */
 function byRule(
   findings: LocatedFinding[],
@@ -176,6 +203,7 @@ export function buildSummary(info: RunInfo): string {
     out.push('', ...howToFix(a.findings), '');
   }
 
+  out.push(...notCheckedSection(a), '');
   if (info.fixes) out.push(...fixSection(info), '');
 
   if (a.changes.length > 0) {
@@ -405,6 +433,7 @@ export function buildReport(info: RunInfo): object {
     findings: a.findings,
     parseProblems: a.parseProblems,
     changes: a.changes,
+    notChecked: a.notChecked,
     sources: info.sources,
     ...(info.fixes
       ? {

@@ -32,7 +32,7 @@ describe('looksLikeKubernetes', () => {
 describe('findProblems', () => {
   it('turns findings into problems on the right line with why and fix', () => {
     const problems = findProblems(example('risky.yaml'), rules);
-    expect(problems).toHaveLength(16);
+    expect(problems).toHaveLength(18);
     const privileged = problems.find((p) => p.ruleId === 'privileged-container');
     expect(privileged).toMatchObject({ line: 16, severity: 'error', startColumn: 12 });
     expect(privileged?.message).toContain('Why:');
@@ -57,7 +57,7 @@ describe('findProblems', () => {
     const errors = findProblems(example('risky.yaml'), rules, 'error');
     expect(errors.map((p) => p.severity)).toEqual(['error', 'error']);
     expect(warnings.length).toBe(11);
-    expect(all.length).toBe(16);
+    expect(all.length).toBe(18);
   });
 
   it('reports YAML syntax errors as errors, but only in Kubernetes files', () => {

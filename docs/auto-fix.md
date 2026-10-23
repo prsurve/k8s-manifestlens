@@ -20,13 +20,15 @@ A fix exists only when the right answer is unambiguous, or when your team states
 Everything else stays advice (the rule's `fix:` text). ManifestLens never invents image tags, resource
 sizes, probe paths, storage settings or user IDs.
 
-| Rule                         | Risk   | Patch                                             | Needs                                                                  |
-| ---------------------------- | ------ | ------------------------------------------------- | ---------------------------------------------------------------------- |
-| `allow-privilege-escalation` | low    | `securityContext.allowPrivilegeEscalation: false` | Container is not `privileged` and does not add `SYS_ADMIN`             |
-| `may-run-as-root`            | medium | `securityContext.runAsNonRoot: true`              | No `runAsUser: 0` and no `runAsNonRoot: false` on the container or Pod |
-| `privileged-container`       | high   | `securityContext.privileged: false`               | Explicit `--max-risk high`                                             |
-| `missing-memory-limit`       | medium | `resources.limits.memory: <memoryLimit>`          | Policy `memoryLimit` (like `512Mi`), and no `requests.memory` set      |
-| `loadbalancer-open-to-world` | medium | `spec.loadBalancerSourceRanges: <list>`           | Policy `loadBalancerSourceRanges` (CIDRs)                              |
+| Rule                            | Risk   | Patch                                                 | Needs                                                                  |
+| ------------------------------- | ------ | ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| `allow-privilege-escalation`    | low    | `securityContext.allowPrivilegeEscalation: false`     | Container is not `privileged` and does not add `SYS_ADMIN`             |
+| `may-run-as-root`               | medium | `securityContext.runAsNonRoot: true`                  | No `runAsUser: 0` and no `runAsNonRoot: false` on the container or Pod |
+| `default-service-account-token` | medium | `automountServiceAccountToken: false`                 | The Pod names no service account                                       |
+| `missing-seccomp-profile`       | medium | `securityContext.seccompProfile.type: RuntimeDefault` | No seccomp profile on the container or the Pod                         |
+| `privileged-container`          | high   | `securityContext.privileged: false`                   | Explicit `--max-risk high`                                             |
+| `missing-memory-limit`          | medium | `resources.limits.memory: <memoryLimit>`              | Policy `memoryLimit` (like `512Mi`), and no `requests.memory` set      |
+| `loadbalancer-open-to-world`    | medium | `spec.loadBalancerSourceRanges: <list>`               | Policy `loadBalancerSourceRanges` (CIDRs)                              |
 
 For each one:
 
@@ -83,8 +85,10 @@ writes nothing. The CLI, web page, VS Code extension and GitHub Action all call 
    applied.
 3. Build the edit against the **source text** with the `yaml` syntax tree: replace one scalar, or insert
    the missing keys after the last key of the right mapping. Comments, quoting, blank lines and other
-   documents are not touched. Layouts it cannot edit exactly (flow style `{ a: 1 }`, aliases, odd
-   structures) are reported as `unsupported-layout`.
+   documents are not touched. Flow style (`{ a: 1 }`) and JSON are edited in their own style. A key
+   that holds an alias (`securityContext: *base`) gets a local override next to a `<<: *base` merge, so
+   the anchor and its other users are untouched. Layouts it still cannot edit exactly (an aliased list
+   item, a comment inside an empty `{ }`, odd structures) are reported as `unsupported-layout`.
 4. Check that fix on its own. The YAML must still parse, the document count must be the same, the data of
    every document must equal the original plus the intended change (nothing else may differ), the
    finding must be gone, and no new finding may appear. If any check fails, the fix is dropped and
@@ -162,7 +166,8 @@ Fix this manifest (preview first)`, which opens a diff and asks before applying.
 
 - Fixes change meaning in ways static analysis cannot prove safe. `runAsNonRoot` fails Pods whose image
   runs as root. A memory limit can OOM-kill an app. Risk levels are guidance, so review the diff.
-- Edits support block-style YAML. Flow style, aliases and merge keys are skipped, not rewritten.
+- Edits cover block YAML, flow YAML, JSON and aliased mappings. An alias is overridden, never changed
+  in place, and only when that cannot hide something it provides. The rest is skipped, not rewritten.
 - A fix sets fields on the object in the file. It does not know about Kustomize patches, Helm values,
   admission policies or a `LimitRange` that may also set values. Helm templates are not Kubernetes YAML
   and are not edited.

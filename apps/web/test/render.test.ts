@@ -127,9 +127,19 @@ describe('renderCheck', () => {
   });
 
   it('says so when there is nothing to report', () => {
-    const root = renderCheck(checkManifest('kind: ConfigMap\ndata: {}\n', rules));
+    const root = renderCheck(
+      checkManifest('apiVersion: v1\nkind: Service\nmetadata: {name: s}\n', rules),
+    );
     expect(root.querySelector('.summary')?.textContent).toBe('No issues found.');
     expect(root.querySelectorAll('.chip').length).toBe(0);
+  });
+
+  it('does not call a kind without rules clean', () => {
+    const crd = 'apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata: {name: c}\n';
+    const root = renderCheck(checkManifest(crd, rules));
+    expect(root.querySelector('.summary')?.textContent).toMatch(/not checked/);
+    expect(root.querySelector('.coverage-unchecked')?.textContent).toMatch(/custom resource/);
+    expect(root.querySelector('.meta')?.textContent).toBe('not checked');
   });
 
   it('hides a severity when its chip is switched off, and remembers it', () => {

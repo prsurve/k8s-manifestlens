@@ -1,0 +1,13 @@
+# Starter rules for PodDisruptionBudget.
+id: pdb-blocks-eviction
+title: Budget allows no Pod to be evicted
+severity: warning
+kinds: [PodDisruptionBudget]
+when:
+  any:
+    - in: { spec.maxUnavailable: [0, '0', '0%'] }
+    - in: { spec.minAvailable: ['100%'] }
+report: [spec.maxUnavailable, spec.minAvailable]
+message: 'PodDisruptionBudget "{name}" never lets a Pod be evicted.'
+why: With zero Pods allowed to be unavailable, kubectl drain and node upgrades hang forever on these Pods.
+fix: Allow at least one Pod to be unavailable, for example maxUnavailable 1.

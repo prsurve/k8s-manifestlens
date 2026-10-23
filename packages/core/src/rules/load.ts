@@ -212,7 +212,13 @@ function toCondition(raw: unknown, fail: (msg: string) => never): Condition {
       if (op === 'matches') {
         if (typeof value !== 'string') return fail('"matches" takes a regular expression string.');
         try {
-          return { op, path, pattern: new RegExp(value) };
+          // A leading (?i) makes the pattern case-insensitive, as in most regex dialects.
+          const insensitive = value.startsWith('(?i)');
+          return {
+            op,
+            path,
+            pattern: new RegExp(insensitive ? value.slice(4) : value, insensitive ? 'i' : ''),
+          };
         } catch {
           return fail(`invalid regular expression "${value}".`);
         }
@@ -229,6 +235,20 @@ function toCondition(raw: unknown, fail: (msg: string) => never): Condition {
       return { op, conditions: arg.map((c) => toCondition(c, fail)) };
     case 'not':
       return { op: 'not', condition: toCondition(arg, fail) };
+    case 'some': {
+      const obj = arg as Record<string, unknown> | null;
+      if (
+        obj === null ||
+        typeof obj !== 'object' ||
+        Array.isArray(obj) ||
+        typeof obj.in !== 'string' ||
+        obj.where === undefined ||
+        Object.keys(obj).length !== 2
+      ) {
+        return fail('"some" takes { in: path-to-a-list, where: condition }.');
+      }
+      return { op: 'some', path: obj.in, condition: toCondition(obj.where, fail) };
+    }
     default:
       return fail(`unknown operator "${op}".`);
   }

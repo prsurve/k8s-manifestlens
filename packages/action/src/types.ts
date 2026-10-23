@@ -96,12 +96,25 @@ export interface ChangedObject {
   effects: string[];
 }
 
+/** An object ManifestLens read but has no rules for, so "no findings" says nothing about it. */
+export interface NotChecked {
+  file: string;
+  line: number;
+  /** e.g. `Certificate "web-tls"` */
+  object: string;
+  kind?: string;
+  apiVersion?: string;
+  level: 'explain-only' | 'unchecked';
+  message: string;
+}
+
 export interface Analysis {
   findings: LocatedFinding[];
   parseProblems: ParseProblem[];
   suppressed: number;
   filesChecked: number;
   changes: ChangedObject[];
+  notChecked: NotChecked[];
   /** Rule ids named in settings that no rule has: usually a typo. */
   unknownRules: string[];
 }
