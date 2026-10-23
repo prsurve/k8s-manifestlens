@@ -7,6 +7,7 @@ import {
   fixManifest,
   loadBundledRules,
   parseFixPolicy,
+  parseCrds,
   parseRules,
   unifiedDiff,
 } from '@manifestlens/core';
@@ -39,23 +40,36 @@ inject();
 
 const bundled = loadBundledRules();
 
-/** Bundled rules plus any the user pasted. Shows the error and falls back to bundled on bad rules. */
+/** Show a message under a text box, or hide the box's error line when there is none. */
+function setError(id: string, message: string | undefined): void {
+  const el = $(id);
+  el.hidden = message === undefined;
+  el.textContent = message ?? '';
+}
+
+/**
+ * Bundled rules plus any the user pasted, and the schemas of any pasted CustomResourceDefinitions.
+ * Shows the error under the box that caused it and leaves that box's contribution out.
+ */
 function currentRules(): Rule[] {
-  const text = input('extra-rules').value;
-  const error = $('rules-error');
-  error.hidden = true;
-  if (text.trim() === '') return bundled;
-  try {
-    const extra = parseRules(text, 'your rules');
-    const ids = new Set(bundled.map((r) => r.id));
-    const clash = extra.find((r) => ids.has(r.id));
-    if (clash) throw new RuleError(`Rule id "${clash.id}" is already used by a built-in rule.`);
-    return [...bundled, ...extra];
-  } catch (err) {
-    error.textContent = err instanceof Error ? err.message : String(err);
-    error.hidden = false;
-    return bundled;
-  }
+  const rules = [...bundled];
+  const ids = new Set(rules.map((r) => r.id));
+  const add = (boxId: string, errorId: string, parse: () => Rule[]): void => {
+    setError(errorId, undefined);
+    if (input(boxId).value.trim() === '') return;
+    try {
+      const extra = parse();
+      const clash = extra.find((r) => ids.has(r.id));
+      if (clash) throw new RuleError(`Rule id "${clash.id}" is already used by a built-in rule.`);
+      for (const r of extra) ids.add(r.id);
+      rules.push(...extra);
+    } catch (err) {
+      setError(errorId, err instanceof Error ? err.message : String(err));
+    }
+  };
+  add('extra-rules', 'rules-error', () => parseRules(input('extra-rules').value, 'your rules'));
+  add('extra-crds', 'crds-error', () => parseCrds(input('extra-crds').value, 'your CRDs'));
+  return rules;
 }
 
 /** Select a line of a text box and bring it into view, so a result row can point at its source. */
@@ -114,7 +128,7 @@ function update(tab: Tab): void {
     const out = $('explain-output');
     if (source.trim() === '')
       return show(out, renderMessage('Paste a manifest to see it explained, line by line.'));
-    const result = explainManifest(source);
+    const result = explainManifest(source, currentRules());
     show(
       out,
       result.documents.length
@@ -215,6 +229,7 @@ function init(): void {
     'diff-old',
     'diff-new',
     'extra-rules',
+    'extra-crds',
     'fix-input',
     'fix-policy',
   ]) {

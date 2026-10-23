@@ -1,0 +1,99 @@
+import { parse, stringify } from 'yaml';
+import { describe, expect, it } from 'vitest';
+import { checkManifest, explainManifest, parseCrds, RuleError } from '../src/index.js';
+
+const CRD = `
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata: { name: widgets.example.com }
+spec:
+  group: example.com
+  names: { kind: Widget, plural: widgets }
+  versions:
+    - name: v1
+      served: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required: [spec]
+          properties:
+            spec:
+              type: object
+              required: [size]
+              description: What the widget should look like.
+              properties:
+                size:
+                  type: integer
+                  minimum: 1
+                  description: How many sprockets.
+                mode:
+                  type: string
+                  enum: [fast, slow]
+                dnsNames:
+                  type: array
+                  items: { type: string }
+                labels:
+                  type: object
+                  additionalProperties: { type: string }
+                free:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+`;
+
+const rules = parseCrds(CRD);
+const check = (yaml: string) => checkManifest(yaml, rules).documents[0]?.findings ?? [];
+const ids = (yaml: string) => check(yaml).map((f) => f.ruleId);
+const head = 'apiVersion: example.com/v1\nkind: Widget\nmetadata: { name: w }\n';
+
+describe('parseCrds', () => {
+  it('makes one rule per version and marks the kind as checked', () => {
+    expect(rules).toHaveLength(1);
+    const doc = checkManifest(`${head}spec: { size: 2 }`, rules).documents[0];
+    expect(doc?.coverage.level).toBe('checked');
+  });
+
+  it('accepts a kubectl List and rejects other kinds', () => {
+    const list = stringify({ kind: 'List', items: [parse(CRD)] });
+    expect(parseCrds(list)).toHaveLength(1);
+    expect(() => parseCrds('kind: Deployment\n')).toThrow(RuleError);
+  });
+});
+
+describe('schema checks', () => {
+  it('passes a valid resource, including free-form and map fields', () => {
+    expect(
+      ids(`${head}spec:\n  size: 3\n  mode: fast\n  labels: { a: b }\n  free: { anything: [1] }\n`),
+    ).toEqual([]);
+  });
+
+  it('flags an unknown field with a did-you-mean and the right line', () => {
+    const [f] = check(`${head}spec:\n  size: 3\n  dnsNmaes: [a]\n`);
+    expect(f?.ruleId).toBe('crd-unknown-field');
+    expect(f?.message).toContain('Did you mean "dnsNames"?');
+    expect(f?.line).toBe(6);
+  });
+
+  it('flags a missing required field, a wrong type and a bad value', () => {
+    expect(ids(`${head}spec: { mode: fast }`)).toEqual(['crd-missing-required']);
+    expect(ids(`${head}spec: { size: three }`)).toEqual(['crd-wrong-type']);
+    expect(ids(`${head}spec: { size: 0, mode: warp }`).sort()).toEqual([
+      'crd-invalid-value',
+      'crd-invalid-value',
+    ]);
+  });
+
+  it('flags a version the CRD does not define', () => {
+    const yaml = 'apiVersion: example.com/v2\nkind: Widget\nspec: { size: 1 }\n';
+    expect(ids(yaml)).toEqual(['crd-unknown-version']);
+  });
+});
+
+describe('explain', () => {
+  it('uses the CRD descriptions for the fields of a custom kind', () => {
+    const doc = explainManifest(`${head}spec: { size: 2, dnsNames: [a] }`, rules).documents[0];
+    expect(doc?.unsupportedKind).toBe(false);
+    expect(doc?.fields.find((f) => f.pattern === 'spec.size')?.explanation).toBe(
+      'How many sprockets.',
+    );
+  });
+});

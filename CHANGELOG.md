@@ -4,6 +4,13 @@
 
 ### Added
 
+- **Custom resources from a CRD.** Give ManifestLens a CustomResourceDefinition and documents of that
+  kind are explained from the CRD's descriptions and checked against its schema: unknown fields (with
+  a "did you mean"), wrong types, missing required fields, enum, pattern and range violations, and an
+  `apiVersion` the CRD does not define. Web page: a "Custom resources" box. CLI: `--crd`. GitHub
+  Action: the `crds` input. Core API: `parseCrds` and an optional `rules` argument for
+  `explainManifest`. Schema features that need a full validator (`oneOf`, CEL rules) are skipped.
+  See [docs/custom-resources.md](docs/custom-resources.md).
 - **Automatic fixes.** Rules can carry a structured `autofix`. `manifestlens fix <file>` previews
   validated fixes as a unified diff and writes them only with `--write` (a `.bak` copy is kept). Options:
   `--policy`, `--max-risk`, `--only`, `--no-backup`, plus `--rules` as for `check`.
