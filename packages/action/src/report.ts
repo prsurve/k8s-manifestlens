@@ -33,6 +33,7 @@ const ICON: Record<Severity, string> = { error: '🔴', warning: '🟠', info: '
 export function md(text: string): string {
   return text
     .replace(/[\r\n]+/g, ' ')
+    .replace(/\\/g, '\\\\')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

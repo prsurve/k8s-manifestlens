@@ -40,6 +40,10 @@ describe('md: untrusted text', () => {
       'a \\| b &lt;img src=x onerror=alert(1)&gt; &amp; more',
     );
   });
+
+  it('escapes a backslash first, so it cannot cancel the escape in front of a pipe', () => {
+    expect(md('a\\|b')).toBe('a\\\\\\|b');
+  });
 });
 
 describe('job summary', () => {

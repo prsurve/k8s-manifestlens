@@ -33148,7 +33148,7 @@ var MAX_COMMENT_ROWS = 15;
 var MAX_COMMENT_CHARS = 6e4;
 var ICON = { error: "\u{1F534}", warning: "\u{1F7E0}", info: "\u{1F535}" };
 function md(text2) {
-  return text2.replace(/[\r\n]+/g, " ").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\|/g, "\\|");
+  return text2.replace(/[\r\n]+/g, " ").replace(/\\/g, "\\\\").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\|/g, "\\|");
 }
 var code = (text2) => `<code>${md(text2)}</code>`;
 var plural3 = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
