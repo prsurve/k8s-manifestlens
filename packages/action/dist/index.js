@@ -27982,10 +27982,14 @@ function walkObject(obj, schema2, path6, issues, depth, top) {
     if (known) walk2(child, known, childPath, issues, depth + 1);
     else if (typeof extra === "object") walk2(child, extra, childPath, issues, depth + 1);
     else if (props !== void 0 && extra !== true && !open2) {
+      const near = nearest(key, Object.keys(props));
+      const to = near.length === 1 ? near[0] : void 0;
+      const renamable = to !== void 0 && /^[\w-]+$/.test(key) && !Object.hasOwn(obj, to);
       issues.push({
         code: "unknown-field",
         path: childPath,
-        message: `"${childPath}" is not a field of this custom resource.${hint(key, Object.keys(props))}`
+        message: `"${childPath}" is not a field of this custom resource.${hint(near)}`,
+        ...renamable ? { rename: { parent: path6, from: key, to } } : {}
       });
     }
   }
@@ -28061,33 +28065,49 @@ function typeIssue(path6, label2, want, got) {
 function show(v) {
   return typeof v === "string" ? `"${v}"` : String(v);
 }
-function hint(key, known) {
-  const near = known.find((k) => k.toLowerCase() === key.toLowerCase()) ?? closest(key, known);
-  return near ? ` Did you mean "${near}"?` : "";
-}
-function closest(key, known) {
-  let best;
-  let bestD = key.length >= 5 ? 2 : 1;
+function nearest(key, known) {
+  const lower = known.filter((k) => k.toLowerCase() === key.toLowerCase());
+  if (lower.length > 0) return lower;
+  const limit = key.length >= 5 ? 2 : 1;
+  let best = limit + 1;
+  let found = [];
   for (const k of known) {
     const d = editDistance(key, k);
-    if (d <= bestD) {
-      best = k;
-      bestD = d;
-    }
+    if (d < best) {
+      best = d;
+      found = [k];
+    } else if (d === best && d <= limit) found.push(k);
   }
-  return best;
+  return best <= limit ? found : [];
+}
+function hint(near) {
+  if (near.length === 0) return "";
+  const names = near.slice(0, 3).map((k) => `"${k}"`);
+  return ` Did you mean ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`}?`;
 }
 function editDistance(a, b) {
-  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
+  const rows = [];
+  for (let i = 0; i <= a.length; i++) {
     const row = [i];
     for (let j = 1; j <= b.length; j++) {
+      if (i === 0) {
+        row[j] = j;
+        continue;
+      }
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      row[j] = Math.min((prev[j] ?? 0) + 1, (row[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
+      let d = Math.min(
+        (rows[i - 1]?.[j] ?? 0) + 1,
+        (row[j - 1] ?? 0) + 1,
+        (rows[i - 1]?.[j - 1] ?? 0) + cost
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d = Math.min(d, (rows[i - 2]?.[j - 2] ?? 0) + 1);
+      }
+      row[j] = d;
     }
-    prev = row;
+    rows.push(row);
   }
-  return prev[b.length] ?? 0;
+  return rows[a.length]?.[b.length] ?? 0;
 }
 
 // ../core/src/rules/evaluate.ts
@@ -28203,13 +28223,21 @@ function crdMatches(doc, kind, rules, fieldsByPath) {
       id: `crd-${code2}`,
       title: info2.title,
       severity: info2.severity,
-      why: info2.why
+      why: info2.why,
+      ...issue2?.rename ? {
+        autofix: {
+          risk: "medium",
+          summary: `Rename "${issue2.rename.from}" to "${issue2.rename.to}". The settings under it will start to apply, where before they were ignored.`,
+          set: [],
+          rename: issue2.rename
+        }
+      } : {}
     };
     const node = issue2 ? fieldsByPath.get(issue2.path) : void 0;
     const inside = issue2 && !node && issue2.path !== "" ? doc.fields.filter((f) => f.path.startsWith(`${issue2.path}.`)).map((f) => f.line) : [];
     return {
       rule: derived,
-      instance: { path: "", data },
+      instance: { path: issue2?.path ?? "", data },
       ctx: { scope: data, pod: void 0 },
       finding: {
         ruleId: derived.id,
@@ -29023,6 +29051,31 @@ function setInSource(source, documentIndex, steps, value) {
   }
   return unsupported("empty path");
 }
+function renameKeyInSource(source, documentIndex, steps, from, to) {
+  const tree = parseManifestWithTree(source)[documentIndex]?.tree;
+  if (!tree) return unsupported("the document is no longer there");
+  let node = tree.contents;
+  for (const step of steps) {
+    if ((0, import_yaml4.isAlias)(node)) return unsupported("a YAML alias is on the path");
+    if (typeof step === "number") {
+      if (!(0, import_yaml4.isSeq)(node)) return unsupported("expected a list on the path");
+      node = node.items[step];
+    } else {
+      if (!(0, import_yaml4.isMap)(node)) return unsupported(`expected a mapping at "${step}"`);
+      node = node.items.find((p) => (0, import_yaml4.isScalar)(p.key) && String(p.key.value) === step)?.value;
+    }
+    if (node === void 0) return unsupported("the path does not exist");
+  }
+  if (!(0, import_yaml4.isMap)(node)) return unsupported("the parent is not a mapping");
+  const keys = node.items.filter((p) => (0, import_yaml4.isScalar)(p.key)).map((p) => String(p.key.value));
+  if (keys.includes(to)) return unsupported(`"${to}" already exists there`);
+  const pair = node.items.find((p) => (0, import_yaml4.isScalar)(p.key) && String(p.key.value) === from);
+  const range2 = pair && (0, import_yaml4.isScalar)(pair.key) ? pair.key.range : void 0;
+  if (!range2) return unsupported("cannot locate the key");
+  const old = source.slice(range2[0], range2[1]);
+  const quote = old.startsWith('"') || old.startsWith("'") ? old[0] : "";
+  return ok(source, range2[0], range2[1], `${quote}${to}${quote}`);
+}
 function isEmpty(node) {
   if ((0, import_yaml4.isScalar)(node)) return node.value === null || node.value === void 0;
   return (0, import_yaml4.isMap)(node) && node.flow === true && node.items.length === 0;
@@ -29312,6 +29365,13 @@ function setDeep(root, steps, value) {
     node = node[step];
   });
 }
+function renameDeep(root, steps, from, to) {
+  let node = root;
+  for (const step of steps) node = node?.[step];
+  if (node === void 0 || node === null || typeof node !== "object") return;
+  node[to] = node[from];
+  Reflect.deleteProperty(node, from);
+}
 function originalLine(source, text2, line) {
   if (source === text2) return line;
   let before = 0;
@@ -29407,6 +29467,32 @@ function attempt(text2, state, candidate, rules, ctx) {
       spec.blockedMessage ?? "The surrounding settings make this fix unsafe or ambiguous."
     );
   }
+  if (spec.rename) {
+    const { parent, from, to } = spec.rename;
+    const result = renameKeyInSource(text2, candidate.documentIndex, toSteps(parent), from, to);
+    if (!result.ok)
+      return skip("unsupported-layout", `Cannot rename this safely: ${result.detail}.`);
+    const moved = (want) => renameDeep(want, toSteps(parent), from, to);
+    const problem2 = verifyStep(text2, result.text, state, candidate, rules, moved);
+    if (problem2) return skip("validation-failed", problem2);
+    return {
+      text: result.text,
+      applied: {
+        ruleId: rule.id,
+        risk: spec.risk,
+        summary: spec.summary,
+        target: where,
+        line: reported,
+        changes: [
+          {
+            path: parent === "" ? "the document" : parent,
+            before: `key "${from}"`,
+            after: `key "${to}"`
+          }
+        ]
+      }
+    };
+  }
   const resolved = resolveValues(spec, ctx.params);
   if ("reason" in resolved) return skip(resolved.reason, resolved.detail);
   const changes = [];
@@ -29438,7 +29524,9 @@ function attempt(text2, state, candidate, rules, ctx) {
     next = result.text;
   }
   if (next === text2) return skip("precondition-failed", "The field already has this value.");
-  const problem = verifyStep(text2, next, state, candidate, rules, edits);
+  const problem = verifyStep(text2, next, state, candidate, rules, (want) => {
+    for (const e of edits) setDeep(want, e.steps, e.value);
+  });
   if (problem) return skip("validation-failed", problem);
   return {
     text: next,
@@ -29452,7 +29540,7 @@ function attempt(text2, state, candidate, rules, ctx) {
     }
   };
 }
-function verifyStep(before, after, state, candidate, rules, edits) {
+function verifyStep(before, after, state, candidate, rules, change) {
   const parsed = parseManifestWithTree(after);
   if (parsed.length !== state.documents.length) return "The number of documents changed.";
   if (parsed.reduce((n, d) => n + d.manifest.issues.length, 0) > state.issues) {
@@ -29463,7 +29551,7 @@ function verifyStep(before, after, state, candidate, rules, edits) {
     let want = expected[i].manifest.data;
     if (i === candidate.documentIndex) {
       want = want === void 0 ? want : JSON.parse(JSON.stringify(want));
-      for (const e of edits) setDeep(want, e.steps, e.value);
+      change(want);
     }
     if (canon(want) !== canon(d.manifest.data)) {
       return i === candidate.documentIndex ? "The edit changed more than the intended fields." : "The edit changed another document.";

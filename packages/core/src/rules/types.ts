@@ -37,6 +37,8 @@ export interface FixSpec {
   /** Shown when `requires` is false, so the reason is specific ("runAsUser is 0"). */
   blockedMessage?: string;
   set: FixSet[];
+  /** Rename a mapping key instead of setting values; used for a mistyped field of a custom resource. */
+  rename?: { parent: string; from: string; to: string };
 }
 
 /** A subset of an OpenAPI v3 schema, as found in a CustomResourceDefinition. */

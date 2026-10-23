@@ -86,6 +86,16 @@ function crdMatches(
       title: info.title,
       severity: info.severity,
       why: info.why,
+      ...(issue?.rename
+        ? {
+            autofix: {
+              risk: 'medium',
+              summary: `Rename "${issue.rename.from}" to "${issue.rename.to}". The settings under it will start to apply, where before they were ignored.`,
+              set: [],
+              rename: issue.rename,
+            },
+          }
+        : {}),
     };
     const node = issue ? fieldsByPath.get(issue.path) : undefined;
     // A list item has no field of its own: point at its first key. The document itself, at its start.
@@ -95,7 +105,7 @@ function crdMatches(
         : [];
     return {
       rule: derived,
-      instance: { path: '', data },
+      instance: { path: issue?.path ?? '', data },
       ctx: { scope: data, pod: undefined },
       finding: {
         ruleId: derived.id,

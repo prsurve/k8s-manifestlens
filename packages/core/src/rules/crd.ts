@@ -91,6 +91,8 @@ export interface CrdIssue {
   /** Path of the field the issue is about, or of its parent for a missing field. */
   path: string;
   message: string;
+  /** For an unknown field with exactly one clearly closest known name: the key to rename it to. */
+  rename?: { parent: string; from: string; to: string };
 }
 
 export const CRD_ISSUES: Record<CrdIssueCode, { title: string; severity: Severity; why: string }> =
@@ -220,10 +222,15 @@ function walkObject(
     if (known) walk(child, known, childPath, issues, depth + 1);
     else if (typeof extra === 'object') walk(child, extra, childPath, issues, depth + 1);
     else if (props !== undefined && extra !== true && !open) {
+      const near = nearest(key, Object.keys(props));
+      const to = near.length === 1 ? near[0] : undefined;
+      // Only a plain key with one clear match, and no field of that name already there, is renamed.
+      const renamable = to !== undefined && /^[\w-]+$/.test(key) && !Object.hasOwn(obj, to);
       issues.push({
         code: 'unknown-field',
         path: childPath,
-        message: `"${childPath}" is not a field of this custom resource.${hint(key, Object.keys(props))}`,
+        message: `"${childPath}" is not a field of this custom resource.${hint(near)}`,
+        ...(renamable ? { rename: { parent: path, from: key, to } } : {}),
       });
     }
   }
@@ -321,36 +328,53 @@ function show(v: unknown): string {
   return typeof v === 'string' ? `"${v}"` : String(v);
 }
 
-function hint(key: string, known: string[]): string {
-  const near = known.find((k) => k.toLowerCase() === key.toLowerCase()) ?? closest(key, known);
-  return near ? ` Did you mean "${near}"?` : '';
-}
-
-/** A known name within one or two edits, e.g. `dnsNmaes` for `dnsNames`. */
-function closest(key: string, known: string[]): string | undefined {
-  let best: string | undefined;
-  let bestD = key.length >= 5 ? 2 : 1;
+/** The known names closest to `key` (all tied at the smallest distance), if any is a likely typo. */
+function nearest(key: string, known: string[]): string[] {
+  const lower = known.filter((k) => k.toLowerCase() === key.toLowerCase());
+  if (lower.length > 0) return lower;
+  const limit = key.length >= 5 ? 2 : 1;
+  let best = limit + 1;
+  let found: string[] = [];
   for (const k of known) {
     const d = editDistance(key, k);
-    if (d <= bestD) {
-      best = k;
-      bestD = d;
-    }
+    if (d < best) {
+      best = d;
+      found = [k];
+    } else if (d === best && d <= limit) found.push(k);
   }
-  return best;
+  return best <= limit ? found : [];
 }
 
+function hint(near: string[]): string {
+  if (near.length === 0) return '';
+  const names = near.slice(0, 3).map((k) => `"${k}"`);
+  return ` Did you mean ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`}?`;
+}
+
+/** Edits to turn `a` into `b`; swapping two neighbouring letters (`nmae`) counts as one. */
 function editDistance(a: string, b: string): number {
-  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    const row = [i];
+  const rows: number[][] = [];
+  for (let i = 0; i <= a.length; i++) {
+    const row: number[] = [i];
     for (let j = 1; j <= b.length; j++) {
+      if (i === 0) {
+        row[j] = j;
+        continue;
+      }
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      row[j] = Math.min((prev[j] ?? 0) + 1, (row[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
+      let d = Math.min(
+        (rows[i - 1]?.[j] ?? 0) + 1,
+        (row[j - 1] ?? 0) + 1,
+        (rows[i - 1]?.[j - 1] ?? 0) + cost,
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d = Math.min(d, (rows[i - 2]?.[j - 2] ?? 0) + 1);
+      }
+      row[j] = d;
     }
-    prev = row;
+    rows.push(row);
   }
-  return prev[b.length] ?? 0;
+  return rows[a.length]?.[b.length] ?? 0;
 }
 
 /** The description the CRD gives for a field pattern like `spec.dnsNames[]`. */

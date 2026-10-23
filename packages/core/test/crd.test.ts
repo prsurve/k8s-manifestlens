@@ -1,6 +1,6 @@
 import { parse, stringify } from 'yaml';
 import { describe, expect, it } from 'vitest';
-import { checkManifest, explainManifest, parseCrds, RuleError } from '../src/index.js';
+import { checkManifest, explainManifest, fixManifest, parseCrds, RuleError } from '../src/index.js';
 
 const CRD = `
 apiVersion: apiextensions.k8s.io/v1
@@ -132,5 +132,59 @@ describe('explain', () => {
     expect(doc?.fields.find((f) => f.pattern === 'spec.size')?.explanation).toBe(
       'How many sprockets.',
     );
+  });
+});
+
+describe('renaming a mistyped field', () => {
+  const fix = (yaml: string, maxRisk: 'low' | 'medium' = 'medium') =>
+    fixManifest(yaml, rules, { maxRisk });
+
+  it('renames an unknown field to its one clear match, keeping comments and the value', () => {
+    const yaml = `${head}spec:\n  mode: fast\n  sise: 3 # typo\n`;
+    const r = fix(yaml);
+    expect(r.status).toBe('fixed');
+    expect(r.fixed).toBe(`${head}spec:\n  mode: fast\n  size: 3 # typo\n`);
+    expect(r.applied[0]?.risk).toBe('medium');
+    expect(r.remaining).toBe(0);
+  });
+
+  it('does nothing at the default low risk and says why', () => {
+    const r = fix(`${head}spec:\n  sise: 3\n`, 'low');
+    expect(r.status).toBe('unchanged');
+    expect(r.skipped[0]?.reason).toBe('risk-too-high');
+  });
+
+  it('renames inside a list item, and keeps a quoted key quoted', () => {
+    const crd = parseCrds(
+      CRD.replace(
+        'dnsNames:\n                  type: array\n                  items: { type: string }',
+        'rows:\n                  type: array\n                  items:\n                    type: object\n                    properties: { name: { type: string } }',
+      ),
+    );
+    const yaml = `${head}spec:\n  size: 1\n  rows:\n    - "nmae": a\n`;
+    const r = fixManifest(yaml, crd, { maxRisk: 'medium' });
+    expect(r.fixed).toBe(`${head}spec:\n  size: 1\n  rows:\n    - "name": a\n`);
+  });
+
+  it('leaves an ambiguous typo, an existing target and a plain unknown field alone', () => {
+    const two = parseCrds(
+      CRD.replace(
+        'mode:',
+        'volumeA: { type: string }\n                volumeB: { type: string }\n                mode:',
+      ),
+    );
+    const ambiguous = fixManifest(`${head}spec:\n  size: 1\n  volumeC: x\n`, two, {
+      maxRisk: 'medium',
+    });
+    expect(ambiguous.status).toBe('unchanged');
+    expect(ambiguous.unfixed[0]?.message).toContain('"volumeA" or "volumeB"');
+    expect(fix(`${head}spec:\n  size: 1\n  sise: 2\n`).status).toBe('unchanged');
+    expect(fix(`${head}spec:\n  size: 1\n  zzzzzz: 2\n`).status).toBe('unchanged');
+  });
+
+  it('refuses a rename that would expose a new problem', () => {
+    const r = fix(`${head}spec:\n  size: 1\n  modee: warp\n`);
+    expect(r.status).toBe('unchanged');
+    expect(r.skipped[0]?.reason).toBe('validation-failed');
   });
 });

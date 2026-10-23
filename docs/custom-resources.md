@@ -37,11 +37,28 @@ first.
 | `crd-missing-required` | error    | A `required` field is absent.                                                       |
 | `crd-unknown-version`  | warning  | The `apiVersion` is not one of the CRD's versions.                                  |
 
+## Renaming a mistyped field
+
+When a field is not in the CRD but exactly one field name is clearly closest (`volue` and `volumes`,
+or `nmae` and `name`), `fix` can rename it. The rename is **medium risk**: the settings under the
+key were ignored before and will start to apply afterwards. So it is only applied with
+`--max-risk medium` (web: "Apply up to: medium"), and the diff is always shown first.
+
+It is skipped, and the finding stays a manual fix, when:
+
+- two or more names are equally close, or none is close;
+- a field with the new name already exists in that mapping;
+- the key is not a plain word (it contains dots or brackets) or comes in through a YAML merge;
+- the renamed block would then fail the schema. Every fix is re-checked, and one that adds a finding
+  is dropped.
+
+Only the key's own text changes. The value, comments and quoting stay as written.
+
 ## Limits
 
 - A CRD describes the shape of a resource, not good practice. ManifestLens does not judge whether
   the values are risky. Write [rules](writing-rules.md) for that, using the custom kind in `kinds`.
-- Fixes are not generated from a CRD.
+- The only automatic fix is renaming a mistyped field (see below). Nothing else is guessed.
 - Parts of a schema that need a full validator (`oneOf`, `anyOf`, `allOf`, `not`, and CEL
   `x-kubernetes-validations`) are skipped, not guessed at. Fields under
   `x-kubernetes-preserve-unknown-fields` accept anything.

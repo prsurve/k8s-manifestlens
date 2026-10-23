@@ -5,7 +5,7 @@ import type { RuleMatch } from '../rules/check.js';
 import { evaluate, resolve } from '../rules/evaluate.js';
 import type { Finding, FixSet, FixSpec, Rule } from '../rules/types.js';
 import { diffLines } from './diff.js';
-import { setInSource, toSteps } from './edit.js';
+import { renameKeyInSource, setInSource, toSteps } from './edit.js';
 import type { Step } from './edit.js';
 import { fingerprint } from './hash.js';
 import { RISK_ORDER } from './types.js';
@@ -176,6 +176,15 @@ function setDeep(root: unknown, steps: Step[], value: unknown): void {
   });
 }
 
+/** The expected data after renaming `from` to `to` in the mapping at `steps`. */
+function renameDeep(root: unknown, steps: Step[], from: string, to: string): void {
+  let node = root as Record<string | number, unknown> | undefined;
+  for (const step of steps) node = node?.[step] as Record<string | number, unknown> | undefined;
+  if (node === undefined || node === null || typeof node !== 'object') return;
+  node[to] = node[from];
+  Reflect.deleteProperty(node, from);
+}
+
 /** Where a line of the current text sits in the original: earlier fixes insert lines above it. */
 function originalLine(source: string, text: string, line: number): number {
   if (source === text) return line;
@@ -322,6 +331,32 @@ function attempt(
       spec.blockedMessage ?? 'The surrounding settings make this fix unsafe or ambiguous.',
     );
   }
+  if (spec.rename) {
+    const { parent, from, to } = spec.rename;
+    const result = renameKeyInSource(text, candidate.documentIndex, toSteps(parent), from, to);
+    if (!result.ok)
+      return skip('unsupported-layout', `Cannot rename this safely: ${result.detail}.`);
+    const moved = (want: unknown): void => renameDeep(want, toSteps(parent), from, to);
+    const problem = verifyStep(text, result.text, state, candidate, rules, moved);
+    if (problem) return skip('validation-failed', problem);
+    return {
+      text: result.text,
+      applied: {
+        ruleId: rule.id,
+        risk: spec.risk,
+        summary: spec.summary,
+        target: where,
+        line: reported,
+        changes: [
+          {
+            path: parent === '' ? 'the document' : parent,
+            before: `key "${from}"`,
+            after: `key "${to}"`,
+          },
+        ],
+      },
+    };
+  }
   const resolved = resolveValues(spec, ctx.params);
   if ('reason' in resolved) return skip(resolved.reason, resolved.detail);
 
@@ -360,7 +395,9 @@ function attempt(
   }
   if (next === text) return skip('precondition-failed', 'The field already has this value.');
 
-  const problem = verifyStep(text, next, state, candidate, rules, edits);
+  const problem = verifyStep(text, next, state, candidate, rules, (want) => {
+    for (const e of edits) setDeep(want, e.steps, e.value);
+  });
   if (problem) return skip('validation-failed', problem);
 
   return {
@@ -383,7 +420,7 @@ function verifyStep(
   state: Analysis,
   candidate: Analysis['matches'][number],
   rules: Rule[],
-  edits: { steps: Step[]; value: unknown }[],
+  change: (want: unknown) => void,
 ): string | undefined {
   const parsed = parseManifestWithTree(after);
   if (parsed.length !== state.documents.length) return 'The number of documents changed.';
@@ -397,7 +434,7 @@ function verifyStep(
     let want = (expected[i] as { manifest: { data?: unknown } }).manifest.data;
     if (i === candidate.documentIndex) {
       want = want === undefined ? want : (JSON.parse(JSON.stringify(want)) as unknown);
-      for (const e of edits) setDeep(want, e.steps, e.value);
+      change(want);
     }
     if (canon(want) !== canon(d.manifest.data)) {
       return i === candidate.documentIndex

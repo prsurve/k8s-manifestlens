@@ -10,6 +10,9 @@
   `apiVersion` the CRD does not define. Web page: a "Custom resources" box that also loads a GitHub link. CLI: `--crd`. GitHub
   Action: the `crds` input. Core API: `parseCrds` and an optional `rules` argument for
   `explainManifest`. Schema features that need a full validator (`oneOf`, CEL rules) are skipped.
+  A mistyped field with one clear closest match can be renamed by `fix` (medium risk, preview first).
+  `fix` also lists the findings it cannot fix under "Needs a manual fix", and a clicked finding in the
+  web page scrolls to its line even when long lines wrap.
   See [docs/custom-resources.md](docs/custom-resources.md).
 - **Automatic fixes.** Rules can carry a structured `autofix`. `manifestlens fix <file>` previews
   validated fixes as a unified diff and writes them only with `--write` (a `.bak` copy is kept). Options:
