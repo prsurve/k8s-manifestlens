@@ -110,5 +110,6 @@ jobs:
           base-ref: HEAD~1
           mode: report
           comment: never
+          annotations: false
       - name: Expect it to have run
         run: test -n "${{ steps.lens.outputs.result }}"
