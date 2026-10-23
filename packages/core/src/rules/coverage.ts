@@ -53,30 +53,51 @@ export function kindCoverage(
   rules: Rule[],
 ): Coverage {
   if (kind === undefined) {
-    return {
-      level: 'unchecked',
-      message:
-        'This document has no "kind", so ManifestLens cannot tell what it is and checked nothing.',
-    };
+    return describe(
+      'unchecked',
+      'No "kind" field',
+      'Without a kind ManifestLens cannot tell what this is, so nothing was checked.',
+    );
   }
   if (Object.hasOwn(POD_SPEC_PATH, kind) || rules.some((r) => r.kinds.includes(kind))) {
     return { level: 'checked' };
   }
-  const caveat = '"No findings" here does not mean it is safe.';
   if (hasDocsFor(kind)) {
-    return {
-      level: 'explain-only',
-      message: `ManifestLens explains ${kind} fields but has no rules that check it. ${caveat}`,
-    };
+    return describe(
+      'explain-only',
+      `No rules for ${kind}`,
+      `ManifestLens explains ${kind} fields, but no rule checks it.`,
+    );
   }
-  const custom = isCustomResource(apiVersion);
-  const what = custom
-    ? `${kind} (${apiVersion}) is a custom resource`
-    : `ManifestLens does not know the kind ${kind}`;
-  const guess = custom ? undefined : suggestKind(kind, rules);
-  const hint = guess ? ` Is "${kind}" a typo for "${guess}"?` : '';
+  if (isCustomResource(apiVersion)) {
+    return describe(
+      'unchecked',
+      `Custom resource ${kind} (${apiVersion})`,
+      'ManifestLens has no rules for custom resources, so it was not checked.',
+    );
+  }
+  return describe(
+    'unchecked',
+    `Unknown kind "${kind}"`,
+    'ManifestLens has no rules for it, so it was not checked.',
+    suggestKind(kind, rules),
+  );
+}
+
+function describe(
+  level: 'explain-only' | 'unchecked',
+  headline: string,
+  detail: string,
+  suggestion?: string,
+): Coverage {
+  const note = '"No findings" does not mean it is safe.';
+  const hint = suggestion ? `Did you mean "${suggestion}"?` : undefined;
   return {
-    level: 'unchecked',
-    message: `${what}, so it was not checked: only generic checks, such as removed apiVersions, ran on it.${hint} ${caveat}`,
+    level,
+    headline,
+    detail,
+    note,
+    ...(suggestion !== undefined ? { suggestion } : {}),
+    message: [`${headline}.`, detail, hint, note].filter(Boolean).join(' '),
   };
 }

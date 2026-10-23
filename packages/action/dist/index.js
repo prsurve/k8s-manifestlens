@@ -28308,28 +28308,46 @@ function checkedKinds(rules) {
 }
 function kindCoverage(kind, apiVersion, rules) {
   if (kind === void 0) {
-    return {
-      level: "unchecked",
-      message: 'This document has no "kind", so ManifestLens cannot tell what it is and checked nothing.'
-    };
+    return describe(
+      "unchecked",
+      'No "kind" field',
+      "Without a kind ManifestLens cannot tell what this is, so nothing was checked."
+    );
   }
   if (Object.hasOwn(POD_SPEC_PATH, kind) || rules.some((r) => r.kinds.includes(kind))) {
     return { level: "checked" };
   }
-  const caveat = '"No findings" here does not mean it is safe.';
   if (hasDocsFor(kind)) {
-    return {
-      level: "explain-only",
-      message: `ManifestLens explains ${kind} fields but has no rules that check it. ${caveat}`
-    };
+    return describe(
+      "explain-only",
+      `No rules for ${kind}`,
+      `ManifestLens explains ${kind} fields, but no rule checks it.`
+    );
   }
-  const custom = isCustomResource(apiVersion);
-  const what = custom ? `${kind} (${apiVersion}) is a custom resource` : `ManifestLens does not know the kind ${kind}`;
-  const guess = custom ? void 0 : suggestKind(kind, rules);
-  const hint = guess ? ` Is "${kind}" a typo for "${guess}"?` : "";
+  if (isCustomResource(apiVersion)) {
+    return describe(
+      "unchecked",
+      `Custom resource ${kind} (${apiVersion})`,
+      "ManifestLens has no rules for custom resources, so it was not checked."
+    );
+  }
+  return describe(
+    "unchecked",
+    `Unknown kind "${kind}"`,
+    "ManifestLens has no rules for it, so it was not checked.",
+    suggestKind(kind, rules)
+  );
+}
+function describe(level, headline2, detail, suggestion) {
+  const note = '"No findings" does not mean it is safe.';
+  const hint = suggestion ? `Did you mean "${suggestion}"?` : void 0;
   return {
-    level: "unchecked",
-    message: `${what}, so it was not checked: only generic checks, such as removed apiVersions, ran on it.${hint} ${caveat}`
+    level,
+    headline: headline2,
+    detail,
+    note,
+    ...suggestion !== void 0 ? { suggestion } : {},
+    message: [`${headline2}.`, detail, hint, note].filter(Boolean).join(" ")
   };
 }
 
@@ -28860,12 +28878,16 @@ function analyze(text2, rules) {
   for (const { manifest: doc } of parsed) {
     out.issues += doc.issues.length;
     const coverage = kindCoverage(doc.kind, doc.apiVersion, rules);
-    if (coverage.level !== "checked" && coverage.message) {
+    if (coverage.level !== "checked" && coverage.headline && coverage.detail && coverage.note && coverage.message) {
       out.notChecked.push({
         document: doc.index,
         line: doc.startLine,
         level: coverage.level,
+        headline: coverage.headline,
+        detail: coverage.detail,
+        note: coverage.note,
         message: coverage.message,
+        ...coverage.suggestion !== void 0 ? { suggestion: coverage.suggestion } : {},
         ...doc.kind !== void 0 ? { kind: doc.kind } : {},
         ...doc.name !== void 0 ? { name: doc.name } : {}
       });

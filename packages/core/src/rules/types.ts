@@ -78,7 +78,16 @@ export interface Finding {
  */
 export interface Coverage {
   level: 'checked' | 'explain-only' | 'unchecked';
-  /** What to tell the reader; absent when the document was checked. */
+  /** Everything below is absent when the document was checked. */
+  /** The point in a few words, e.g. `Unknown kind "Podds"`. */
+  headline?: string;
+  /** Why, in one sentence. */
+  detail?: string;
+  /** The known kind this is probably a typo for. */
+  suggestion?: string;
+  /** What an empty result does and does not mean. */
+  note?: string;
+  /** All of the above as one paragraph, for places that show a single line. */
   message?: string;
 }
 

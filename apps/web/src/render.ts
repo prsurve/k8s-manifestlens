@@ -242,6 +242,23 @@ function applyHidden(root: HTMLElement, view: View): void {
   for (const s of view.hidden) root.setAttribute(`data-hide-${s}`, '');
 }
 
+/** A "not checked" box: the point first, then why, the likely typo, and what an empty result means. */
+function coverageNote(
+  c: { level: string; headline?: string; detail?: string; suggestion?: string; note?: string },
+  what: string,
+  line: number,
+): HTMLElement {
+  return el('div', { class: `coverage coverage-${c.level}` }, [
+    el('p', { class: 'coverage-head' }, [
+      el('strong', { text: `Not checked: ${c.headline ?? what}` }),
+      el('span', { class: 'coverage-where', text: `${what}, line ${line}` }),
+    ]),
+    c.detail && el('p', { text: c.detail }),
+    c.suggestion && el('p', {}, ['Did you mean ', el('code', { text: c.suggestion }), '?']),
+    c.note && el('p', { class: 'coverage-note', text: c.note }),
+  ]);
+}
+
 export function renderCheck(result: CheckResult, view: View = createView()): HTMLElement {
   const root = el('div');
   applyHidden(root, view);
@@ -278,11 +295,7 @@ export function renderCheck(result: CheckResult, view: View = createView()): HTM
           }),
         ]),
         ...issues(doc.issues),
-        doc.coverage.message &&
-          el('p', {
-            class: `coverage coverage-${doc.coverage.level}`,
-            text: doc.coverage.message,
-          }),
+        doc.coverage.level !== 'checked' && coverageNote(doc.coverage, title(doc), doc.startLine),
         doc.findings.length > 0 && findingList(doc.findings, view, 'main'),
       ]),
     );
@@ -492,12 +505,7 @@ export function renderFix(result: FixResult, diff: string, actions: FixActions =
   }
 
   for (const d of result.notChecked) {
-    root.append(
-      el('p', {
-        class: `coverage coverage-${d.level}`,
-        text: `${d.kind ?? 'Document'}${d.name ? ` "${d.name}"` : ''}, line ${d.line}: ${d.message}`,
-      }),
-    );
+    root.append(coverageNote(d, `${d.kind ?? 'Document'}${d.name ? ` "${d.name}"` : ''}`, d.line));
   }
 
   if (n > 0) {

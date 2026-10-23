@@ -96,6 +96,10 @@ export interface UncheckedDocument {
   /** 1-based line where the document starts. */
   line: number;
   level: 'explain-only' | 'unchecked';
+  headline: string;
+  detail: string;
+  suggestion?: string;
+  note: string;
   message: string;
 }
 

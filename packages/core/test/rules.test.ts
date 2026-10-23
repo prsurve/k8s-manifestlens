@@ -169,17 +169,17 @@ describe('kind coverage', () => {
   it('says a known kind without rules is explained but not checked', () => {
     const [c] = cov('apiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\n');
     expect(c?.level).toBe('explain-only');
-    expect(c?.message).toMatch(/no rules that check it/);
+    expect(c?.message).toMatch(/no rule checks it/);
   });
 
   it('flags unknown kinds, naming custom resources', () => {
     const [crd] = cov('apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata: {name: c}\n');
     expect(crd?.level).toBe('unchecked');
-    expect(crd?.message).toMatch(/Certificate \(cert-manager.io\/v1\) is a custom resource/);
+    expect(crd?.headline).toBe('Custom resource Certificate (cert-manager.io/v1)');
     const [core] = cov('apiVersion: coordination.k8s.io/v1\nkind: Lease\nmetadata: {name: l}\n');
-    expect(core?.message).toMatch(/does not know the kind Lease/);
+    expect(core?.headline).toBe('Unknown kind "Lease"');
     const [none] = cov('metadata: {name: x}\n');
-    expect(none?.message).toMatch(/no "kind"/);
+    expect(none?.headline).toBe('No "kind" field');
   });
 
   it('lists the kinds the rules cover', () => {

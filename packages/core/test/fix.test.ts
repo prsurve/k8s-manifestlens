@@ -784,7 +784,11 @@ describe('fixManifest: kinds without rules', () => {
     expect(r.status).toBe('unchanged');
     expect(r.notChecked).toHaveLength(1);
     expect(r.notChecked[0]).toMatchObject({ document: 0, kind: 'Poddsds', level: 'unchecked' });
-    expect(r.notChecked[0]?.message).toMatch(/typo for "Pod"/);
+    expect(r.notChecked[0]).toMatchObject({
+      headline: 'Unknown kind "Poddsds"',
+      suggestion: 'Pod',
+    });
+    expect(r.notChecked[0]?.message).toMatch(/Did you mean "Pod"\?/);
   });
 
   it('reports nothing for kinds the rules cover', () => {

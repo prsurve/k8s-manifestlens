@@ -138,7 +138,7 @@ describe('renderCheck', () => {
     const crd = 'apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata: {name: c}\n';
     const root = renderCheck(checkManifest(crd, rules));
     expect(root.querySelector('.summary')?.textContent).toMatch(/not checked/);
-    expect(root.querySelector('.coverage-unchecked')?.textContent).toMatch(/custom resource/);
+    expect(root.querySelector('.coverage-unchecked')?.textContent).toMatch(/Custom resource/);
     expect(root.querySelector('.meta')?.textContent).toBe('not checked');
   });
 
@@ -383,6 +383,8 @@ describe('renderFix: kinds without rules', () => {
     const result = fixManifest(src, loadBundledRules());
     const root = renderFix(result, unifiedDiff(src, result.fixed, 'manifest.yaml'));
     expect(root.querySelector('.summary')?.textContent).toMatch(/not checked/);
-    expect(root.querySelector('.coverage')?.textContent).toMatch(/typo for "Pod"/);
+    expect(root.querySelector('.coverage-head')?.textContent).toMatch(/Unknown kind "Poddsds"/);
+    expect(root.querySelector('.coverage code')?.textContent).toBe('Pod');
+    expect(root.querySelector('.coverage-note')?.textContent).toMatch(/does not mean it is safe/);
   });
 });

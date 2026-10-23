@@ -37,12 +37,22 @@ function analyze(text: string, rules: Rule[]): Analysis {
   for (const { manifest: doc } of parsed) {
     out.issues += doc.issues.length;
     const coverage = kindCoverage(doc.kind, doc.apiVersion, rules);
-    if (coverage.level !== 'checked' && coverage.message) {
+    if (
+      coverage.level !== 'checked' &&
+      coverage.headline &&
+      coverage.detail &&
+      coverage.note &&
+      coverage.message
+    ) {
       out.notChecked.push({
         document: doc.index,
         line: doc.startLine,
         level: coverage.level,
+        headline: coverage.headline,
+        detail: coverage.detail,
+        note: coverage.note,
         message: coverage.message,
+        ...(coverage.suggestion !== undefined ? { suggestion: coverage.suggestion } : {}),
         ...(doc.kind !== undefined ? { kind: doc.kind } : {}),
         ...(doc.name !== undefined ? { name: doc.name } : {}),
       });

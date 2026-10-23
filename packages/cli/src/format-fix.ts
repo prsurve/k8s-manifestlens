@@ -1,5 +1,20 @@
 import type { AppliedFix, FixResult, SkippedFix } from '@manifestlens/core';
 
+/** The "not checked" note as short lines: what, why, the likely typo, and what an empty result means. */
+export function coverageLines(
+  what: string,
+  line: number,
+  c: { headline?: string; detail?: string; suggestion?: string; note?: string },
+): string[] {
+  return [
+    `! Not checked: ${what} (line ${line})`,
+    ...(c.headline ? [`    ${c.headline}.`] : []),
+    ...(c.detail ? [`    ${c.detail}`] : []),
+    ...(c.suggestion ? [`    Did you mean "${c.suggestion}"?`] : []),
+    ...(c.note ? [`    ${c.note}`] : []),
+  ];
+}
+
 const where = (t: { kind?: string; name?: string }): string =>
   t.kind ? `${t.kind}${t.name ? ` "${t.name}"` : ''}` : 'document';
 
@@ -54,9 +69,7 @@ export function formatFixReport(
       `Validation passed: the YAML parses, only the fields above changed, ${result.validation.resolved} finding${result.validation.resolved === 1 ? ' is' : 's are'} gone and none were added.`,
     );
   }
-  for (const d of result.notChecked) {
-    out.push('', `! Not checked: ${where(d)} (line ${d.line}). ${d.message}`);
-  }
+  for (const d of result.notChecked) out.push('', ...coverageLines(where(d), d.line, d));
   const notes: string[] = [];
   if (result.remaining > 0)
     notes.push(`${result.remaining} finding${result.remaining === 1 ? '' : 's'} remain`);

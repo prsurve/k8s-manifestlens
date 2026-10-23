@@ -886,12 +886,34 @@ textarea.short {
 
 /* Documents ManifestLens could not fully check */
 .coverage {
-  margin: 0;
   padding: 8px 12px;
   border-left: 3px solid var(--warning);
   background: var(--warning-bg);
   color: var(--warning);
   font-size: 0.8125rem;
+}
+.coverage p {
+  margin: 0 0 2px;
+}
+.coverage p:last-child {
+  margin-bottom: 0;
+}
+.coverage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+}
+.coverage-where {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+.coverage-note {
+  opacity: 0.85;
+}
+.coverage code {
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 .coverage-explain-only {
   border-left-color: var(--info);
