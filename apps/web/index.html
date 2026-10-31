@@ -15,36 +15,87 @@
   <body>
     <div class="app">
       <header class="bar">
-        <h1 class="brand">
+        <div class="brand-block">
           <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="10.5" cy="10.5" r="6.5" />
-            <path d="M15.5 15.5 21 21" />
+            <path d="M12 2.5 20 6.5v7.2c0 4.1-3.4 6.8-8 7.8-4.6-1-8-3.7-8-7.8V6.5z" />
+            <circle cx="11" cy="11" r="3.2" />
+            <path d="m13.4 13.4 2.6 2.6" />
           </svg>
-          k8s-manifestlens
-        </h1>
+          <div>
+            <h1 class="brand">ManifestLens</h1>
+            <p class="tagline">Kubernetes manifest intelligence</p>
+          </div>
+        </div>
         <div class="tabs" role="tablist" aria-label="Mode">
           <button role="tab" id="tab-explain" aria-controls="panel-explain" data-tab="explain">
-            Explain
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5h16M4 10h10M4 15h16M4 20h8" /></svg
+            >Explain
           </button>
           <button role="tab" id="tab-check" aria-controls="panel-check" data-tab="check">
-            Check
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3 4 6v6c0 4.5 3.2 7.6 8 9 4.8-1.4 8-4.5 8-9V6z" />
+              <path d="m8.5 12 2.5 2.5 4.5-5" /></svg
+            >Check
           </button>
-          <button role="tab" id="tab-diff" aria-controls="panel-diff" data-tab="diff">Diff</button>
-          <button role="tab" id="tab-fix" aria-controls="panel-fix" data-tab="fix">Fix</button>
+          <button role="tab" id="tab-diff" aria-controls="panel-diff" data-tab="diff">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M8 3v12M8 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM16 21V9M16 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
+              /></svg
+            >Diff
+          </button>
+          <button role="tab" id="tab-fix" aria-controls="panel-fix" data-tab="fix">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m14.5 6.5 3 3M4 20l1-4 11-11 3 3L8 19z" /></svg
+            >Fix
+          </button>
         </div>
-        <p
-          class="privacy"
-          tabindex="0"
-          title="Your manifests are parsed and checked in this page and are never sent anywhere. The page itself makes two kinds of request: anonymous page-view analytics, and a download of a CRD only when you press Load on a GitHub link."
-        >
+        <p class="privacy">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3 4 6v6c0 4.5 3.2 7.6 8 9 4.8-1.4 8-4.5 8-9V6z" />
+            <path d="m8.5 12 2.5 2.5 4.5-5" />
+          </svg>
           Runs in your browser. Nothing is uploaded.
         </p>
         <button
           type="button"
+          class="icon-btn"
+          id="privacy-help"
+          aria-label="What does the privacy message mean?"
+          aria-expanded="false"
+          aria-controls="privacy-note"
+          title="What does this mean?"
+        >
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01" />
+          </svg>
+        </button>
+        <a
+          class="gh"
+          href="https://marketplace.visualstudio.com/items?itemName=prsurve.k8s-manifestlens-vscode"
+          rel="noopener noreferrer"
+          target="_blank"
+          ><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 4h6v6M20 4l-9 9M10 6H5v13h13v-5" /></svg
+          >VS Code</a
+        >
+        <a
+          class="gh"
+          href="https://github.com/prsurve/k8s-manifestlens"
+          rel="noopener noreferrer"
+          target="_blank"
+          ><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 4h6v6M20 4l-9 9M10 6H5v13h13v-5" /></svg
+          >GitHub</a
+        >
+        <button
+          type="button"
           class="theme-toggle"
           id="theme-toggle"
-          aria-label="Switch to dark theme"
-          title="Switch to dark theme"
+          aria-label="Switch to light theme"
+          title="Switch to light theme"
         >
           <svg class="icon moon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
@@ -56,38 +107,68 @@
             />
           </svg>
         </button>
-        <a
-          class="gh"
-          href="https://marketplace.visualstudio.com/items?itemName=prsurve.k8s-manifestlens-vscode"
-          rel="noopener noreferrer"
-          target="_blank"
-          >VS Code</a
-        >
-        <a
-          class="gh"
-          href="https://github.com/prsurve/k8s-manifestlens"
-          rel="noopener noreferrer"
-          target="_blank"
-          >GitHub</a
-        >
       </header>
+      <p class="privacy-note" id="privacy-note" hidden>
+        Your manifests are parsed and checked inside this page and are never sent anywhere. The page
+        itself makes two kinds of request: anonymous page-view analytics, and a download of a CRD
+        only when you press Load on a GitHub link.
+      </p>
+
+      <div class="toolbar-row" role="toolbar" aria-label="Manifest actions">
+        <button type="button" class="btn" id="tb-example">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 3h9l4 4v14H6z" />
+            <path d="M14 3v5h5" /></svg
+          >Load example
+        </button>
+        <button
+          type="button"
+          class="btn"
+          id="tb-upload"
+          data-hide-on="diff"
+          title="Open a YAML file from your computer. It is read in the browser and never uploaded."
+        >
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg
+          >Upload YAML
+        </button>
+        <input
+          type="file"
+          id="tb-file"
+          hidden
+          aria-label="Upload a YAML file"
+          accept=".yaml,.yml,.json,.txt,text/yaml,text/plain,application/json"
+        />
+        <button type="button" class="btn" id="tb-clear">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5" /></svg
+          >Clear
+        </button>
+        <span class="sep" aria-hidden="true" data-hide-on="diff"></span>
+        <span
+          class="chips"
+          data-hide-on="diff"
+          id="samples"
+          role="group"
+          aria-label="Sample manifests"
+        >
+          <span class="chips-label">Sample manifests:</span>
+        </span>
+        <span class="doc-badge" id="doc-badge" hidden></span>
+      </div>
 
       <main class="panels">
         <section role="tabpanel" id="panel-explain" aria-labelledby="tab-explain" class="panel">
           <div class="pane input">
             <div class="pane-head">
-              <label for="explain-input">Manifest</label>
-              <span class="actions">
-                <button type="button" class="text-btn" data-example="explain">Load example</button>
-              </span>
-              <span class="tools" data-tools="explain"></span>
+              <label for="explain-input">Manifest editor</label>
+              <span class="meta-line" id="explain-meta"></span>
             </div>
             <textarea
               id="explain-input"
               spellcheck="false"
               placeholder="Paste Kubernetes YAML here"
             ></textarea>
-            <p class="meta-line" id="explain-meta"></p>
           </div>
           <div
             class="splitter"
@@ -103,18 +184,14 @@
         <section role="tabpanel" id="panel-check" aria-labelledby="tab-check" class="panel" hidden>
           <div class="pane input">
             <div class="pane-head">
-              <label for="check-input">Manifest</label>
-              <span class="actions">
-                <button type="button" class="text-btn" data-example="check">Load example</button>
-              </span>
-              <span class="tools" data-tools="check"></span>
+              <label for="check-input">Manifest editor</label>
+              <span class="meta-line" id="check-meta"></span>
             </div>
             <textarea
               id="check-input"
               spellcheck="false"
               placeholder="Paste Kubernetes YAML here"
             ></textarea>
-            <p class="meta-line" id="check-meta"></p>
           </div>
           <div
             class="splitter"
@@ -130,7 +207,8 @@
         <section role="tabpanel" id="panel-fix" aria-labelledby="tab-fix" class="panel" hidden>
           <div class="pane input">
             <div class="pane-head">
-              <label for="fix-input">Manifest</label>
+              <label for="fix-input">Manifest editor</label>
+              <span class="meta-line" id="fix-meta"></span>
               <span class="actions">
                 <label class="inline" for="fix-risk">Apply up to</label>
                 <select id="fix-risk" aria-label="Highest fix risk to apply">
@@ -146,14 +224,12 @@
                   <option value="none">Nothing to fix</option>
                 </select>
               </span>
-              <span class="tools" data-tools="fix"></span>
             </div>
             <textarea
               id="fix-input"
               spellcheck="false"
               placeholder="Paste Kubernetes YAML here"
             ></textarea>
-            <p class="meta-line" id="fix-meta"></p>
             <label class="inline" for="fix-policy"
               >Fix policy (optional values fixes cannot guess)</label
             >
@@ -186,16 +262,15 @@
           <div class="pane input">
             <div class="pane-head">
               <label for="diff-old">Old version</label>
-              <span class="actions">
-                <button type="button" class="text-btn" data-example="diff">Load example</button>
-              </span>
-              <span class="tools" data-tools="diff"></span>
+              <span class="meta-line" id="diff-old-meta"></span>
             </div>
             <textarea id="diff-old" spellcheck="false" placeholder="Current manifest"></textarea>
-            <p class="meta-line" id="diff-old-meta"></p>
-            <div class="pane-head second"><label for="diff-new">New version</label></div>
+
+            <div class="pane-head second">
+              <label for="diff-new">New version</label>
+              <span class="meta-line" id="diff-new-meta"></span>
+            </div>
             <textarea id="diff-new" spellcheck="false" placeholder="Changed manifest"></textarea>
-            <p class="meta-line" id="diff-new-meta"></p>
           </div>
           <div
             class="splitter"
@@ -211,17 +286,15 @@
 
       <details class="rules">
         <summary>
-          Your own rules
-          <span class="count" id="rules-count">none</span>
-          <span class="used">used by Check, Diff and Fix</span>
+          Custom rules
+          <span class="used">(used by Check, Diff and Fix)</span>
+          <span class="count" id="rules-count">0 rules</span>
         </summary>
         <div class="rules-body">
           <div class="rules-tools">
-            <button type="button" class="text-btn" id="rules-example">Load example rules</button>
-            <button type="button" class="text-btn" id="rules-clear">Clear</button>
-            <button type="button" class="text-btn" id="rules-grow" aria-pressed="false">
-              Larger editor
-            </button>
+            <button type="button" class="btn" id="rules-example">Load example rules</button>
+            <button type="button" class="btn" id="rules-clear">Clear</button>
+            <button type="button" class="btn" id="rules-grow" aria-pressed="false">Expand</button>
           </div>
           <p class="hint">
             Plain YAML, one rule or several separated by <code>---</code>. See the
@@ -245,8 +318,8 @@
       <details class="rules">
         <summary>
           Custom resources (CRDs)
-          <span class="count" id="crds-count">none</span>
-          <span class="used">used by Explain, Check, Diff and Fix</span>
+          <span class="used">(used by Explain, Check, Diff and Fix)</span>
+          <span class="count" id="crds-count">0 kinds</span>
         </summary>
         <div class="rules-body">
           <p class="hint">
@@ -262,10 +335,10 @@
               aria-label="CRD URL"
               placeholder="Or a GitHub link: https://raw.githubusercontent.com/..."
             />
-            <button id="crd-load" type="button" class="text-btn solid">Load</button>
+            <button id="crd-load" type="button" class="btn primary">Load</button>
           </div>
           <div class="rules-tools">
-            <button type="button" class="text-btn" id="crds-clear">Clear</button>
+            <button type="button" class="btn" id="crds-clear">Clear</button>
           </div>
           <textarea
             id="extra-crds"

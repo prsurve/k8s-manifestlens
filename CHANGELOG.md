@@ -4,7 +4,9 @@
 
 ### Changed
 
-- **Web page redesign.** The editor now has line numbers, YAML colours, a current-line mark, a
+- **Web page redesign.** The page opens dark unless you saved a light choice. The header has a
+  privacy help button and a toolbar row (Load example, Upload YAML, Clear, sample chips). Explain's
+  right side has Line by line, Resource overview, Findings and Suggestions sections. The editor now has line numbers, YAML colours, a current-line mark, a
   Quick start menu (Deployment, Service, Ingress, ConfigMap, Secret, custom resource with CRD),
   Upload, Copy and a confirmed Clear. Explain, Check and Fix share one manifest, so switching tabs
   keeps it. Explain shows the line under the caret with Previous/Next buttons. Check says whether a

@@ -3,19 +3,28 @@ import {
   checkManifest,
   diffManifests,
   explainManifest,
+  fixManifest,
   loadBundledRules,
 } from '@k8s-manifestlens/core';
 import { describe, expect, it } from 'vitest';
 import {
   caretLine,
-  describeInfo,
+  describeMeta,
   enhanceTextarea,
   manifestInfo,
   tokenizeLine,
 } from '../src/editor.js';
 import { exampleRules, quickStarts } from '../src/examples.js';
 import { parseRules } from '@k8s-manifestlens/core';
-import { createView, renderCheck, renderDiff, renderExplain } from '../src/render.js';
+import {
+  containersOf,
+  createView,
+  renderCheck,
+  renderDiff,
+  renderExplain,
+  renderOverview,
+  renderSuggestions,
+} from '../src/render.js';
 
 describe('tokenizeLine', () => {
   it('colours keys, values and comments without changing the text', () => {
@@ -43,12 +52,15 @@ describe('tokenizeLine', () => {
 });
 
 describe('manifest info', () => {
-  it('names the kind, version and document count', () => {
-    expect(describeInfo(manifestInfo(''))).toBe('');
-    expect(describeInfo(manifestInfo(quickStarts.service.text))).toBe('Service v1 · 1 document');
-    expect(
-      describeInfo(manifestInfo(`${quickStarts.service.text}---\n${quickStarts.secret.text}`)),
-    ).toBe('Service, Secret · 2 documents');
+  it('summarises lines, kind and apiVersion', () => {
+    const meta = (t: string) => describeMeta(t, manifestInfo(t));
+    expect(meta('')).toBe('');
+    expect(meta(quickStarts.service.text)).toBe(
+      `Lines: ${quickStarts.service.text.trimEnd().split('\n').length} | Kind: Service | apiVersion: v1`,
+    );
+    expect(meta(`${quickStarts.service.text}---\n${quickStarts.secret.text}`)).toContain(
+      'Kinds: Service, Secret',
+    );
   });
 
   it('every quick start parses as the kind it is named after', () => {
@@ -83,9 +95,9 @@ describe('explain line card', () => {
     expect(root.querySelector('.line-card')?.textContent).toContain('Line 4');
     const nav = () => [...root.querySelectorAll<HTMLButtonElement>('.line-nav button')];
     nav()[1]?.click();
-    expect(root.querySelector('.line-card-head strong')?.textContent).toBe('Line 5');
+    expect(root.querySelector('.line-title')?.textContent).toContain('Line 5');
     nav()[0]?.click();
-    expect(root.querySelector('.line-card-head strong')?.textContent).toBe('Line 4');
+    expect(root.querySelector('.line-title')?.textContent).toContain('Line 4');
   });
 
   it('says so when a line has no explanation instead of inventing one', () => {
@@ -127,5 +139,46 @@ describe('example rules', () => {
       'team-label-required',
       'no-latest-tag',
     ]);
+  });
+});
+
+describe('explain panel sections', () => {
+  const deployment = quickStarts.deployment.text;
+
+  it('lists containers from the places workloads keep them', () => {
+    expect(containersOf(explainManifest(deployment).documents[0]?.data)).toEqual([
+      'web → nginx:1.27',
+    ]);
+    expect(containersOf(undefined)).toEqual([]);
+  });
+
+  it('overview shows facts read from the manifest, and says when a field is not set', () => {
+    const rules = loadBundledRules();
+    const root = renderOverview(
+      explainManifest(deployment, rules),
+      checkManifest(deployment, rules),
+    );
+    const text = root.textContent ?? '';
+    expect(text).toContain('Deployment');
+    expect(text).toContain('apps/v1');
+    expect(text).toContain('Namespace');
+    expect(text).toContain('not set');
+    expect(text).toContain('web → nginx:1.27');
+  });
+
+  it('suggestions are read-only and point to the Fix tab', () => {
+    const rules = loadBundledRules();
+    let opened = 0;
+    const fix = fixManifest(deployment, rules, { maxRisk: 'high' });
+    const root = renderSuggestions(fix, createView(), () => opened++);
+    expect(root.textContent).toContain('Nothing is changed from here');
+    root.querySelector<HTMLButtonElement>('button.primary')?.click();
+    expect(opened).toBe(1);
+  });
+
+  it('does not claim there is nothing to improve for an unchecked kind', () => {
+    const cr = 'apiVersion: example.com/v1\nkind: Widget\nmetadata:\n  name: w\n';
+    const root = renderSuggestions(fixManifest(cr, loadBundledRules()), createView(), () => {});
+    expect(root.textContent).toContain('not checked');
   });
 });

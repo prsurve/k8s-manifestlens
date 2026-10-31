@@ -88,17 +88,21 @@ export function manifestInfo(text: string): ManifestInfo {
   };
 }
 
-/** "Deployment apps/v1 · 3 documents", or an empty string for an empty box. */
-export function describeInfo(info: ManifestInfo): string {
-  if (info.documents === 0) return '';
-  const count = `${info.documents} document${info.documents === 1 ? '' : 's'}`;
-  const [first, ...more] = info.kinds;
-  if (!first) return count;
-  if (info.documents === 1 || (more.length === 0 && info.kinds.length === 1))
-    return `${first.kind}${first.apiVersion ? ` ${first.apiVersion}` : ''} · ${count}`;
+/** "Lines: 20 | Kind: Deployment | apiVersion: apps/v1", or an empty string for an empty box. */
+export function describeMeta(text: string, info: ManifestInfo): string {
+  if (text.trim() === '') return '';
+  const parts = [`Lines: ${text.replace(/\n$/, '').split('\n').length}`];
   const names = [...new Set(info.kinds.map((k) => k.kind))];
-  const shown = names.length > 4 ? `${names.slice(0, 4).join(', ')}, …` : names.join(', ');
-  return `${shown} · ${count}`;
+  const first = info.kinds[0];
+  if (names.length === 1 && info.kinds.length === 1 && first) {
+    parts.push(`Kind: ${first.kind}`);
+    if (first.apiVersion) parts.push(`apiVersion: ${first.apiVersion}`);
+  } else if (names.length > 0) {
+    parts.push(
+      `Kinds: ${names.length > 4 ? `${names.slice(0, 4).join(', ')}, …` : names.join(', ')}`,
+    );
+  }
+  return parts.join(' | ');
 }
 
 export interface Editor {

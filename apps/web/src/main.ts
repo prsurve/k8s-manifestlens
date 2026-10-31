@@ -15,7 +15,7 @@ import type { FixPolicy, FixRisk, Rule } from '@k8s-manifestlens/core';
 import { inject } from '@vercel/analytics';
 import './style.css';
 import { fetchCrdText, toRawUrl } from './crd-url.js';
-import { describeInfo, enhanceTextarea, manifestInfo } from './editor.js';
+import { describeMeta, enhanceTextarea, manifestInfo } from './editor.js';
 import type { Editor } from './editor.js';
 import {
   customResourceExample,
@@ -30,6 +30,8 @@ import {
   renderCheck,
   renderDiff,
   renderExplain,
+  renderOverview,
+  renderSuggestions,
   renderFix,
   renderMessage,
 } from './render.js';
@@ -91,7 +93,7 @@ function currentRules(): Rule[] {
     parse: () => Rule[],
   ): void => {
     setError(errorId, undefined);
-    setCount(countId, 'none');
+    setCount(countId, `0 ${noun}s`);
     if (input(boxId).value.trim() === '') return;
     try {
       const extra = parse();
@@ -132,10 +134,12 @@ const jumpers: Record<Tab, (target: JumpTarget, line: number, focus?: boolean) =
 };
 const views = {
   explain: createView(jumpers.explain),
+  explainFindings: createView(jumpers.explain),
   check: createView(jumpers.check),
   diff: createView(jumpers.diff),
   fix: createView(jumpers.fix),
 };
+views.explainFindings.origin = originOf;
 views.check.origin = originOf;
 views.diff.origin = originOf;
 
@@ -164,6 +168,78 @@ function currentPolicy(): FixPolicy | undefined {
   }
 }
 
+/** The Explain tab's right-hand side: line by line, resource overview, findings and suggestions. */
+type Section = 'line' | 'overview' | 'findings' | 'suggestions';
+let section: Section = 'line';
+
+function explainPanel(
+  result: ReturnType<typeof explainManifest>,
+  check: ReturnType<typeof checkManifest>,
+  fix: ReturnType<typeof fixManifest>,
+  source: string,
+): HTMLElement {
+  const findings = check.documents.flatMap((d) => d.findings);
+  const suggestions = fix.applied.length + fix.unfixed.length + fix.skipped.length;
+  const sections: { id: Section; label: string; body: HTMLElement }[] = [
+    {
+      id: 'line',
+      label: 'Line by line',
+      body: renderExplain(result, source, views.explain, findings),
+    },
+    {
+      id: 'overview',
+      label: 'Resource overview',
+      body: renderOverview(result, check, views.explain),
+    },
+    {
+      id: 'findings',
+      label: `Findings (${findings.length})`,
+      body: renderCheck(check, views.explainFindings),
+    },
+    {
+      id: 'suggestions',
+      label: `Suggestions (${suggestions})`,
+      body: renderSuggestions(fix, views.explain, () => select('fix')),
+    },
+  ];
+  const bar = document.createElement('div');
+  bar.className = 'subtabs';
+  bar.setAttribute('role', 'tablist');
+  bar.setAttribute('aria-label', 'Explanation sections');
+  const root = document.createElement('div');
+  const buttons = new Map<Section, HTMLButtonElement>();
+  const choose = (id: Section, focus = false): void => {
+    section = id;
+    for (const sec of sections) {
+      const on = sec.id === id;
+      const b = buttons.get(sec.id);
+      b?.setAttribute('aria-selected', String(on));
+      if (b) b.tabIndex = on ? 0 : -1;
+      sec.body.hidden = !on;
+    }
+    if (focus) buttons.get(id)?.focus();
+  };
+  sections.forEach((sec, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.className = 'subtab';
+    b.textContent = sec.label;
+    b.addEventListener('click', () => choose(sec.id));
+    b.addEventListener('keydown', (e) => {
+      const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (d) choose(sections[(i + d + sections.length) % sections.length]?.id ?? 'line', true);
+    });
+    buttons.set(sec.id, b);
+    bar.append(b);
+    sec.body.setAttribute('role', 'tabpanel');
+    sec.body.classList.add('subpanel');
+  });
+  root.append(bar, ...sections.map((x) => x.body));
+  choose(section);
+  return root;
+}
+
 function update(tab: Tab): void {
   updateMeta(tab);
   if (tab === 'explain') {
@@ -171,12 +247,19 @@ function update(tab: Tab): void {
     const out = $('explain-output');
     if (source.trim() === '')
       return show(out, emptyState('explain', 'Explain a manifest line by line.'));
-    const result = explainManifest(source, currentRules());
+    const rules = currentRules();
+    const result = explainManifest(source, rules);
+    if (result.documents.length === 0)
+      return show(out, renderMessage('No Kubernetes documents found.'));
+    views.explain.line ??= editors.get('explain-input')?.line();
     show(
       out,
-      result.documents.length
-        ? renderExplain(result, source, views.explain)
-        : renderMessage('No Kubernetes documents found.'),
+      explainPanel(
+        result,
+        checkManifest(source, rules),
+        fixManifest(source, rules, { maxRisk: 'high' }),
+        source,
+      ),
     );
   } else if (tab === 'check') {
     const source = input('check-input').value;
@@ -256,6 +339,9 @@ function select(tab: Tab): void {
     $(`tab-${t}`).tabIndex = selected ? 0 : -1;
     $(`panel-${t}`).hidden = !selected;
   }
+  document
+    .querySelectorAll<HTMLElement>('[data-hide-on]')
+    .forEach((n) => (n.hidden = n.dataset.hideOn === tab));
   if (location.hash !== `#${tab}`) history.replaceState(null, '', `#${tab}`);
   update(tab);
 }
@@ -341,102 +427,117 @@ function confirmDiscard(ids: string[], what: string): boolean {
 
 function updateMeta(tab: Tab): void {
   for (const id of tab === 'diff' ? DIFF_BOXES : [`${tab}-input`]) {
-    $(META[id] as string).textContent = describeInfo(manifestInfo(input(id).value));
+    const text = input(id).value;
+    const info = manifestInfo(text);
+    $(META[id] as string).textContent = describeMeta(text, info);
+    if (tab !== 'diff') {
+      const badge = $('doc-badge');
+      badge.hidden = info.documents === 0;
+      badge.textContent =
+        info.documents === 1 ? '1 document' : `Multi-document (${info.documents})`;
+    }
   }
-}
-
-/** The "Quick start" menu, Upload, Copy and Clear for one tab. */
-function mountTools(tab: Tab): void {
-  const host = document.querySelector<HTMLElement>(`[data-tools="${tab}"]`);
-  if (!host) return;
-  const ids = tab === 'diff' ? DIFF_BOXES : SHARED;
-  const sourceBox = tab === 'diff' ? 'diff-old' : `${tab}-input`;
-  const children: HTMLElement[] = [];
-
-  if (tab !== 'diff') {
-    const menu = document.createElement('select');
-    menu.setAttribute('aria-label', 'Start from a sample resource');
-    menu.title = 'Start from a sample resource';
-    menu.append(new Option('Quick start…', ''));
-    for (const [key, q] of Object.entries(quickStarts)) menu.append(new Option(q.label, key));
-    menu.append(new Option(customResourceExample.label, 'crd'));
-    menu.addEventListener('change', () => {
-      const key = menu.value;
-      menu.value = '';
-      if (!key) return;
-      if (!confirmDiscard(SHARED, 'You have a manifest of your own in the editor.')) return;
-      if (key === 'crd') {
-        setManifest(customResourceExample.text);
-        if (
-          input('extra-crds').value.trim() === '' ||
-          window.confirm('Also replace the CRD in the Custom resources box with the sample CRD?')
-        ) {
-          input('extra-crds').value = customResourceExample.crd;
-          const crdBox = document.querySelectorAll<HTMLDetailsElement>('details.rules')[1];
-          if (crdBox) crdBox.open = true;
-        }
-      } else setManifest(quickStarts[key as keyof typeof quickStarts].text);
-      beforeApply = undefined;
-      update(tab);
-    });
-    children.push(menu);
-
-    const file = document.createElement('input');
-    file.type = 'file';
-    file.accept = '.yaml,.yml,.json,.txt,text/yaml,text/plain,application/json';
-    file.hidden = true;
-    file.setAttribute('aria-label', 'Upload a YAML file');
-    file.addEventListener('change', () => {
-      const picked = file.files?.[0];
-      file.value = '';
-      if (!picked) return;
-      if (!confirmDiscard(SHARED, `Load "${picked.name}"?`)) return;
-      // Read in the browser: the file is never sent anywhere.
-      void picked.text().then((text) => {
-        setManifest(text);
-        beforeApply = undefined;
-        update(tab);
-      });
-    });
-    const upload = toolButton(
-      'Upload',
-      'Open a YAML file from your computer (stays in the browser)',
-    );
-    upload.addEventListener('click', () => file.click());
-    children.push(upload, file);
-  }
-
-  const copy = toolButton('Copy', tab === 'diff' ? 'Copy the new version' : 'Copy the manifest');
-  copy.addEventListener('click', () => {
-    const text = input(tab === 'diff' ? 'diff-new' : sourceBox).value;
-    const done = (label: string): void => {
-      copy.textContent = label;
-      setTimeout(() => (copy.textContent = 'Copy'), 1500);
-    };
-    if (!navigator.clipboard) return done('Not available');
-    navigator.clipboard.writeText(text).then(
-      () => done('Copied'),
-      () => done('Failed'),
-    );
-  });
-  const clear = toolButton('Clear', 'Empty the editor');
-  clear.addEventListener('click', () => {
-    if (!confirmDiscard(ids, 'Clear the editor?')) return;
-    if (tab === 'diff') for (const id of DIFF_BOXES) setBox(id, '');
-    else setManifest('');
-    beforeApply = undefined;
-    update(tab);
-  });
-  host.append(...children, copy, clear);
+  if (tab === 'diff') $('doc-badge').hidden = true;
 }
 
 function toolButton(label: string, tip: string): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
-  b.className = 'text-btn';
+  b.className = 'btn';
   b.textContent = label;
   b.title = tip;
   return b;
+}
+
+/** The row under the header: example, upload, clear and the sample chips. Acts on the open tab. */
+function initToolbar(): void {
+  $('tb-example').addEventListener('click', () => loadExample(active));
+  const file = $<HTMLInputElement>('tb-file');
+  $('tb-upload').addEventListener('click', () => file.click());
+  file.addEventListener('change', () => {
+    const picked = file.files?.[0];
+    file.value = '';
+    if (!picked) return;
+    if (!confirmDiscard(SHARED, `Load "${picked.name}"?`)) return;
+    // Read in the browser: the file is never sent anywhere.
+    void picked.text().then((text) => {
+      setManifest(text);
+      beforeApply = undefined;
+      update(active);
+    });
+  });
+  $('tb-clear').addEventListener('click', () => {
+    const ids = active === 'diff' ? DIFF_BOXES : SHARED;
+    if (!confirmDiscard(ids, 'Clear the editor?')) return;
+    if (active === 'diff') for (const id of DIFF_BOXES) setBox(id, '');
+    else setManifest('');
+    beforeApply = undefined;
+    update(active);
+  });
+
+  const samples = $('samples');
+  const chip = (label: string, load: () => void): void => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip-btn';
+    b.textContent = label;
+    b.title = `Load a sample ${label}`;
+    b.addEventListener('click', () => {
+      if (!confirmDiscard(SHARED, 'You have a manifest of your own in the editor.')) return;
+      load();
+      beforeApply = undefined;
+      update(active);
+    });
+    samples.append(b);
+  };
+  for (const q of Object.values(quickStarts)) chip(q.label, () => setManifest(q.text));
+  chip('CRD', () => {
+    setManifest(customResourceExample.text);
+    if (
+      input('extra-crds').value.trim() === '' ||
+      window.confirm('Also replace the CRD in the Custom resources box with the sample CRD?')
+    ) {
+      input('extra-crds').value = customResourceExample.crd;
+      const box = document.querySelectorAll<HTMLDetailsElement>('details.rules')[1];
+      if (box) box.open = true;
+    }
+  });
+
+  const help = $('privacy-help');
+  help.addEventListener('click', () => {
+    const note = $('privacy-note');
+    note.hidden = !note.hidden;
+    help.setAttribute('aria-expanded', String(!note.hidden));
+  });
+}
+
+/** An icon-only "copy" button in the corner of each editor. */
+function addCopyButtons(): void {
+  for (const [id, editor] of editors) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'copy-fab';
+    b.title = 'Copy to clipboard';
+    b.setAttribute('aria-label', 'Copy to clipboard');
+    b.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg>';
+    b.addEventListener('click', () => {
+      const done = (label: string): void => {
+        b.title = label;
+        b.classList.add('done');
+        setTimeout(() => {
+          b.title = 'Copy to clipboard';
+          b.classList.remove('done');
+        }, 1500);
+      };
+      if (!navigator.clipboard) return done('Copy is not available here');
+      navigator.clipboard.writeText(input(id).value).then(
+        () => done('Copied'),
+        () => done('Copy failed'),
+      );
+    });
+    editor.box.parentElement?.append(b);
+  }
 }
 
 function loadExample(tab: Tab): void {
@@ -467,7 +568,7 @@ function emptyState(tab: Tab, headline: string): HTMLElement {
   const actions = document.createElement('div');
   actions.className = 'empty-actions';
   const example = toolButton('Load an example', 'Fill the editor with a sample manifest');
-  example.classList.add('solid');
+  example.classList.add('primary');
   example.addEventListener('click', () => loadExample(tab));
   actions.append(example);
   if (tab !== 'diff') {
@@ -559,7 +660,8 @@ function init(): void {
   initTheme($('theme-toggle'));
   for (const id of [...SHARED, ...DIFF_BOXES]) editors.set(id, enhanceTextarea(input(id)));
   editors.get('explain-input')?.onLine((line) => views.explain.onLine?.(line));
-  for (const t of TABS) mountTools(t);
+  initToolbar();
+  addCopyButtons();
   initSplitter();
 
   const refresh = debounce(() => update(active), 150);
@@ -595,10 +697,6 @@ function init(): void {
       $(`tab-${target}`).focus();
     });
   }
-
-  document.querySelectorAll<HTMLButtonElement>('[data-example]').forEach((button) => {
-    button.addEventListener('click', () => loadExample(button.dataset.example as Tab));
-  });
 
   $('fix-risk').addEventListener('change', refresh);
   $<HTMLSelectElement>('fix-example').addEventListener('change', (e) => {
