@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Custom resources from a CRD.** Give k8s-manifestlens a CustomResourceDefinition and documents of that
+  kind are explained from the CRD's descriptions and checked against its schema: unknown fields (with
+  a "did you mean"), wrong types, missing required fields, enum, pattern and range violations, and an
+  `apiVersion` the CRD does not define. Web page: a "Custom resources" box that also loads a GitHub link. CLI: `--crd`. GitHub
+  Action: the `crds` input. Core API: `parseCrds` and an optional `rules` argument for
+  `explainManifest`. Schema features that need a full validator (`oneOf`, CEL rules) are skipped.
+  A mistyped field with one clear closest match can be renamed by `fix` (medium risk, preview first).
+  `fix` also lists the findings it cannot fix under "Needs a manual fix", and a clicked finding in the
+  web page scrolls to its line even when long lines wrap.
+  See [docs/custom-resources.md](docs/custom-resources.md).
+
 ## 1.1.0 (2026-10-31)
 
 ### Changed
