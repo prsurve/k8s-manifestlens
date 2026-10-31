@@ -2,7 +2,7 @@
   "name": "k8s-manifestlens-vscode",
   "displayName": "k8s-manifestlens",
   "description": "Explains Kubernetes YAML in plain English and flags risky settings. Works offline.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "Apache-2.0",
   "publisher": "prsurve",
   "icon": "images/icon.png",
