@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Web page redesign.** The editor now has line numbers, YAML colours, a current-line mark, a
+  Quick start menu (Deployment, Service, Ingress, ConfigMap, Secret, custom resource with CRD),
+  Upload, Copy and a confirmed Clear. Explain, Check and Fix share one manifest, so switching tabs
+  keeps it. Explain shows the line under the caret with Previous/Next buttons. Check says whether a
+  finding is a built-in rule, your rule or a CRD schema check. Diff says when two manifests are
+  identical. The divider between editor and results can be dragged. The rules and CRD panels show a
+  count, and the rules panel can load example rules and grow. The header wraps on phones.
+
 ## 1.2.0 (2026-10-31)
 
 ### Added

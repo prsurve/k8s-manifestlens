@@ -15,7 +15,13 @@
   <body>
     <div class="app">
       <header class="bar">
-        <h1 class="brand">k8s-manifestlens</h1>
+        <h1 class="brand">
+          <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="M15.5 15.5 21 21" />
+          </svg>
+          k8s-manifestlens
+        </h1>
         <div class="tabs" role="tablist" aria-label="Mode">
           <button role="tab" id="tab-explain" aria-controls="panel-explain" data-tab="explain">
             Explain
@@ -26,7 +32,13 @@
           <button role="tab" id="tab-diff" aria-controls="panel-diff" data-tab="diff">Diff</button>
           <button role="tab" id="tab-fix" aria-controls="panel-fix" data-tab="fix">Fix</button>
         </div>
-        <p class="privacy">Runs in your browser. Nothing is uploaded.</p>
+        <p
+          class="privacy"
+          tabindex="0"
+          title="Your manifests are parsed and checked in this page and are never sent anywhere. The page itself makes two kinds of request: anonymous page-view analytics, and a download of a CRD only when you press Load on a GitHub link."
+        >
+          Runs in your browser. Nothing is uploaded.
+        </p>
         <button
           type="button"
           class="theme-toggle"
@@ -67,15 +79,24 @@
               <label for="explain-input">Manifest</label>
               <span class="actions">
                 <button type="button" class="text-btn" data-example="explain">Load example</button>
-                <button type="button" class="text-btn" data-clear="explain">Clear</button>
               </span>
+              <span class="tools" data-tools="explain"></span>
             </div>
             <textarea
               id="explain-input"
               spellcheck="false"
               placeholder="Paste Kubernetes YAML here"
             ></textarea>
+            <p class="meta-line" id="explain-meta"></p>
           </div>
+          <div
+            class="splitter"
+            role="separator"
+            aria-orientation="vertical"
+            tabindex="0"
+            aria-label="Resize panels. Use the left and right arrow keys."
+            title="Drag to resize"
+          ></div>
           <div class="pane output" id="explain-output" aria-live="polite"></div>
         </section>
 
@@ -85,15 +106,24 @@
               <label for="check-input">Manifest</label>
               <span class="actions">
                 <button type="button" class="text-btn" data-example="check">Load example</button>
-                <button type="button" class="text-btn" data-clear="check">Clear</button>
               </span>
+              <span class="tools" data-tools="check"></span>
             </div>
             <textarea
               id="check-input"
               spellcheck="false"
               placeholder="Paste Kubernetes YAML here"
             ></textarea>
+            <p class="meta-line" id="check-meta"></p>
           </div>
+          <div
+            class="splitter"
+            role="separator"
+            aria-orientation="vertical"
+            tabindex="0"
+            aria-label="Resize panels. Use the left and right arrow keys."
+            title="Drag to resize"
+          ></div>
           <div class="pane output" id="check-output" aria-live="polite"></div>
         </section>
 
@@ -115,14 +145,15 @@
                   <option value="high">High risk fix</option>
                   <option value="none">Nothing to fix</option>
                 </select>
-                <button type="button" class="text-btn" data-clear="fix">Clear</button>
               </span>
+              <span class="tools" data-tools="fix"></span>
             </div>
             <textarea
               id="fix-input"
               spellcheck="false"
               placeholder="Paste Kubernetes YAML here"
             ></textarea>
+            <p class="meta-line" id="fix-meta"></p>
             <label class="inline" for="fix-policy"
               >Fix policy (optional values fixes cannot guess)</label
             >
@@ -134,6 +165,14 @@
             ></textarea>
             <p id="fix-policy-error" class="error" role="alert" hidden></p>
           </div>
+          <div
+            class="splitter"
+            role="separator"
+            aria-orientation="vertical"
+            tabindex="0"
+            aria-label="Resize panels. Use the left and right arrow keys."
+            title="Drag to resize"
+          ></div>
           <div class="pane output" id="fix-output" aria-live="polite"></div>
         </section>
 
@@ -149,22 +188,43 @@
               <label for="diff-old">Old version</label>
               <span class="actions">
                 <button type="button" class="text-btn" data-example="diff">Load example</button>
-                <button type="button" class="text-btn" data-clear="diff">Clear</button>
               </span>
+              <span class="tools" data-tools="diff"></span>
             </div>
             <textarea id="diff-old" spellcheck="false" placeholder="Current manifest"></textarea>
+            <p class="meta-line" id="diff-old-meta"></p>
             <div class="pane-head second"><label for="diff-new">New version</label></div>
             <textarea id="diff-new" spellcheck="false" placeholder="Changed manifest"></textarea>
+            <p class="meta-line" id="diff-new-meta"></p>
           </div>
+          <div
+            class="splitter"
+            role="separator"
+            aria-orientation="vertical"
+            tabindex="0"
+            aria-label="Resize panels. Use the left and right arrow keys."
+            title="Drag to resize"
+          ></div>
           <div class="pane output" id="diff-output" aria-live="polite"></div>
         </section>
       </main>
 
       <details class="rules">
-        <summary>Your own rules (used by Check and Diff)</summary>
+        <summary>
+          Your own rules
+          <span class="count" id="rules-count">none</span>
+          <span class="used">used by Check, Diff and Fix</span>
+        </summary>
         <div class="rules-body">
+          <div class="rules-tools">
+            <button type="button" class="text-btn" id="rules-example">Load example rules</button>
+            <button type="button" class="text-btn" id="rules-clear">Clear</button>
+            <button type="button" class="text-btn" id="rules-grow" aria-pressed="false">
+              Larger editor
+            </button>
+          </div>
           <p class="hint">
-            Plain YAML. See the
+            Plain YAML, one rule or several separated by <code>---</code>. See the
             <a
               href="https://github.com/prsurve/k8s-manifestlens/blob/main/docs/writing-rules.md"
               rel="noopener noreferrer"
@@ -184,7 +244,9 @@
 
       <details class="rules">
         <summary>
-          Custom resources: paste a CRD or load it from GitHub (used by Explain, Check and Diff)
+          Custom resources (CRDs)
+          <span class="count" id="crds-count">none</span>
+          <span class="used">used by Explain, Check, Diff and Fix</span>
         </summary>
         <div class="rules-body">
           <p class="hint">
@@ -200,7 +262,10 @@
               aria-label="CRD URL"
               placeholder="Or a GitHub link: https://raw.githubusercontent.com/..."
             />
-            <button id="crd-load" type="button">Load</button>
+            <button id="crd-load" type="button" class="text-btn solid">Load</button>
+          </div>
+          <div class="rules-tools">
+            <button type="button" class="text-btn" id="crds-clear">Clear</button>
           </div>
           <textarea
             id="extra-crds"
