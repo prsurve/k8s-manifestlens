@@ -28311,7 +28311,7 @@ function kindCoverage(kind, apiVersion, rules) {
     return describe(
       "unchecked",
       'No "kind" field',
-      "Without a kind ManifestLens cannot tell what this is, so nothing was checked."
+      "Without a kind k8s-manifestlens cannot tell what this is, so nothing was checked."
     );
   }
   if (Object.hasOwn(POD_SPEC_PATH, kind) || rules.some((r) => r.kinds.includes(kind))) {
@@ -28321,20 +28321,20 @@ function kindCoverage(kind, apiVersion, rules) {
     return describe(
       "explain-only",
       `No rules for ${kind}`,
-      `ManifestLens explains ${kind} fields, but no rule checks it.`
+      `k8s-manifestlens explains ${kind} fields, but no rule checks it.`
     );
   }
   if (isCustomResource(apiVersion)) {
     return describe(
       "unchecked",
       `Custom resource ${kind} (${apiVersion})`,
-      "ManifestLens has no rules for custom resources, so it was not checked."
+      "k8s-manifestlens has no rules for custom resources, so it was not checked."
     );
   }
   return describe(
     "unchecked",
     `Unknown kind "${kind}"`,
-    "ManifestLens has no rules for it, so it was not checked.",
+    "k8s-manifestlens has no rules for it, so it was not checked.",
     suggestKind(kind, rules)
   );
 }
@@ -31645,7 +31645,7 @@ function prepareRules(all, s) {
   }
   return { rules, unknown };
 }
-var INLINE = /manifestlens-ignore:\s*([A-Za-z0-9_, -]+)/;
+var INLINE = /(?:k8s-)?manifestlens-ignore:\s*([A-Za-z0-9_, -]+)/;
 function suppressedInline(lines, line, ruleId) {
   const candidates = [
     lines[line - 1],
@@ -31877,10 +31877,11 @@ var import_node_path = require("node:path");
 var import_yaml5 = __toESM(require_dist());
 
 // src/settings.ts
+var LEGACY_CONFIG_FILE = ".github/manifestlens.yml";
 var DEFAULTS = {
   paths: ["**/*.yaml", "**/*.yml"],
   workingDirectory: ".",
-  configFile: ".github/manifestlens.yml",
+  configFile: ".github/k8s-manifestlens.yml",
   scope: "all",
   baseRef: "",
   failOn: "error",
@@ -33087,13 +33088,13 @@ function emitAnnotations(findings, problems, max) {
   const chosen = selectAnnotations(findings, problems, max);
   for (const p of chosen.problems) {
     error(p.message, {
-      title: "ManifestLens: invalid YAML",
+      title: "k8s-manifestlens: invalid YAML",
       file: p.file,
       startLine: p.line ?? 1
     });
   }
   for (const f of chosen.findings) {
-    const props = { title: `ManifestLens: ${f.ruleId}`, file: f.file, startLine: f.line };
+    const props = { title: `k8s-manifestlens: ${f.ruleId}`, file: f.file, startLine: f.line };
     const text2 = f.fix ? `${f.message} ${f.fix}` : f.message;
     if (f.severity === "error") error(text2, props);
     else if (f.severity === "warning") warning(text2, props);
@@ -33142,7 +33143,7 @@ async function upsertComment(target2, marker, body, onlyIfExists, fetchFn = fetc
 }
 
 // src/report.ts
-var REPO_URL = "https://github.com/prsurve/manifestlens";
+var REPO_URL = "https://github.com/prsurve/k8s-manifestlens";
 var MAX_SUMMARY_ROWS = 300;
 var MAX_COMMENT_ROWS = 15;
 var MAX_COMMENT_CHARS = 6e4;
@@ -33203,7 +33204,7 @@ function notCheckedSection(a) {
   return [
     "### Not checked",
     "",
-    '_ManifestLens has no rules for these kinds. "No findings" says nothing about them._',
+    '_k8s-manifestlens has no rules for these kinds. "No findings" says nothing about them._',
     "",
     "| Kind | apiVersion | Objects | Why | Files |",
     "| --- | --- | --- | --- | --- |",
@@ -33234,7 +33235,7 @@ function buildSummary(info2) {
   const { analysis: a, verdict: v, settings: s } = info2;
   const limit = thresholds(s);
   const out = [
-    `## ManifestLens${s.label ? ` \xB7 ${md(s.label)}` : ""}`,
+    `## k8s-manifestlens${s.label ? ` \xB7 ${md(s.label)}` : ""}`,
     "",
     `> ${headline(info2)}`,
     ""
@@ -33304,7 +33305,7 @@ function buildSummary(info2) {
   out.push(
     configurationTable(info2),
     "",
-    `<sub>ManifestLens ${md(info2.version)} \xB7 <a href="${REPO_URL}">${REPO_URL.replace("https://", "")}</a></sub>`
+    `<sub>k8s-manifestlens ${md(info2.version)} \xB7 <a href="${REPO_URL}">${REPO_URL.replace("https://", "")}</a></sub>`
   );
   return out.join("\n");
 }
@@ -33398,7 +33399,7 @@ function buildComment(info2, marker, runUrl) {
   const { analysis: a, verdict: v, settings: s } = info2;
   const out = [
     marker,
-    `### ManifestLens${s.label ? ` \xB7 ${md(s.label)}` : ""}`,
+    `### k8s-manifestlens${s.label ? ` \xB7 ${md(s.label)}` : ""}`,
     "",
     headline(info2),
     ""
@@ -33450,7 +33451,12 @@ function buildSarif(info2) {
     runs: [
       {
         tool: {
-          driver: { name: "ManifestLens", version: info2.version, informationUri: REPO_URL, rules }
+          driver: {
+            name: "k8s-manifestlens",
+            version: info2.version,
+            informationUri: REPO_URL,
+            rules
+          }
         },
         results: [
           ...a.findings.map((f) => ({
@@ -33513,17 +33519,17 @@ async function run() {
     if (err instanceof ConfigError) {
       for (const problem of err.problems) error(problem);
       await writeSummary(
-        `## ManifestLens: configuration problem
+        `## k8s-manifestlens: configuration problem
 
 ${err.problems.map((p) => `- ${p}`).join("\n")}
 `
       );
       setFailed(
-        `ManifestLens is not configured correctly (${err.problems.length} problem${err.problems.length === 1 ? "" : "s"}). See the messages above.`
+        `k8s-manifestlens is not configured correctly (${err.problems.length} problem${err.problems.length === 1 ? "" : "s"}). See the messages above.`
       );
     } else {
       setFailed(
-        `ManifestLens failed unexpectedly: ${err instanceof Error ? err.message : String(err)}`
+        `k8s-manifestlens failed unexpectedly: ${err instanceof Error ? err.message : String(err)}`
       );
     }
   }
@@ -33534,9 +33540,10 @@ async function execute() {
   const raw = {};
   for (const name of INPUT_NAMES) raw[name] = getInput(name);
   const inputs = parseInputs(raw, problems);
+  const defaultConfig = (0, import_node_fs3.existsSync)((0, import_node_path3.join)(workspace, DEFAULTS.configFile)) ? DEFAULTS.configFile : LEGACY_CONFIG_FILE;
   const config = loadConfig(
     workspace,
-    inputs.configFile ?? DEFAULTS.configFile,
+    inputs.configFile ?? defaultConfig,
     "configFile" in inputs,
     problems
   );
@@ -33605,10 +33612,10 @@ async function execute() {
   } else {
     info("Dry run: no annotations, no pull request comment, and the build is not affected.");
   }
-  if (verdict.blocking) setFailed(`ManifestLens: ${verdict.reasons.join(" ")}`);
+  if (verdict.blocking) setFailed(`k8s-manifestlens: ${verdict.reasons.join(" ")}`);
   else if (!verdict.passed)
     warning(
-      `ManifestLens found problems but is not blocking the build (${verdict.result}): ${verdict.reasons.join(" ")}`
+      `k8s-manifestlens found problems but is not blocking the build (${verdict.result}): ${verdict.reasons.join(" ")}`
     );
 }
 function warnIfUntrusted(s, configPath) {

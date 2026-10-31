@@ -7,7 +7,7 @@ import {
   loadBundledRules,
   parseFixPolicy,
   unifiedDiff,
-} from '@manifestlens/core';
+} from '@k8s-manifestlens/core';
 import { describe, expect, it, vi } from 'vitest';
 import { fixExamples } from '../src/examples.js';
 import { readFileSync } from 'node:fs';

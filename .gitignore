@@ -8,6 +8,6 @@ coverage/
 .env
 .vercel
 
-# Written by the ManifestLens action when run against this repository.
+# Written by the k8s-manifestlens action when run against this repository.
 manifestlens-report.json
 *.sarif

@@ -1,6 +1,6 @@
-name: ManifestLens
+name: k8s-manifestlens
 description: Check Kubernetes manifests for risky settings, explain what a change does, and pass or fail the build.
-author: ManifestLens contributors
+author: k8s-manifestlens contributors
 
 branding:
   icon: search
@@ -8,7 +8,7 @@ branding:
 
 # Inputs deliberately have no `default:`. The built-in defaults live in the code, so the action can
 # tell "not set" from "set to the default" and apply this order, lowest to highest:
-#   built-in defaults  <  config file (.github/manifestlens.yml)  <  these inputs
+#   built-in defaults  <  config file (.github/k8s-manifestlens.yml)  <  these inputs
 inputs:
   paths:
     description: >
@@ -19,7 +19,7 @@ inputs:
     description: Folder the paths are relative to. Useful in monorepos and matrix jobs. Default is the repository root.
     required: false
   config-file:
-    description: Project-level settings file. Default is .github/manifestlens.yml; a missing default file is fine, a missing named file is an error.
+    description: Project-level settings file. Default is .github/k8s-manifestlens.yml; a missing default file is fine, a missing named file is an error.
     required: false
 
   scope:

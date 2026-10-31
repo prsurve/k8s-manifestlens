@@ -1,7 +1,7 @@
-# ManifestLens for VS Code
+# k8s-manifestlens for VS Code
 
 Explains Kubernetes YAML in plain English and flags risky settings, right in the editor. It works
-offline: nothing is sent anywhere. You can also [try it in your browser](https://manifestlens-one.vercel.app).
+offline: nothing is sent anywhere. You can also [try it in your browser](https://k8s-manifestlens.k8ssimplified.in).
 
 ## What you get
 
@@ -9,7 +9,7 @@ offline: nothing is sent anywhere. You can also [try it in your browser](https:/
   probes and more show up as squiggles on the right line. Each one says why it matters and how to fix it.
 - **Explanations on hover.** Hover a field in a Pod, Deployment or Service to see what it does, with a
   link to the official Kubernetes docs.
-- **Explain this manifest.** Run `ManifestLens: Explain this manifest` from the Command Palette to get the
+- **Explain this manifest.** Run `k8s-manifestlens: Explain this manifest` from the Command Palette to get the
   whole file explained line by line.
 
 It understands 25 kinds, including Pod, Deployment, StatefulSet, DaemonSet, Job, CronJob, Service and
@@ -18,14 +18,14 @@ docker-compose, Helm templates) are left alone.
 
 ## Settings
 
-| Setting                        | Default | Meaning                                                             |
-| ------------------------------ | ------- | ------------------------------------------------------------------- |
-| `manifestlens.enable`          | `true`  | Turn checks and hover on or off.                                    |
-| `manifestlens.minimumSeverity` | `info`  | Hide findings below `info`, `warning` or `error`.                   |
-| `manifestlens.rules`           | `[]`    | Extra rule files or folders. Relative paths start at the workspace. |
+| Setting                           | Default | Meaning                                                             |
+| --------------------------------- | ------- | ------------------------------------------------------------------- |
+| `k8sManifestlens.enable`          | `true`  | Turn checks and hover on or off.                                    |
+| `k8sManifestlens.minimumSeverity` | `info`  | Hide findings below `info`, `warning` or `error`.                   |
+| `k8sManifestlens.rules`           | `[]`    | Extra rule files or folders. Relative paths start at the workspace. |
 
 Rules are plain YAML. See the
-[rule guide](https://github.com/prsurve/manifestlens/blob/main/docs/writing-rules.md).
+[rule guide](https://github.com/prsurve/k8s-manifestlens/blob/main/docs/writing-rules.md).
 
 ## License
 

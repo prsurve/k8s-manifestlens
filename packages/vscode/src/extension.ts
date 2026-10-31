@@ -7,8 +7,8 @@ import {
   loadBundledRules,
   parseFixPolicy,
   parseRules,
-} from '@manifestlens/core';
-import type { ExplainResult, FixPolicy, FixRisk, Rule, Severity } from '@manifestlens/core';
+} from '@k8s-manifestlens/core';
+import type { ExplainResult, FixPolicy, FixRisk, Rule, Severity } from '@k8s-manifestlens/core';
 import {
   explainAsMarkdown,
   findProblems,
@@ -26,14 +26,14 @@ const SEVERITY: Record<Severity, vscode.DiagnosticSeverity> = {
 };
 
 export function activate(context: vscode.ExtensionContext): void {
-  const diagnostics = vscode.languages.createDiagnosticCollection('manifestlens');
+  const diagnostics = vscode.languages.createDiagnosticCollection('k8s-manifestlens');
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   const explained = new Map<string, { version: number; result: ExplainResult }>();
   let rules: Rule[] = loadBundledRules();
   let warnedAboutRules = false;
   let policy: FixPolicy | undefined;
 
-  const config = () => vscode.workspace.getConfiguration('manifestlens');
+  const config = () => vscode.workspace.getConfiguration('k8sManifestlens');
 
   function reloadRules(): void {
     rules = loadBundledRules();
@@ -45,7 +45,7 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!warnedAboutRules) {
           warnedAboutRules = true;
           void vscode.window.showWarningMessage(
-            `ManifestLens: ${err instanceof Error ? err.message : String(err)}`,
+            `k8s-manifestlens: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
       }
@@ -61,7 +61,7 @@ export function activate(context: vscode.ExtensionContext): void {
         policy = parseFixPolicy(readFileSync(full, 'utf8'), policyPath);
       } catch (err) {
         void vscode.window.showWarningMessage(
-          `ManifestLens: ${err instanceof Error ? err.message : String(err)}`,
+          `k8s-manifestlens: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }
@@ -85,7 +85,8 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!config().get<boolean>('enable', true)) return [];
       const actions: vscode.CodeAction[] = [];
       for (const diagnostic of context.diagnostics) {
-        if (diagnostic.source !== 'ManifestLens' || typeof diagnostic.code !== 'string') continue;
+        if (diagnostic.source !== 'k8s-manifestlens' || typeof diagnostic.code !== 'string')
+          continue;
         const plan = planFix(doc.getText(), rules, {
           findings: [{ ruleId: diagnostic.code, line: diagnostic.range.start.line + 1 }],
           maxRisk: 'high',
@@ -117,7 +118,7 @@ export function activate(context: vscode.ExtensionContext): void {
           p.message,
           SEVERITY[p.severity],
         );
-        d.source = 'ManifestLens';
+        d.source = 'k8s-manifestlens';
         d.code = p.ruleId;
         return d;
       }),
@@ -145,7 +146,7 @@ export function activate(context: vscode.ExtensionContext): void {
       explained.delete(doc.uri.toString());
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (!e.affectsConfiguration('manifestlens')) return;
+      if (!e.affectsConfiguration('k8sManifestlens')) return;
       warnedAboutRules = false;
       reloadRules();
       vscode.workspace.textDocuments.forEach(refresh);
@@ -153,11 +154,11 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerCodeActionsProvider('yaml', quickFixes, {
       providedCodeActionKinds: [vscode.CodeActionKind.QuickFix],
     }),
-    vscode.commands.registerCommand('manifestlens.fixFile', async () => {
+    vscode.commands.registerCommand('k8sManifestlens.fixFile', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor || !looksLikeKubernetes(editor.document.getText())) {
         void vscode.window.showInformationMessage(
-          'ManifestLens: open a Kubernetes YAML file first.',
+          'k8s-manifestlens: open a Kubernetes YAML file first.',
         );
         return;
       }
@@ -169,9 +170,9 @@ export function activate(context: vscode.ExtensionContext): void {
       const { result } = plan;
       if (result.status !== 'fixed') {
         const why = result.skipped.length
-          ? ` ${result.skipped.length} fix${result.skipped.length === 1 ? ' needs' : 'es need'} review or input (see the quick fixes, or raise manifestlens.fixMaxRisk).`
+          ? ` ${result.skipped.length} fix${result.skipped.length === 1 ? ' needs' : 'es need'} review or input (see the quick fixes, or raise k8sManifestlens.fixMaxRisk).`
           : '';
-        void vscode.window.showInformationMessage(`ManifestLens: no fixes to apply.${why}`);
+        void vscode.window.showInformationMessage(`k8s-manifestlens: no fixes to apply.${why}`);
         return;
       }
       // Preview first: show the proposed file next to the real one, and only then ask.
@@ -183,17 +184,17 @@ export function activate(context: vscode.ExtensionContext): void {
         'vscode.diff',
         doc.uri,
         proposed.uri,
-        'ManifestLens: proposed fixes',
+        'k8s-manifestlens: proposed fixes',
       );
       const n = result.applied.length;
       const choice = await vscode.window.showInformationMessage(
-        `ManifestLens: apply ${n} fix${n === 1 ? '' : 'es'}? Undo with Ctrl+Z.`,
+        `k8s-manifestlens: apply ${n} fix${n === 1 ? '' : 'es'}? Undo with Ctrl+Z.`,
         'Apply',
       );
       if (choice !== 'Apply') return;
       if (isStale(result, doc.getText())) {
         void vscode.window.showWarningMessage(
-          'ManifestLens: the file changed since the preview. Nothing was applied; run the command again.',
+          'k8s-manifestlens: the file changed since the preview. Nothing was applied; run the command again.',
         );
         return;
       }
@@ -214,11 +215,11 @@ export function activate(context: vscode.ExtensionContext): void {
         return markdown ? new vscode.Hover(new vscode.MarkdownString(markdown)) : undefined;
       },
     }),
-    vscode.commands.registerCommand('manifestlens.explainFile', async () => {
+    vscode.commands.registerCommand('k8sManifestlens.explainFile', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor || !looksLikeKubernetes(editor.document.getText())) {
         void vscode.window.showInformationMessage(
-          'ManifestLens: open a Kubernetes YAML file first.',
+          'k8s-manifestlens: open a Kubernetes YAML file first.',
         );
         return;
       }

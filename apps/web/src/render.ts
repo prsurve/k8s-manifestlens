@@ -1,4 +1,4 @@
-import { formatValue, supportedKinds } from '@manifestlens/core';
+import { formatValue, supportedKinds } from '@k8s-manifestlens/core';
 import type {
   CheckResult,
   DiffResult,
@@ -8,7 +8,7 @@ import type {
   Finding,
   FixResult,
   Severity,
-} from '@manifestlens/core';
+} from '@k8s-manifestlens/core';
 import { docsLink, el } from './dom.js';
 
 const SEVERITIES: Severity[] = ['error', 'warning', 'info'];

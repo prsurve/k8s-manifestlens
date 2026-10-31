@@ -1,4 +1,4 @@
-# .github/manifestlens.yml: project-level settings for the ManifestLens action.
+# .github/k8s-manifestlens.yml: project-level settings for the k8s-manifestlens action.
 #
 # Order of precedence, lowest to highest:
 #   built-in defaults  <  this file  <  inputs in the workflow (`with:`)
@@ -24,7 +24,7 @@ fail-on-parse-error: true
 
 # Rules.
 rules:
-  - .github/manifestlens-rules/ # your own rule files (YAML), see docs/writing-rules.md
+  - .github/k8s-manifestlens-rules/ # your own rule files (YAML), see docs/writing-rules.md
 disable-rules:
   - missing-liveness-probe
 severity-overrides:

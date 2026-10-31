@@ -1,4 +1,4 @@
-import type { CheckResult, Finding, Severity } from '@manifestlens/core';
+import type { CheckResult, Finding, Severity } from '@k8s-manifestlens/core';
 import { coverageLines } from './format-fix.js';
 
 const LEVELS: Severity[] = ['error', 'warning', 'info'];

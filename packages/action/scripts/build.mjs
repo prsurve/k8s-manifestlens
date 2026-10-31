@@ -15,7 +15,7 @@ await build({
   format: 'cjs',
   target: 'node20',
   // Resolve the core from its TypeScript source so no separate core build is needed.
-  alias: { '@manifestlens/core': fileURLToPath(new URL('../core/src/index.ts', root)) },
+  alias: { '@k8s-manifestlens/core': fileURLToPath(new URL('../core/src/index.ts', root)) },
   define: { __VERSION__: JSON.stringify(version) },
   legalComments: 'none',
   minify: false,

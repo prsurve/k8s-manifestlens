@@ -14,7 +14,7 @@ await build({
   external: ['vscode'],
   // Resolve the core from its TypeScript source so no separate core build is needed.
   alias: {
-    '@manifestlens/core': fileURLToPath(new URL('../core/src/index.ts', root)),
+    '@k8s-manifestlens/core': fileURLToPath(new URL('../core/src/index.ts', root)),
   },
   sourcemap: false,
   minify: true,

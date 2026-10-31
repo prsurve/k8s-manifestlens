@@ -70,13 +70,13 @@ export function emitAnnotations(
   const chosen = selectAnnotations(findings, problems, max);
   for (const p of chosen.problems) {
     core.error(p.message, {
-      title: 'ManifestLens: invalid YAML',
+      title: 'k8s-manifestlens: invalid YAML',
       file: p.file,
       startLine: p.line ?? 1,
     });
   }
   for (const f of chosen.findings) {
-    const props = { title: `ManifestLens: ${f.ruleId}`, file: f.file, startLine: f.line };
+    const props = { title: `k8s-manifestlens: ${f.ruleId}`, file: f.file, startLine: f.line };
     const text = f.fix ? `${f.message} ${f.fix}` : f.message;
     if (f.severity === 'error') core.error(text, props);
     else if (f.severity === 'warning') core.warning(text, props);

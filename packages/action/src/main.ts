@@ -1,4 +1,5 @@
 import {
+  existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -14,8 +15,8 @@ import {
   loadBundledRules,
   parseFixPolicy,
   parseRules,
-} from '@manifestlens/core';
-import type { FixPolicy, Rule } from '@manifestlens/core';
+} from '@k8s-manifestlens/core';
+import type { FixPolicy, Rule } from '@k8s-manifestlens/core';
 import { analyze, prepareRules } from './analyze.js';
 import type { FileToAnalyze } from './analyze.js';
 import { determineBase } from './base.js';
@@ -31,6 +32,7 @@ import { buildComment, buildReport, buildSarif, buildSummary } from './report.js
 import type { RunInfo } from './report.js';
 import {
   DEFAULTS,
+  LEGACY_CONFIG_FILE,
   INPUT_NAMES,
   parseInputs,
   resolveSettings,
@@ -49,14 +51,14 @@ export async function run(): Promise<void> {
     if (err instanceof ConfigError) {
       for (const problem of err.problems) core.error(problem);
       await writeSummary(
-        `## ManifestLens: configuration problem\n\n${err.problems.map((p) => `- ${p}`).join('\n')}\n`,
+        `## k8s-manifestlens: configuration problem\n\n${err.problems.map((p) => `- ${p}`).join('\n')}\n`,
       );
       core.setFailed(
-        `ManifestLens is not configured correctly (${err.problems.length} problem${err.problems.length === 1 ? '' : 's'}). See the messages above.`,
+        `k8s-manifestlens is not configured correctly (${err.problems.length} problem${err.problems.length === 1 ? '' : 's'}). See the messages above.`,
       );
     } else {
       core.setFailed(
-        `ManifestLens failed unexpectedly: ${err instanceof Error ? err.message : String(err)}`,
+        `k8s-manifestlens failed unexpectedly: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
@@ -70,9 +72,12 @@ async function execute(): Promise<void> {
   const raw: Record<string, string> = {};
   for (const name of INPUT_NAMES) raw[name] = core.getInput(name);
   const inputs = parseInputs(raw, problems);
+  const defaultConfig = existsSync(join(workspace, DEFAULTS.configFile))
+    ? DEFAULTS.configFile
+    : LEGACY_CONFIG_FILE;
   const config = loadConfig(
     workspace,
-    inputs.configFile ?? DEFAULTS.configFile,
+    inputs.configFile ?? defaultConfig,
     'configFile' in inputs,
     problems,
   );
@@ -154,10 +159,10 @@ async function execute(): Promise<void> {
     core.info('Dry run: no annotations, no pull request comment, and the build is not affected.');
   }
 
-  if (verdict.blocking) core.setFailed(`ManifestLens: ${verdict.reasons.join(' ')}`);
+  if (verdict.blocking) core.setFailed(`k8s-manifestlens: ${verdict.reasons.join(' ')}`);
   else if (!verdict.passed)
     core.warning(
-      `ManifestLens found problems but is not blocking the build (${verdict.result}): ${verdict.reasons.join(' ')}`,
+      `k8s-manifestlens found problems but is not blocking the build (${verdict.result}): ${verdict.reasons.join(' ')}`,
     );
 }
 

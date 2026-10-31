@@ -1,10 +1,10 @@
 {
-  "name": "@manifestlens/core",
+  "name": "@k8s-manifestlens/core",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
-  "description": "Framework-agnostic core of ManifestLens: parse, explain, check and diff Kubernetes manifests.",
+  "description": "Framework-agnostic core of k8s-manifestlens: parse, explain, check and diff Kubernetes manifests.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
