@@ -133,6 +133,7 @@ export function enhanceTextarea(box: HTMLTextAreaElement): Editor {
   const wrap = el('div', { class: 'editor' }, [gutter, el('div', { class: 'code-wrap' })]);
 
   box.setAttribute('wrap', 'off');
+  if (box.classList.contains('short')) wrap.classList.add('short');
   box.parentElement?.insertBefore(wrap, box);
   const codeWrap = wrap.querySelector('.code-wrap') as HTMLElement;
   codeWrap.append(backdrop, box);

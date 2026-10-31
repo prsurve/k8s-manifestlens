@@ -141,6 +141,10 @@ const views = {
 };
 views.explainFindings.origin = originOf;
 views.check.origin = originOf;
+views.check.group = 'severity';
+views.check.regroup = () => update('check');
+views.explainFindings.group = 'severity';
+views.explainFindings.regroup = () => update('explain');
 views.diff.origin = originOf;
 
 function show(output: HTMLElement, content: HTMLElement): void {
@@ -370,7 +374,7 @@ async function loadCrdFromUrl(): Promise<void> {
   const button = $<HTMLButtonElement>('crd-load');
   button.disabled = true;
   try {
-    input('extra-crds').value = await fetchCrdText(url);
+    setBox('extra-crds', await fetchCrdText(url));
     setError('crds-error', undefined);
   } catch (err) {
     setError('crds-error', err instanceof Error ? err.message : String(err));
@@ -497,7 +501,7 @@ function initToolbar(): void {
       input('extra-crds').value.trim() === '' ||
       window.confirm('Also replace the CRD in the Custom resources box with the sample CRD?')
     ) {
-      input('extra-crds').value = customResourceExample.crd;
+      setBox('extra-crds', customResourceExample.crd);
       const box = document.querySelectorAll<HTMLDetailsElement>('details.rules')[1];
       if (box) box.open = true;
     }
@@ -634,17 +638,17 @@ function initSideBoxes(refresh: () => void): void {
     input(id).value.trim() === '' || window.confirm(`${what} This replaces what is in the box.`);
   $('rules-example').addEventListener('click', () => {
     if (!guard('extra-rules', 'Load the example rules?')) return;
-    input('extra-rules').value = exampleRules;
+    setBox('extra-rules', exampleRules);
     refresh();
   });
   $('rules-clear').addEventListener('click', () => {
     if (!guard('extra-rules', 'Clear your rules?')) return;
-    input('extra-rules').value = '';
+    setBox('extra-rules', '');
     refresh();
   });
   $('crds-clear').addEventListener('click', () => {
     if (!guard('extra-crds', 'Clear the CRDs?')) return;
-    input('extra-crds').value = '';
+    setBox('extra-crds', '');
     refresh();
   });
   const grow = $('rules-grow');
@@ -652,13 +656,14 @@ function initSideBoxes(refresh: () => void): void {
     const on = grow.getAttribute('aria-pressed') !== 'true';
     grow.setAttribute('aria-pressed', String(on));
     grow.textContent = on ? 'Smaller editor' : 'Larger editor';
-    input('extra-rules').classList.toggle('big', on);
+    input('extra-rules').closest('.editor')?.classList.toggle('big', on);
   });
 }
 
 function init(): void {
   initTheme($('theme-toggle'));
-  for (const id of [...SHARED, ...DIFF_BOXES]) editors.set(id, enhanceTextarea(input(id)));
+  for (const id of [...SHARED, ...DIFF_BOXES, 'extra-rules', 'extra-crds', 'fix-policy'])
+    editors.set(id, enhanceTextarea(input(id)));
   editors.get('explain-input')?.onLine((line) => views.explain.onLine?.(line));
   initToolbar();
   addCopyButtons();
@@ -707,7 +712,7 @@ function init(): void {
     if (!confirmDiscard(SHARED, 'You have a manifest of your own in the editor.')) return;
     beforeApply = undefined;
     setManifest(example.text);
-    input('fix-policy').value = example.policy;
+    setBox('fix-policy', example.policy);
     $<HTMLSelectElement>('fix-risk').value = example.risk;
     update('fix');
     $('fix-output').scrollTop = 0;

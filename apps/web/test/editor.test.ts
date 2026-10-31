@@ -182,3 +182,31 @@ describe('explain panel sections', () => {
     expect(root.textContent).toContain('not checked');
   });
 });
+
+describe('check grouped by severity', () => {
+  const risky =
+    'kind: Pod\nspec:\n  containers:\n    - name: a\n      image: nginx\n      securityContext:\n        privileged: true\n';
+
+  it('lists errors, warnings and info under their own headings with the resource named', () => {
+    const view = createView();
+    view.group = 'severity';
+    const root = renderCheck(checkManifest(risky, loadBundledRules()), view);
+    const heads = [...root.querySelectorAll('.doc > h2')].map((h) => h.textContent ?? '');
+    expect(heads[0]).toMatch(/^Errors/);
+    expect(root.querySelector('.findings .res')?.textContent).toContain('Pod');
+  });
+
+  it('offers the switch back to resources and asks for a re-render', () => {
+    const view = createView();
+    view.group = 'severity';
+    let redraws = 0;
+    view.regroup = () => redraws++;
+    const root = renderCheck(checkManifest(risky, loadBundledRules()), view);
+    const button = [...root.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Group by resource',
+    );
+    button?.click();
+    expect(view.group).toBe('resource');
+    expect(redraws).toBe(1);
+  });
+});

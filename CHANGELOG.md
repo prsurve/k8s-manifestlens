@@ -11,7 +11,7 @@
   Upload, Copy and a confirmed Clear. Explain, Check and Fix share one manifest, so switching tabs
   keeps it. Explain shows the line under the caret with Previous/Next buttons. Check says whether a
   finding is a built-in rule, your rule or a CRD schema check. Diff says when two manifests are
-  identical. The divider between editor and results can be dragged. The rules and CRD panels show a
+  identical. Check lists findings under Errors, Warnings and Info (switchable back to per resource). The rules, CRD and fix-policy boxes get the same line numbers and colours. The divider between editor and results can be dragged. The rules and CRD panels show a
   count, and the rules panel can load example rules and grow. The header wraps on phones.
 
 ## 1.2.0 (2026-10-31)

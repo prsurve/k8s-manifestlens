@@ -1033,7 +1033,7 @@ ins {
   font-weight: 400;
 }
 .rules-body {
-  max-height: 55dvh;
+  max-height: 36dvh;
   overflow: auto;
   padding: 0 16px 12px;
 }
@@ -1732,4 +1732,32 @@ ul.plain {
   flex: 1 1 12rem;
   text-align: right;
   overflow-wrap: anywhere;
+}
+
+.res {
+  flex: none;
+  max-width: 14rem;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* highlighted editors inside the rules and CRD drawers, and the fix policy */
+.rules .editor {
+  flex: none;
+  height: 160px;
+}
+.rules .editor.big {
+  height: 22dvh;
+  min-height: 160px;
+}
+.pane.input > .editor.short {
+  flex: none;
+  height: 5.5rem;
+  min-height: 0;
+  margin: 0 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }

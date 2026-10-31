@@ -31,6 +31,10 @@ export interface View {
   line?: number | undefined;
   /** Set by the Explain list: tell it the caret moved. */
   onLine?: (line: number) => void;
+  /** How Check lists findings: under each resource (default) or under Error, Warning, Info. */
+  group?: 'resource' | 'severity';
+  /** Re-draw the list after `group` changed. */
+  regroup?: () => void;
   /** Where a finding came from, for the label under it. Absent when the caller cannot tell. */
   origin?: (ruleId: string) => string | undefined;
 }
@@ -284,13 +288,14 @@ export function renderExplain(
 /* Findings (Check and Diff)                                                                   */
 /* ------------------------------------------------------------------------------------------- */
 
-function findingItem(f: Finding, view: View, target: JumpTarget): HTMLElement {
+function findingItem(f: Finding, view: View, target: JumpTarget, resource?: string): HTMLElement {
   const key = `${f.ruleId}|${f.message}`;
   const origin = view.origin?.(f.ruleId);
   const details = el('details', { class: `finding sev-${f.severity}` }, [
     el('summary', {}, [
       el('span', { class: 'badge', text: f.severity }),
       el('span', { class: 'msg', text: f.message }),
+      resource && el('span', { class: 'res', text: resource }),
       el('span', { class: 'at', text: `L${f.line}` }),
     ]),
     el('div', { class: 'detail' }, [
@@ -313,11 +318,16 @@ function findingItem(f: Finding, view: View, target: JumpTarget): HTMLElement {
   return el('li', { class: `sev-${f.severity}` }, [details]);
 }
 
-function findingList(findings: Finding[], view: View, target: JumpTarget): HTMLElement {
+function findingList(
+  findings: Finding[],
+  view: View,
+  target: JumpTarget,
+  resource?: string,
+): HTMLElement {
   return el(
     'ul',
     { class: 'findings' },
-    findings.map((f) => findingItem(f, view, target)),
+    findings.map((f) => findingItem(f, view, target, resource)),
   );
 }
 
@@ -346,6 +356,21 @@ function severityChips(root: HTMLElement, findings: Finding[], view: View): HTML
 
 function applyHidden(root: HTMLElement, view: View): void {
   for (const s of view.hidden) root.setAttribute(`data-hide-${s}`, '');
+}
+
+/** Switches the Check list between "by resource" and "by severity". Needs the caller to re-render. */
+function groupButton(view: View): HTMLElement {
+  const by = view.group === 'severity';
+  const b = el('button', {
+    class: 'text-btn',
+    text: by ? 'Group by resource' : 'Group by severity',
+    attrs: { type: 'button' },
+  });
+  b.addEventListener('click', () => {
+    view.group = by ? 'resource' : 'severity';
+    view.regroup?.();
+  });
+  return b;
 }
 
 /** A "not checked" box: the point first, then why, the likely typo, and what an empty result means. */
@@ -383,10 +408,34 @@ export function renderCheck(result: CheckResult, view: View = createView()): HTM
         el('p', { class: 'summary', text: plural(all.length, 'finding') }),
         ...severityChips(root, all, view),
         expandButton(root, view, 'details.finding'),
+        groupButton(view),
       ),
     );
   }
+  const bySeverity = view.group === 'severity' && all.length > 0;
+  if (bySeverity) {
+    for (const sev of SEVERITIES) {
+      const items = result.documents.flatMap((d) =>
+        d.findings.filter((f) => f.severity === sev).map((f) => ({ f, d })),
+      );
+      if (items.length === 0) continue;
+      root.append(
+        el('section', { class: `doc sev-${sev}` }, [
+          el('h2', {}, [
+            `${sev === 'info' ? 'Info' : `${sev[0]?.toUpperCase()}${sev.slice(1)}s`}`,
+            el('span', { class: 'meta', text: plural(items.length, 'finding') }),
+          ]),
+          el(
+            'ul',
+            { class: 'findings' },
+            items.map(({ f, d }) => findingItem(f, view, 'main', title(d))),
+          ),
+        ]),
+      );
+    }
+  }
   for (const doc of result.documents) {
+    if (bySeverity && doc.findings.length > 0) continue;
     root.append(
       el('section', { class: 'doc' }, [
         el('h2', {}, [
