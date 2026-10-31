@@ -1,6 +1,6 @@
 {
-  "name": "manifestlens-vscode",
-  "displayName": "ManifestLens",
+  "name": "k8s-manifestlens-vscode",
+  "displayName": "k8s-manifestlens",
   "description": "Explains Kubernetes YAML in plain English and flags risky settings. Works offline.",
   "version": "0.1.0",
   "license": "Apache-2.0",
@@ -10,13 +10,13 @@
     "color": "#2f5bd6",
     "theme": "dark"
   },
-  "homepage": "https://manifestlens-one.vercel.app",
+  "homepage": "https://k8s-manifestlens.k8ssimplified.in",
   "bugs": {
-    "url": "https://github.com/prsurve/manifestlens/issues"
+    "url": "https://github.com/prsurve/k8s-manifestlens/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/prsurve/manifestlens.git"
+    "url": "https://github.com/prsurve/k8s-manifestlens.git"
   },
   "engines": {
     "vscode": "^1.90.0"
@@ -40,23 +40,23 @@
   "contributes": {
     "commands": [
       {
-        "command": "manifestlens.explainFile",
-        "title": "ManifestLens: Explain this manifest"
+        "command": "k8sManifestlens.explainFile",
+        "title": "k8s-manifestlens: Explain this manifest"
       },
       {
-        "command": "manifestlens.fixFile",
-        "title": "ManifestLens: Fix this manifest (preview first)"
+        "command": "k8sManifestlens.fixFile",
+        "title": "k8s-manifestlens: Fix this manifest (preview first)"
       }
     ],
     "configuration": {
-      "title": "ManifestLens",
+      "title": "k8s-manifestlens",
       "properties": {
-        "manifestlens.enable": {
+        "k8sManifestlens.enable": {
           "type": "boolean",
           "default": true,
           "description": "Check Kubernetes manifests and show explanations on hover."
         },
-        "manifestlens.rules": {
+        "k8sManifestlens.rules": {
           "type": "array",
           "items": {
             "type": "string"
@@ -64,7 +64,7 @@
           "default": [],
           "description": "Extra rule files or folders (YAML). Relative paths are resolved from the workspace folder."
         },
-        "manifestlens.minimumSeverity": {
+        "k8sManifestlens.minimumSeverity": {
           "type": "string",
           "enum": [
             "info",
@@ -74,7 +74,7 @@
           "default": "info",
           "description": "Hide findings below this severity."
         },
-        "manifestlens.fixMaxRisk": {
+        "k8sManifestlens.fixMaxRisk": {
           "type": "string",
           "enum": [
             "low",
@@ -84,7 +84,7 @@
           "default": "low",
           "description": "Highest risk applied by \"Fix this manifest\". The lightbulb quick fixes always offer every fix and show its risk."
         },
-        "manifestlens.fixPolicy": {
+        "k8sManifestlens.fixPolicy": {
           "type": "string",
           "default": "",
           "description": "YAML file with values for fixes that cannot guess them, for example params: { memoryLimit: 256Mi }. Relative paths are resolved from the workspace folder."
@@ -95,11 +95,11 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "package": "npm run build && vsce package --no-dependencies -o dist/manifestlens.vsix",
+    "package": "npm run build && vsce package --no-dependencies -o dist/k8s-manifestlens.vsix",
     "publish:marketplace": "npm run build && vsce publish --no-dependencies"
   },
   "dependencies": {
-    "@manifestlens/core": "*"
+    "@k8s-manifestlens/core": "*"
   },
   "devDependencies": {
     "@types/vscode": "^1.90.0",

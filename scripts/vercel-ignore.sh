@@ -17,7 +17,7 @@ fi
 AUTH=()
 [ -n "$GITHUB_TOKEN" ] && AUTH=(-H "Authorization: Bearer $GITHUB_TOKEN")
 LABELS=$(curl -sf "${AUTH[@]}" \
-  "https://api.github.com/repos/prsurve/manifestlens/issues/$VERCEL_GIT_PULL_REQUEST_ID/labels")
+  "https://api.github.com/repos/prsurve/k8s-manifestlens/issues/$VERCEL_GIT_PULL_REQUEST_ID/labels")
 
 if echo "$LABELS" | grep -q '"name": *"preview"'; then
   echo "PR has the preview label, building."

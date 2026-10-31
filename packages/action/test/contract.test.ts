@@ -62,8 +62,8 @@ describe('the sample config', () => {
   it('is accepted by the action, and produces valid settings', () => {
     const p = new Problems();
     const layer = parseConfig(
-      parse(repoFile('examples/manifestlens.config.yml')),
-      'examples/manifestlens.config.yml',
+      parse(repoFile('examples/k8s-manifestlens.config.yml')),
+      'examples/k8s-manifestlens.config.yml',
       p,
     );
     expect(p.items).toEqual([]);
@@ -83,20 +83,20 @@ describe('the sample config', () => {
   });
 
   it('uses only settings that are documented as inputs, apart from ignore and version', () => {
-    const keys = Object.keys(parse(repoFile('examples/manifestlens.config.yml')) as object);
+    const keys = Object.keys(parse(repoFile('examples/k8s-manifestlens.config.yml')) as object);
     for (const key of keys) expect([...INPUT_NAMES, 'ignore', 'version']).toContain(key);
   });
 });
 
 describe('the sample workflow', () => {
-  const workflow = parse(repoFile('examples/workflows/manifestlens.yml')) as {
+  const workflow = parse(repoFile('examples/workflows/k8s-manifestlens.yml')) as {
     jobs: Record<string, { steps: { uses?: string; with?: Record<string, string> }[] }>;
   };
 
   it('passes only inputs the action has', () => {
     const used = Object.values(workflow.jobs)
       .flatMap((job) => job.steps)
-      .filter((step) => step.uses?.startsWith('prsurve/manifestlens@'))
+      .filter((step) => step.uses?.startsWith('prsurve/k8s-manifestlens@'))
       .flatMap((step) => Object.keys(step.with ?? {}));
     expect(used.length).toBeGreaterThan(5);
     for (const name of used) expect(Object.keys(action.inputs), name).toContain(name);

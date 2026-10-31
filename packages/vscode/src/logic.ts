@@ -4,8 +4,8 @@ import {
   fixManifest,
   lineEdits,
   looksLikeKubernetes,
-} from '@manifestlens/core';
-import type { ExplainResult, FixOptions, FixResult, Rule, Severity } from '@manifestlens/core';
+} from '@k8s-manifestlens/core';
+import type { ExplainResult, FixOptions, FixResult, Rule, Severity } from '@k8s-manifestlens/core';
 
 /** Editor-independent description of one squiggle; extension.ts turns these into vscode objects. */
 export interface Problem {
@@ -96,9 +96,10 @@ function inlineCode(text: string): string {
 export function explainAsMarkdown(text: string): string {
   const result = explainManifest(text);
   const lines = text.split(/\r?\n/);
-  if (result.documents.length === 0) return '# ManifestLens\n\nNo Kubernetes documents found.\n';
+  if (result.documents.length === 0)
+    return '# k8s-manifestlens\n\nNo Kubernetes documents found.\n';
 
-  const out = ['# ManifestLens explanation', ''];
+  const out = ['# k8s-manifestlens explanation', ''];
   for (const doc of result.documents) {
     const name = doc.name ? ` "${doc.name.replace(/[`\r\n]/g, ' ')}"` : '';
     out.push(`## ${doc.kind ?? 'Unknown object'}${name}`, '');
@@ -152,5 +153,5 @@ export function fixTitle(result: FixResult): string | undefined {
   if (!first || result.status !== 'fixed') return undefined;
   const extra = result.applied.length > 1 ? ` (+${result.applied.length - 1} more)` : '';
   const risk = first.risk === 'low' ? '' : ` [${first.risk} risk: review]`;
-  return `ManifestLens: ${first.summary}${extra}${risk}`;
+  return `k8s-manifestlens: ${first.summary}${extra}${risk}`;
 }

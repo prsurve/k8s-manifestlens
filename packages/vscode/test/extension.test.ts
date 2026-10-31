@@ -10,7 +10,7 @@ const risky = example('risky.yaml');
 
 const context = () => ({ subscriptions: [] as { dispose(): void }[] });
 const diagnosticsFor = (name: string) =>
-  state.collections.get('manifestlens')?.get(`file:///${name}`);
+  state.collections.get('k8s-manifestlens')?.get(`file:///${name}`);
 
 beforeEach(() => reset());
 afterEach(() => vi.useRealTimers());
@@ -18,9 +18,9 @@ afterEach(() => vi.useRealTimers());
 describe('activate', () => {
   it('registers diagnostics, a hover provider and the explain command', () => {
     activate(context() as never);
-    expect(state.collections.has('manifestlens')).toBe(true);
+    expect(state.collections.has('k8s-manifestlens')).toBe(true);
     expect(state.hoverProviders).toHaveLength(1);
-    expect(state.commands.has('manifestlens.explainFile')).toBe(true);
+    expect(state.commands.has('k8sManifestlens.explainFile')).toBe(true);
   });
 
   it('checks documents that are already open', () => {
@@ -35,7 +35,7 @@ describe('activate', () => {
     const list = diagnosticsFor('b.yaml') ?? [];
     expect(list).toHaveLength(18);
     const privileged = list.find((d) => d.code === 'privileged-container');
-    expect(privileged).toMatchObject({ severity: 0, source: 'ManifestLens' });
+    expect(privileged).toMatchObject({ severity: 0, source: 'k8s-manifestlens' });
     expect(privileged?.range.start.line).toBe(16);
     expect(privileged?.message).toContain('Fix:');
   });
@@ -120,7 +120,7 @@ describe('explain command', () => {
   it('opens a markdown explanation beside the editor', async () => {
     activate(context() as never);
     state.activeDocument = fakeDocument('z.yaml', 'yaml', example('web.yaml'));
-    await state.commands.get('manifestlens.explainFile')?.();
+    await state.commands.get('k8sManifestlens.explainFile')?.();
     expect(state.openedDocuments).toHaveLength(1);
     expect(state.openedDocuments[0]?.language).toBe('markdown');
     expect(state.openedDocuments[0]?.content).toContain('## Deployment "web"');
@@ -128,7 +128,7 @@ describe('explain command', () => {
 
   it('tells the user when there is no Kubernetes file open', async () => {
     activate(context() as never);
-    await state.commands.get('manifestlens.explainFile')?.();
+    await state.commands.get('k8sManifestlens.explainFile')?.();
     expect(state.infos[0]).toContain('open a Kubernetes YAML file');
     expect(state.openedDocuments).toHaveLength(0);
   });
@@ -147,7 +147,7 @@ spec:
         runAsUser: 1000
 `;
 
-  /** The diagnostics ManifestLens published for a document, as the editor passes them to code actions. */
+  /** The diagnostics k8s-manifestlens published for a document, as the editor passes them to code actions. */
   function actionsFor(doc: ReturnType<typeof fakeDocument>, code: string) {
     const diagnostics = (diagnosticsFor(doc.uri.fsPath.slice(1)) ?? []).filter(
       (d) => d.code === code,
@@ -165,7 +165,7 @@ spec:
     state.open.forEach((l) => l(doc));
     const [action] = actionsFor(doc, 'allow-privilege-escalation');
     expect(action?.title).toBe(
-      'ManifestLens: Set securityContext.allowPrivilegeEscalation to false.',
+      'k8s-manifestlens: Set securityContext.allowPrivilegeEscalation to false.',
     );
     expect(action?.edit?.replacements).toHaveLength(1);
     expect(action?.edit?.replacements[0]?.text).toContain('allowPrivilegeEscalation: false');
@@ -204,13 +204,13 @@ spec:
     activate(context() as never);
     state.activeDocument = fakeDocument('t.yaml', 'yaml', pod);
     state.choice = undefined;
-    await state.commands.get('manifestlens.fixFile')?.();
+    await state.commands.get('k8sManifestlens.fixFile')?.();
     expect(state.openedDocuments[0]?.content).toContain('allowPrivilegeEscalation: false');
     expect(state.executed[0]?.[0]).toBe('vscode.diff');
     expect(state.applied).toHaveLength(0);
 
     state.choice = 'Apply';
-    await state.commands.get('manifestlens.fixFile')?.();
+    await state.commands.get('k8sManifestlens.fixFile')?.();
     expect(state.applied).toHaveLength(1);
   });
 
@@ -223,7 +223,7 @@ spec:
     let calls = 0;
     // The first read is for the plan; by the time of the confirmation the buffer has changed.
     doc.getText = () => (++calls <= 2 ? original() : `${original()}# edited\n`);
-    await state.commands.get('manifestlens.fixFile')?.();
+    await state.commands.get('k8sManifestlens.fixFile')?.();
     expect(state.applied).toHaveLength(0);
     expect(state.warnings.at(-1)).toContain('changed since the preview');
   });
@@ -231,7 +231,7 @@ spec:
   it('only applies fixes up to the configured risk, and says what was held back', async () => {
     activate(context() as never);
     state.activeDocument = fakeDocument('v.yaml', 'yaml', example('hardened.yaml'));
-    await state.commands.get('manifestlens.fixFile')?.();
+    await state.commands.get('k8sManifestlens.fixFile')?.();
     expect(state.infos.at(-1)).toContain('no fixes to apply');
     state.activeDocument = fakeDocument(
       'w.yaml',
@@ -240,7 +240,7 @@ spec:
     );
     state.settings['fixMaxRisk'] = 'low';
     state.choice = 'Apply';
-    await state.commands.get('manifestlens.fixFile')?.();
+    await state.commands.get('k8sManifestlens.fixFile')?.();
     expect(state.openedDocuments).toHaveLength(0);
     expect(state.applied).toHaveLength(0);
     expect(state.infos.at(-1)).toContain('need review or input');

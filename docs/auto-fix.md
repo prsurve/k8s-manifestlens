@@ -1,15 +1,15 @@
 # Automatic fixes
 
-`manifestlens fix` turns a small set of findings into reviewed, validated patches. It previews first
+`k8s-manifestlens fix` turns a small set of findings into reviewed, validated patches. It previews first
 and writes only when you ask. It runs offline, needs no cluster, and uses no AI service: the same
 input always gives the same patch.
 
 ```sh
-manifestlens fix deploy.yaml                          # preview: diff on stdout, report on stderr
-manifestlens fix deploy.yaml > fixes.patch            # keep the diff; `git apply fixes.patch` applies it
-manifestlens fix deploy.yaml --write                  # apply (keeps deploy.yaml.bak)
-manifestlens fix deploy.yaml --policy fix-policy.yaml --max-risk medium
-manifestlens fix deploy.yaml --only allow-privilege-escalation
+k8s-manifestlens fix deploy.yaml                          # preview: diff on stdout, report on stderr
+k8s-manifestlens fix deploy.yaml > fixes.patch            # keep the diff; `git apply fixes.patch` applies it
+k8s-manifestlens fix deploy.yaml --write                  # apply (keeps deploy.yaml.bak)
+k8s-manifestlens fix deploy.yaml --policy fix-policy.yaml --max-risk medium
+k8s-manifestlens fix deploy.yaml --only allow-privilege-escalation
 ```
 
 Try it on [examples/fixable.yaml](../examples/fixable.yaml) with [examples/fix-policy.yaml](../examples/fix-policy.yaml).
@@ -17,7 +17,7 @@ Try it on [examples/fixable.yaml](../examples/fixable.yaml) with [examples/fix-p
 ## What can be fixed
 
 A fix exists only when the right answer is unambiguous, or when your team states it in a policy file.
-Everything else stays advice (the rule's `fix:` text). ManifestLens never invents image tags, resource
+Everything else stays advice (the rule's `fix:` text). k8s-manifestlens never invents image tags, resource
 sizes, probe paths, storage settings or user IDs.
 
 | Rule                            | Risk   | Patch                                                 | Needs                                                                  |
@@ -36,7 +36,7 @@ For each one:
 - **Preconditions.** The `requires` condition above, plus the engine's checks (below). A failed
   precondition is reported as "not applied", never forced.
 - **Approval.** Risk decides. `low` is applied by default. `medium` and `high` need `--max-risk`
-  (CLI), `fix-max-risk` (Action) or `manifestlens.fixMaxRisk` (VS Code). Picking a quick fix in VS Code
+  (CLI), `fix-max-risk` (Action) or `k8sManifestlens.fixMaxRisk` (VS Code). Picking a quick fix in VS Code
   is an explicit approval for that one fix.
 - **Validation.** Every fix is validated before the next is planned (see "How a fix is checked").
 - **Tests.** `packages/core/test/fix.test.ts` has positive, negative and regression cases for each.
@@ -76,7 +76,7 @@ parameter.
 
 ## How a fix is checked
 
-`fixManifest(source, rules, options)` is a pure function in `@manifestlens/core`. It reads nothing and
+`fixManifest(source, rules, options)` is a pure function in `@k8s-manifestlens/core`. It reads nothing and
 writes nothing. The CLI, web page, VS Code extension and GitHub Action all call it.
 
 1. Run the rules. Candidates are findings whose rule has an `autofix`. Documents with YAML errors are
@@ -136,13 +136,13 @@ is skipped. A value is either written in the rule or a `$param` filled from the 
 
 ## Integrations
 
-- **CLI:** `manifestlens fix` (above). Exit code 0 when previewed or written, 1 when the file has YAML
+- **CLI:** `k8s-manifestlens fix` (above). Exit code 0 when previewed or written, 1 when the file has YAML
   errors or validation rejected the fixes, 2 for bad usage.
 - **Web page:** the Fix tab shows what would change, what was held back, the diff, and buttons to apply the fixed manifest to the input (with undo) or copy it
   the fixed manifest.
-- **VS Code:** a lightbulb quick fix on each fixable finding (labelled with its risk), and `ManifestLens:
+- **VS Code:** a lightbulb quick fix on each fixable finding (labelled with its risk), and `k8s-manifestlens:
 Fix this manifest (preview first)`, which opens a diff and asks before applying.
-  Settings: `manifestlens.fixMaxRisk`, `manifestlens.fixPolicy`.
+  Settings: `k8sManifestlens.fixMaxRisk`, `k8sManifestlens.fixPolicy`.
 - **GitHub Action:** opt in with `suggest-fixes: true` and `fix-patch-file: manifestlens-fixes.patch`.
   The job summary lists the fixes and what was held back, the JSON report gets a `fixes` section, and
   the patch is a file you can upload as an artifact. The action never edits, commits or pushes. Findings
@@ -150,7 +150,7 @@ Fix this manifest (preview first)`, which opens a diff and asks before applying.
   [github-action.md](github-action.md).
 
 ```yaml
-- uses: prsurve/manifestlens@v1
+- uses: prsurve/k8s-manifestlens@v1
   with:
     fix-patch-file: manifestlens-fixes.patch
     fix-max-risk: medium

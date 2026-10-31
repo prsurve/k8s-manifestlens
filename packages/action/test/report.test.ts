@@ -1,4 +1,4 @@
-import { loadBundledRules } from '@manifestlens/core';
+import { loadBundledRules } from '@k8s-manifestlens/core';
 import { describe, expect, it } from 'vitest';
 import { analyze } from '../src/analyze.js';
 import { evaluate } from '../src/evaluate.js';
@@ -50,7 +50,7 @@ describe('job summary', () => {
   const failed = buildSummary(info(example('risky.yaml')));
 
   it('leads with the verdict and the counts', () => {
-    expect(failed).toContain('## ManifestLens');
+    expect(failed).toContain('## k8s-manifestlens');
     expect(failed).toMatch(
       /> ❌ \*\*Failed\*\*: 2 errors, 9 warnings, 7 info findings in 1 file\./,
     );
@@ -96,7 +96,7 @@ describe('job summary', () => {
 
   it('puts the label in the heading so matrix jobs can be told apart', () => {
     expect(buildSummary(info(example('hardened.yaml'), { label: 'prod / eu' }))).toContain(
-      '## ManifestLens · prod / eu',
+      '## k8s-manifestlens · prod / eu',
     );
   });
 
@@ -342,7 +342,7 @@ describe('SARIF', () => {
 
   it('is a SARIF 2.1.0 document from this tool', () => {
     expect(sarif.version).toBe('2.1.0');
-    expect(run.tool.driver).toMatchObject({ name: 'ManifestLens', version: '9.9.9' });
+    expect(run.tool.driver).toMatchObject({ name: 'k8s-manifestlens', version: '9.9.9' });
   });
 
   it('has one result per finding with the right level and location', () => {

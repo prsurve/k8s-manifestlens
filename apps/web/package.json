@@ -1,5 +1,5 @@
 {
-  "name": "@manifestlens/web",
+  "name": "@k8s-manifestlens/web",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@manifestlens/core": "*",
+    "@k8s-manifestlens/core": "*",
     "@vercel/analytics": "^2.0.1"
   },
   "devDependencies": {

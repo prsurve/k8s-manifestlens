@@ -1,4 +1,4 @@
-import { loadBundledRules } from '@manifestlens/core';
+import { loadBundledRules } from '@k8s-manifestlens/core';
 import { describe, expect, it } from 'vitest';
 import { analyze, prepareRules } from '../src/analyze.js';
 import { DEFAULTS } from '../src/settings.js';
@@ -123,10 +123,19 @@ describe('analyze: ignores', () => {
     expect(ids(a)).not.toContain('image-latest-tag');
   });
 
-  it('honours an inline comment on the same line', () => {
+  it('still honours the older manifestlens-ignore comment', () => {
     const text = risky.replace(
       'image: nginx',
       'image: nginx # manifestlens-ignore: image-latest-tag',
+    );
+    const a = analyze([{ path: 'a.yaml', text }], rules, s());
+    expect(ids(a)).not.toContain('image-latest-tag');
+  });
+
+  it('honours an inline comment on the same line', () => {
+    const text = risky.replace(
+      'image: nginx',
+      'image: nginx # k8s-manifestlens-ignore: image-latest-tag',
     );
     const a = analyze([{ path: 'a.yaml', text }], rules, s());
     expect(ids(a)).not.toContain('image-latest-tag');
@@ -136,14 +145,17 @@ describe('analyze: ignores', () => {
   it('honours an inline comment on the comment line above, for several rules or all', () => {
     const above = risky.replace(
       '      - name: app',
-      '      # manifestlens-ignore: missing-memory-limit, missing-readiness-probe\n      - name: app',
+      '      # k8s-manifestlens-ignore: missing-memory-limit, missing-readiness-probe\n      - name: app',
     );
     // the container finding lines now point one line lower; the comment sits directly above them
     const a = analyze([{ path: 'a.yaml', text: above }], rules, s());
     expect(ids(a)).not.toContain('missing-memory-limit');
     expect(ids(a)).not.toContain('missing-readiness-probe');
 
-    const all = risky.replace('privileged: true', 'privileged: true # manifestlens-ignore: all');
+    const all = risky.replace(
+      'privileged: true',
+      'privileged: true # k8s-manifestlens-ignore: all',
+    );
     expect(ids(analyze([{ path: 'a.yaml', text: all }], rules, s()))).not.toContain(
       'privileged-container',
     );
@@ -152,14 +164,14 @@ describe('analyze: ignores', () => {
   it('does not let a comment elsewhere, or for another rule, silence a finding', () => {
     const elsewhere = risky.replace(
       'kind: Service',
-      'kind: Service # manifestlens-ignore: image-latest-tag',
+      'kind: Service # k8s-manifestlens-ignore: image-latest-tag',
     );
     expect(ids(analyze([{ path: 'a.yaml', text: elsewhere }], rules, s()))).toContain(
       'image-latest-tag',
     );
     const other = risky.replace(
       'image: nginx',
-      'image: nginx # manifestlens-ignore: some-other-rule',
+      'image: nginx # k8s-manifestlens-ignore: some-other-rule',
     );
     expect(ids(analyze([{ path: 'a.yaml', text: other }], rules, s()))).toContain(
       'image-latest-tag',

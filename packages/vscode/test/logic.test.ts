@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { explainManifest, loadBundledRules } from '@manifestlens/core';
+import { explainManifest, loadBundledRules } from '@k8s-manifestlens/core';
 import {
   explainAsMarkdown,
   findProblems,

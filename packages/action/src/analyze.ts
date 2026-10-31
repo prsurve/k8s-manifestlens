@@ -1,5 +1,5 @@
-import { checkManifest, diffManifests } from '@manifestlens/core';
-import type { Rule } from '@manifestlens/core';
+import { checkManifest, diffManifests } from '@k8s-manifestlens/core';
+import type { Rule } from '@k8s-manifestlens/core';
 import { minimatch } from 'minimatch';
 import type { Analysis, ChangedObject, LocatedFinding, ParseProblem, Settings } from './types.js';
 
@@ -37,10 +37,10 @@ export function prepareRules(all: Rule[], s: Settings): { rules: Rule[]; unknown
   return { rules, unknown };
 }
 
-const INLINE = /manifestlens-ignore:\s*([A-Za-z0-9_, -]+)/;
+const INLINE = /(?:k8s-)?manifestlens-ignore:\s*([A-Za-z0-9_, -]+)/;
 
 /**
- * A `# manifestlens-ignore: rule-id, other-rule` comment on the finding's line, or on a comment
+ * A `# k8s-manifestlens-ignore: rule-id, other-rule` comment (the older `manifestlens-ignore:` works too) on the finding's line, or on a comment
  * line just above it, silences those rules there. `all` silences every rule.
  */
 function suppressedInline(lines: string[], line: number, ruleId: string): boolean {

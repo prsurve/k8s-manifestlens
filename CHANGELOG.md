@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Changed
+
+- **Renamed to k8s-manifestlens**, so the Kubernetes focus is clear. The GitHub repo, Action, CLI
+  command, docs and web page use the new name; the site moves to k8s-manifestlens.k8ssimplified.in.
+  Nothing breaks for existing users: the `manifestlens` command is kept as an alias, the config file is
+  still read from `.github/manifestlens.yml` when `.github/k8s-manifestlens.yml` is absent, and
+  `# manifestlens-ignore:` comments still work. Existing `@v1` workflows keep running.
+- VS Code: the extension is now `prsurve.k8s-manifestlens-vscode` and its settings start with
+  `k8sManifestlens.` instead of `manifestlens.`. The old extension is deprecated.
+
 ### Added
 
 - **Automatic fixes.** Rules can carry a structured `autofix`. `manifestlens fix <file>` previews

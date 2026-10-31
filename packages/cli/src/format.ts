@@ -1,5 +1,5 @@
-import type { ExplainResult } from '@manifestlens/core';
-import { supportedKinds } from '@manifestlens/core';
+import type { ExplainResult } from '@k8s-manifestlens/core';
+import { supportedKinds } from '@k8s-manifestlens/core';
 
 /** Render an explain result as plain text, one block per source line. */
 export function formatExplanation(result: ExplainResult, source: string): string {

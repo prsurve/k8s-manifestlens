@@ -17,7 +17,7 @@ export type {
   Severity,
 } from './types.js';
 
-/** The rules that ship with ManifestLens. */
+/** The rules that ship with k8s-manifestlens. */
 export function loadBundledRules(): Rule[] {
   return Object.entries(bundledRuleSources).flatMap(([file, text]) => parseRules(text, file));
 }

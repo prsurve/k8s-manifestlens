@@ -108,7 +108,7 @@ describe('pass and fail', () => {
       findings: '18',
     });
     expect(r.summary).toContain('❌ **Failed**');
-    expect(r.log).toContain('::error::ManifestLens: 2 errors found, none allowed.');
+    expect(r.log).toContain('::error::k8s-manifestlens: 2 errors found, none allowed.');
   });
 
   it('passes when the findings are below the failure level', async () => {
@@ -162,7 +162,7 @@ describe('modes that do not block', () => {
     expect(r.exitCode).toBeUndefined();
     expect(r.outputs).toMatchObject({ result: 'report', passed: 'false', errors: '2' });
     expect(r.log).toContain(
-      '::warning::ManifestLens found problems but is not blocking the build (report)',
+      '::warning::k8s-manifestlens found problems but is not blocking the build (report)',
     );
     expect(r.summary).toContain('Rules violated, not blocking');
   });
@@ -185,7 +185,7 @@ describe('modes that do not block', () => {
     expect(capped.log.match(/^::(error|warning|notice) title=/gm)).toHaveLength(3);
     const full = await runAction({ files: { 'a.yaml': risky } });
     expect(full.log).toContain(
-      '::error title=ManifestLens%3A privileged-container,file=a.yaml,line=17::',
+      '::error title=k8s-manifestlens%3A privileged-container,file=a.yaml,line=17::',
     );
   });
 });
@@ -193,16 +193,28 @@ describe('modes that do not block', () => {
 describe('the three levels of configuration', () => {
   it('reads project settings from the config file', async () => {
     const r = await runAction({
-      files: { 'a.yaml': risky, '.github/manifestlens.yml': 'fail-on: none\nlabel: from-file\n' },
+      files: {
+        'a.yaml': risky,
+        '.github/k8s-manifestlens.yml': 'fail-on: none\nlabel: from-file\n',
+      },
     });
     expect(r.exitCode).toBeUndefined();
-    expect(r.summary).toContain('## ManifestLens · from-file');
+    expect(r.summary).toContain('## k8s-manifestlens · from-file');
     expect(r.summary).toMatch(/<code>failOn<\/code> \| <code>none<\/code> \| config/);
+    expect(r.summary).toContain('<code>.github/k8s-manifestlens.yml</code>');
+  });
+
+  it('falls back to the config file at its old location', async () => {
+    const r = await runAction({
+      files: { 'a.yaml': risky, '.github/manifestlens.yml': 'fail-on: none\nlabel: legacy\n' },
+    });
+    expect(r.exitCode).toBeUndefined();
+    expect(r.summary).toContain('## k8s-manifestlens · legacy');
     expect(r.summary).toContain('<code>.github/manifestlens.yml</code>');
   });
 
   it('lets a workflow input override the config file', async () => {
-    const files = { 'a.yaml': risky, '.github/manifestlens.yml': 'mode: report\n' };
+    const files = { 'a.yaml': risky, '.github/k8s-manifestlens.yml': 'mode: report\n' };
     expect((await runAction({ files })).exitCode).toBeUndefined();
     const r = await runAction({ files, inputs: { mode: 'enforce' } });
     expect(r.exitCode).toBe(1);
@@ -225,7 +237,10 @@ describe('the three levels of configuration', () => {
 
   it('adds up rule settings from the file and the workflow', async () => {
     const r = await runAction({
-      files: { 'a.yaml': risky, '.github/manifestlens.yml': 'disable-rules: [single-replica]\n' },
+      files: {
+        'a.yaml': risky,
+        '.github/k8s-manifestlens.yml': 'disable-rules: [single-replica]\n',
+      },
       inputs: { 'disable-rules': 'image-latest-tag', 'fail-on': 'none' },
     });
     expect(r.outputs.findings).toBe('16');
@@ -241,7 +256,7 @@ describe('the three levels of configuration', () => {
       '  - path: "examples/**"',
     ].join('\n');
     const r = await runAction({
-      files: { 'a.yaml': risky, 'examples/demo.yaml': risky, '.github/manifestlens.yml': yml },
+      files: { 'a.yaml': risky, 'examples/demo.yaml': risky, '.github/k8s-manifestlens.yml': yml },
     });
     expect(r.outputs.suppressed).toBe('18');
     expect(r.outputs.errors).toBe('2'); // run-as-root-user and image-latest-tag; privileged-container is now info
@@ -260,13 +275,13 @@ describe('safeguards', () => {
     );
     expect(r.log).toContain('::error::scope: "sideways" is not valid');
     expect(r.log).toContain('::error::max-errors: "-1" must be a whole number');
-    expect(r.log).toContain('ManifestLens is not configured correctly (3 problems)');
+    expect(r.log).toContain('k8s-manifestlens is not configured correctly (3 problems)');
     expect(r.summary).toContain('configuration problem');
   });
 
   it('catches a typo in the config file and suggests the fix', async () => {
     const r = await runAction({
-      files: { 'a.yaml': risky, '.github/manifestlens.yml': 'fail-onn: warning\n' },
+      files: { 'a.yaml': risky, '.github/k8s-manifestlens.yml': 'fail-onn: warning\n' },
     });
     expect(r.exitCode).toBe(1);
     expect(r.log).toContain('unknown setting "fail-onn" (did you mean "fail-on"?)');
@@ -351,8 +366,11 @@ describe('extra rules', () => {
 describe('inline suppression', () => {
   it('silences a finding with a comment, and counts it', async () => {
     const text = risky
-      .replace('privileged: true', 'privileged: true # manifestlens-ignore: privileged-container')
-      .replace('runAsUser: 0', 'runAsUser: 0 # manifestlens-ignore: run-as-root-user');
+      .replace(
+        'privileged: true',
+        'privileged: true # k8s-manifestlens-ignore: privileged-container',
+      )
+      .replace('runAsUser: 0', 'runAsUser: 0 # k8s-manifestlens-ignore: run-as-root-user');
     const r = await runAction({ files: { 'a.yaml': text } });
     expect(r.exitCode).toBeUndefined();
     expect(r.outputs).toMatchObject({ errors: '0', suppressed: '2', result: 'pass' });
@@ -392,7 +410,7 @@ describe('outputs and report files', () => {
 
   it('puts the label in the summary heading, for matrix jobs', async () => {
     const r = await runAction({ files: { 'a.yaml': hardened }, inputs: { label: 'prod' } });
-    expect(r.summary).toContain('## ManifestLens · prod');
+    expect(r.summary).toContain('## k8s-manifestlens · prod');
   });
 });
 
@@ -512,11 +530,11 @@ describe('pull_request_target', () => {
 
   it('warns when the config file or rules could be controlled by the pull request author', async () => {
     const withConfig = await runAction({
-      files: { 'a.yaml': hardened, '.github/manifestlens.yml': 'fail-on: none\n' },
+      files: { 'a.yaml': hardened, '.github/k8s-manifestlens.yml': 'fail-on: none\n' },
       ...target,
     });
     expect(withConfig.log).toContain(
-      '::warning::This is a pull_request_target run, and the config file (.github/manifestlens.yml)',
+      '::warning::This is a pull_request_target run, and the config file (.github/k8s-manifestlens.yml)',
     );
     const withRules = await runAction({
       files: {
@@ -535,7 +553,7 @@ describe('pull_request_target', () => {
       'pull_request_target run',
     );
     const normal = await runAction({
-      files: { 'a.yaml': hardened, '.github/manifestlens.yml': 'fail-on: none\n' },
+      files: { 'a.yaml': hardened, '.github/k8s-manifestlens.yml': 'fail-on: none\n' },
       eventName: 'pull_request',
       event: target.event,
     });
@@ -691,7 +709,7 @@ describe('fix suggestions', () => {
     // The finding points at the container's first key when the field is missing.
     const text = pod().replace(
       '    - name: app',
-      '    # manifestlens-ignore: allow-privilege-escalation\n    - name: app',
+      '    # k8s-manifestlens-ignore: allow-privilege-escalation\n    - name: app',
     );
     const inline = await runAction({
       files: { 'a.yaml': text },

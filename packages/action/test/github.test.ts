@@ -220,10 +220,10 @@ describe('emitAnnotations', () => {
     const text = out.join('');
     expect(result).toEqual({ emitted: 3, total: 3 });
     expect(text).toContain(
-      '::error title=ManifestLens%3A rule-3,file=k8s/a.yaml,line=3::msg Do this.',
+      '::error title=k8s-manifestlens%3A rule-3,file=k8s/a.yaml,line=3::msg Do this.',
     );
-    expect(text).toContain('::warning title=ManifestLens%3A rule-4,file=k8s/a.yaml,line=4::');
-    expect(text).toContain('::notice title=ManifestLens%3A rule-5,file=k8s/a.yaml,line=5::');
+    expect(text).toContain('::warning title=k8s-manifestlens%3A rule-4,file=k8s/a.yaml,line=4::');
+    expect(text).toContain('::notice title=k8s-manifestlens%3A rule-5,file=k8s/a.yaml,line=5::');
   });
 
   it('asks GitHub for no more than it will show, and says how many were left out', () => {

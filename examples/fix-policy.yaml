@@ -1,4 +1,4 @@
-# Values that fixes cannot guess. Only your team knows them, so ManifestLens never invents them.
+# Values that fixes cannot guess. Only your team knows them, so k8s-manifestlens never invents them.
 params:
   memoryLimit: 512Mi
   loadBalancerSourceRanges:
