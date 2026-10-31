@@ -25,8 +25,18 @@ export interface View {
   expandAll: boolean;
   /** Text in the explain filter box. */
   query: string;
-  /** Select a line in the matching text box. */
-  jump: (target: JumpTarget, line: number) => void;
+  /** Select a line in the matching text box. `focus: false` leaves the keyboard where it is. */
+  jump: (target: JumpTarget, line: number, focus?: boolean) => void;
+  /** The line the editor's caret is on. Explain shows that line's explanation. */
+  line?: number | undefined;
+  /** Set by the Explain list: tell it the caret moved. */
+  onLine?: (line: number) => void;
+  /** How Check lists findings: under each resource (default) or under Error, Warning, Info. */
+  group?: 'resource' | 'severity';
+  /** Re-draw the list after `group` changed. */
+  regroup?: () => void;
+  /** Where a finding came from, for the label under it. Absent when the caller cannot tell. */
+  origin?: (ruleId: string) => string | undefined;
 }
 
 export function createView(jump: View['jump'] = () => undefined): View {
@@ -50,7 +60,10 @@ function title(doc: Named): string {
 
 function issues(list: { message: string; line?: number | undefined }[]): HTMLElement[] {
   return list.map((i) =>
-    el('p', { class: 'issue', text: `${i.line ? `Line ${i.line}: ` : ''}${i.message}` }),
+    el('p', { class: 'issue' }, [
+      el('strong', { class: 'issue-kind', text: 'YAML problem' }),
+      ` ${i.line ? `Line ${i.line}: ` : ''}${i.message}`,
+    ]),
   );
 }
 
@@ -101,10 +114,11 @@ export function renderExplain(
   result: ExplainResult,
   source: string,
   view: View = createView(),
+  findings: Finding[] = [],
 ): HTMLElement {
   const lines = source.split(/\r?\n/);
   const root = el('div');
-  const rows: { item: HTMLElement; text: string }[] = [];
+  const rows: { item: HTMLElement; text: string; line: number }[] = [];
 
   const sections = result.documents.map((doc) => {
     // Show each docs link once per object, so the column does not repeat the same word 35 times.
@@ -122,7 +136,7 @@ export function renderExplain(
         f.docsUrl && !linked.has(f.docsUrl) ? docsLink(f.docsUrl) : el('span'),
       ]);
       if (f.docsUrl) linked.add(f.docsUrl);
-      rows.push({ item, text: `${text} ${f.explanation ?? ''}`.toLowerCase() });
+      rows.push({ item, text: `${text} ${f.explanation ?? ''}`.toLowerCase(), line: f.line });
       return item;
     });
     return el('section', { class: 'doc' }, [
@@ -171,9 +185,102 @@ export function renderExplain(
   };
   full.addEventListener('click', () => showFull(!view.expandAll));
 
-  root.append(toolbar(count, filter, full), ...sections);
+  // The line card sits above the list: what the caret's line means, with previous/next buttons.
+  const fields = result.documents
+    .flatMap((d) => d.fields)
+    .sort((a, b) => a.line - b.line)
+    .filter((f, i, all) => i === 0 || f.line !== all[i - 1]?.line);
+  const card = el('section', { class: 'line-card', attrs: { 'aria-label': 'Selected line' } });
+  const callout = (
+    kind: string,
+    heading: string,
+    ...body: (Node | string | false)[]
+  ): HTMLElement =>
+    el('div', { class: `callout callout-${kind}` }, [
+      el('strong', { text: heading }),
+      el('div', { class: 'callout-body' }, body),
+    ]);
+  const paint = (line: number | undefined): void => {
+    view.line = line;
+    // Re-drawing the card would drop keyboard focus from a Previous/Next button; put it back.
+    const buttons = [...card.querySelectorAll('.line-nav button')];
+    const focused = buttons.indexOf(document.activeElement as Element);
+    for (const { item } of rows) item.classList.remove('current');
+    if (line === undefined || fields.length === 0) {
+      card.hidden = fields.length === 0;
+      card.replaceChildren(
+        el('p', { class: 'line-hint', text: 'Click a line in the editor to see what it means.' }),
+      );
+      return;
+    }
+    const here = fields.find((f) => f.line === line);
+    const prev = [...fields].reverse().find((f) => f.line < line);
+    const next = fields.find((f) => f.line > line);
+    const nav = (label: string, target: typeof prev, primary: boolean): HTMLElement => {
+      const b = el('button', {
+        class: `btn${primary ? ' primary' : ''}`,
+        text: label,
+        attrs: { type: 'button', title: target ? `Go to line ${target.line}` : 'No more lines' },
+      });
+      if (!target) b.setAttribute('disabled', '');
+      b.addEventListener('click', () => {
+        view.jump('main', target?.line ?? line, false);
+        paint(target?.line);
+      });
+      return b;
+    };
+    const text = (lines[line - 1] ?? '').trim();
+    const mine = findings.filter((f) => f.line === line);
+    card.hidden = false;
+    card.replaceChildren(
+      ...el('div', {}, [
+        el('h3', { class: 'line-title' }, [
+          `Line ${line}: `,
+          el('code', { class: 'line-src', text: text || '(blank line)' }),
+        ]),
+        here &&
+          el('p', { class: 'line-path' }, [
+            el('code', { text: here.path }),
+            ` \u00b7 ${here.type === 'scalar' ? 'value' : here.type === 'map' ? 'mapping' : 'list'}`,
+          ]),
+        here?.explanation
+          ? callout('info', 'What this means', here.explanation)
+          : el('p', {
+              class: 'line-why muted',
+              text: 'No explanation for this line. It may be blank, a comment, or a field this tool does not describe yet.',
+            }),
+        mine.length > 0 &&
+          callout(
+            mine.some((f) => f.severity !== 'info') ? 'warn' : 'ok',
+            mine.length === 1 ? 'Finding on this line' : `${mine.length} findings on this line`,
+            ...mine.map((f) =>
+              el('p', {}, [
+                el('span', { class: `badge sev-${f.severity}`, text: f.severity }),
+                ` ${f.message} `,
+                f.why && el('span', { class: 'muted', text: `Why it matters: ${f.why}` }),
+              ]),
+            ),
+          ),
+        here?.docsUrl &&
+          el('p', { class: 'line-docs' }, ['Kubernetes docs: ', docsLink(here.docsUrl)]),
+        el('div', { class: 'line-nav' }, [
+          nav('\u2190 Previous line', prev, false),
+          nav('Next line \u2192', next, true),
+        ]),
+      ]).childNodes,
+    );
+    rows.find((r) => r.line === line)?.item.classList.add('current');
+    if (focused !== -1) {
+      const now = [...card.querySelectorAll<HTMLButtonElement>('.line-nav button')];
+      (now[focused]?.disabled ? now[1 - focused] : now[focused])?.focus();
+    }
+  };
+  view.onLine = paint;
+
+  root.append(toolbar(count, filter, full), card, ...sections);
   showFull(view.expandAll);
   apply();
+  paint(view.line);
   return root;
 }
 
@@ -181,18 +288,22 @@ export function renderExplain(
 /* Findings (Check and Diff)                                                                   */
 /* ------------------------------------------------------------------------------------------- */
 
-function findingItem(f: Finding, view: View, target: JumpTarget): HTMLElement {
+function findingItem(f: Finding, view: View, target: JumpTarget, resource?: string): HTMLElement {
   const key = `${f.ruleId}|${f.message}`;
+  const origin = view.origin?.(f.ruleId);
   const details = el('details', { class: `finding sev-${f.severity}` }, [
     el('summary', {}, [
       el('span', { class: 'badge', text: f.severity }),
       el('span', { class: 'msg', text: f.message }),
+      resource && el('span', { class: 'res', text: resource }),
       el('span', { class: 'at', text: `L${f.line}` }),
     ]),
     el('div', { class: 'detail' }, [
       f.why && el('p', {}, [el('strong', { text: 'Why: ' }), f.why]),
       f.fix && el('p', {}, [el('strong', { text: 'Fix: ' }), f.fix]),
       el('p', {}, [
+        origin && el('span', { class: 'origin', text: origin }),
+        origin && ' ',
         el('span', { class: 'rule-id', text: f.ruleId }),
         ' ',
         lineButton(view, target, f.line, `Go to line ${f.line}`),
@@ -207,11 +318,16 @@ function findingItem(f: Finding, view: View, target: JumpTarget): HTMLElement {
   return el('li', { class: `sev-${f.severity}` }, [details]);
 }
 
-function findingList(findings: Finding[], view: View, target: JumpTarget): HTMLElement {
+function findingList(
+  findings: Finding[],
+  view: View,
+  target: JumpTarget,
+  resource?: string,
+): HTMLElement {
   return el(
     'ul',
     { class: 'findings' },
-    findings.map((f) => findingItem(f, view, target)),
+    findings.map((f) => findingItem(f, view, target, resource)),
   );
 }
 
@@ -240,6 +356,21 @@ function severityChips(root: HTMLElement, findings: Finding[], view: View): HTML
 
 function applyHidden(root: HTMLElement, view: View): void {
   for (const s of view.hidden) root.setAttribute(`data-hide-${s}`, '');
+}
+
+/** Switches the Check list between "by resource" and "by severity". Needs the caller to re-render. */
+function groupButton(view: View): HTMLElement {
+  const by = view.group === 'severity';
+  const b = el('button', {
+    class: 'text-btn',
+    text: by ? 'Group by resource' : 'Group by severity',
+    attrs: { type: 'button' },
+  });
+  b.addEventListener('click', () => {
+    view.group = by ? 'resource' : 'severity';
+    view.regroup?.();
+  });
+  return b;
 }
 
 /** A "not checked" box: the point first, then why, the likely typo, and what an empty result means. */
@@ -277,10 +408,34 @@ export function renderCheck(result: CheckResult, view: View = createView()): HTM
         el('p', { class: 'summary', text: plural(all.length, 'finding') }),
         ...severityChips(root, all, view),
         expandButton(root, view, 'details.finding'),
+        groupButton(view),
       ),
     );
   }
+  const bySeverity = view.group === 'severity' && all.length > 0;
+  if (bySeverity) {
+    for (const sev of SEVERITIES) {
+      const items = result.documents.flatMap((d) =>
+        d.findings.filter((f) => f.severity === sev).map((f) => ({ f, d })),
+      );
+      if (items.length === 0) continue;
+      root.append(
+        el('section', { class: `doc sev-${sev}` }, [
+          el('h2', {}, [
+            `${sev === 'info' ? 'Info' : `${sev[0]?.toUpperCase()}${sev.slice(1)}s`}`,
+            el('span', { class: 'meta', text: plural(items.length, 'finding') }),
+          ]),
+          el(
+            'ul',
+            { class: 'findings' },
+            items.map(({ f, d }) => findingItem(f, view, 'main', title(d))),
+          ),
+        ]),
+      );
+    }
+  }
   for (const doc of result.documents) {
+    if (bySeverity && doc.findings.length > 0) continue;
     root.append(
       el('section', { class: 'doc' }, [
         el('h2', {}, [
@@ -422,6 +577,19 @@ export function renderDiff(result: DiffResult, view: View = createView()): HTMLE
         expandButton(root, view, 'details.group, details.finding'),
     ),
   );
+  const identical =
+    result.issues.length === 0 &&
+    result.documents.length > 0 &&
+    shown.length === 0 &&
+    result.documents.every((d) => d.status === 'unchanged');
+  if (identical) {
+    root.append(
+      el('p', {
+        class: 'empty ok',
+        text: 'No differences: both versions describe the same objects with the same settings. Comments and formatting are ignored.',
+      }),
+    );
+  }
   for (const i of result.issues) {
     root.append(
       el('p', {
@@ -568,6 +736,189 @@ export function renderFix(result: FixResult, diff: string, actions: FixActions =
       pre.append(el('span', { class: `dl dl-${kind}`, text: `${line}\n` }));
     }
     root.append(el('section', { class: 'doc' }, [el('h2', { text: 'Diff' }), pre]));
+  }
+  return root;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Explain panel: resource overview and suggestions                                            */
+/* ------------------------------------------------------------------------------------------- */
+
+const asRecord = (v: unknown): Record<string, unknown> | undefined =>
+  v !== null && typeof v === 'object' && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : undefined;
+
+/** Name and image of each container found in the usual places of a Pod or a workload. */
+export function containersOf(data: Record<string, unknown> | undefined): string[] {
+  const spec = asRecord(data?.spec);
+  const podSpec =
+    asRecord(asRecord(spec?.template)?.spec) ??
+    asRecord(asRecord(asRecord(asRecord(spec?.jobTemplate)?.spec)?.template)?.spec) ??
+    spec;
+  const out: string[] = [];
+  for (const key of ['initContainers', 'containers'] as const) {
+    const list = podSpec?.[key];
+    if (!Array.isArray(list)) continue;
+    for (const c of list) {
+      const rec = asRecord(c);
+      if (!rec) continue;
+      const prefix = key === 'initContainers' ? 'init: ' : '';
+      out.push(
+        `${prefix}${String(rec.name ?? '(unnamed)')} \u2192 ${String(rec.image ?? 'no image')}`,
+      );
+    }
+  }
+  return out;
+}
+
+/** Facts about each object, all read from the manifest and the analysis. Nothing is guessed. */
+export function renderOverview(
+  result: ExplainResult,
+  check: CheckResult | undefined,
+  view: View = createView(),
+): HTMLElement {
+  const root = el('div');
+  for (const doc of result.documents) {
+    const meta = asRecord(doc.data?.metadata);
+    const namespace = typeof meta?.namespace === 'string' ? meta.namespace : undefined;
+    const kindField = doc.fields.find((f) => f.path === 'kind');
+    const checked = check?.documents.find((d) => d.index === doc.index);
+    const containers = containersOf(doc.data);
+    const rowsOf: [string, Node | string][] = [
+      ['Kind', doc.kind ?? 'not set'],
+      ['API version', doc.apiVersion ?? 'not set'],
+      ['Name', doc.name ?? 'not set'],
+      ['Namespace', namespace ?? 'not set (the default applies when applied)'],
+      ['Starts at', lineButton(view, 'main', doc.startLine, `Line ${doc.startLine}`)],
+      ['Fields', plural(doc.fields.length, 'field')],
+    ];
+    if (checked) {
+      const n = checked.findings.length;
+      rowsOf.push([
+        'Findings',
+        checked.coverage.level === 'checked'
+          ? n === 0
+            ? 'none'
+            : `${plural(n, 'finding')} (${SEVERITIES.map((s) => `${checked.findings.filter((f) => f.severity === s).length} ${s}`).join(', ')})`
+          : 'not checked',
+      ]);
+    }
+    root.append(
+      el('section', { class: 'doc' }, [
+        el('h2', {}, [title(doc)]),
+        ...issues(doc.issues),
+        checked && checked.coverage.level !== 'checked'
+          ? coverageNote(checked.coverage, title(doc), doc.startLine)
+          : false,
+        el(
+          'dl',
+          { class: 'facts' },
+          rowsOf.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', {}, [v])]),
+        ),
+        kindField?.explanation &&
+          el('div', { class: 'about' }, [
+            el('strong', { text: `About ${doc.kind ?? 'this object'}` }),
+            el('p', {}, [kindField.explanation, kindField.docsUrl && docsLink(kindField.docsUrl)]),
+          ]),
+        containers.length > 0 &&
+          el('div', { class: 'about' }, [
+            el('strong', { text: plural(containers.length, 'container') }),
+            el(
+              'ul',
+              { class: 'plain' },
+              containers.map((c) => el('li', {}, [el('code', { text: c })])),
+            ),
+          ]),
+      ]),
+    );
+  }
+  return root;
+}
+
+/** What the Fix tab would do, read-only: applying stays an explicit step over there. */
+export function renderSuggestions(result: FixResult, view: View, openFix: () => void): HTMLElement {
+  const root = el('div');
+  const lines = result.original.split('\n');
+  const at = (line: number): HTMLElement[] => [
+    lineButton(view, 'main', line, `Line ${line}`),
+    el('code', { class: 'src', text: ` ${(lines[line - 1] ?? '').trim()}` }),
+  ];
+  const total = result.applied.length + result.unfixed.length + result.skipped.length;
+  if (result.status === 'rejected' || total === 0) {
+    root.append(
+      renderMessage(
+        result.status === 'rejected'
+          ? 'No suggestions: the automatic fixes did not pass validation.'
+          : result.notChecked.length > 0
+            ? 'No suggestions. Some documents were not checked, so this does not mean they are fine.'
+            : 'No suggestions: nothing to improve was found by the rules.',
+      ),
+    );
+    return root;
+  }
+  const open = el('button', {
+    class: 'btn primary',
+    text: 'Review and apply in Fix',
+    attrs: { type: 'button' },
+  });
+  open.addEventListener('click', openFix);
+  root.append(
+    toolbar(
+      el('p', { class: 'summary', text: plural(total, 'suggestion') }),
+      result.applied.length > 0 && open,
+    ),
+    el('p', {
+      class: 'note',
+      text: 'Nothing is changed from here. Automatic fixes can be previewed and applied, or undone, in the Fix tab.',
+    }),
+  );
+  if (result.applied.length > 0) {
+    root.append(
+      el('section', { class: 'doc' }, [
+        el('h2', { text: 'Can be fixed automatically' }),
+        ...result.applied.map((a) =>
+          el('div', { class: `suggestion risk-${a.risk}` }, [
+            el('p', {}, [
+              el('span', { class: 'badge', text: `${a.risk} risk` }),
+              ` ${a.ruleId} `,
+              ...at(a.line),
+            ]),
+            el('p', { text: a.summary }),
+            ...a.changes.map((c) =>
+              el('p', { class: 'meta', text: `${c.path}: ${c.before} \u2192 ${c.after}` }),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+  if (result.unfixed.length + result.skipped.length > 0) {
+    root.append(
+      el('section', { class: 'doc' }, [
+        el('h2', { text: 'Needs a manual change' }),
+        ...result.unfixed.map((f) =>
+          el('div', { class: `suggestion sev-${f.severity}` }, [
+            el('p', {}, [
+              el('span', { class: 'badge', text: f.severity }),
+              ` ${f.ruleId} `,
+              ...at(f.line),
+            ]),
+            el('p', { text: f.message }),
+          ]),
+        ),
+        ...result.skipped.map((s) =>
+          el('div', { class: `suggestion risk-${s.risk}` }, [
+            el('p', {}, [
+              el('span', { class: 'badge', text: `${s.risk} risk` }),
+              ` ${s.ruleId} `,
+              ...at(s.line),
+            ]),
+            el('p', { text: s.detail }),
+          ]),
+        ),
+      ]),
+    );
   }
   return root;
 }
