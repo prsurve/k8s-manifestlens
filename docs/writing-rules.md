@@ -4,8 +4,8 @@ A rule is a small YAML file. You do not need to write any code. Put one or more 
 `.yaml` file (separate rules with `---`) and pass it to the CLI:
 
 ```sh
-manifestlens check deploy.yaml --rules my-rules.yaml
-manifestlens check deploy.yaml --rules ./team-rules/   # every .yaml file in the folder
+k8s-manifestlens check deploy.yaml --rules my-rules.yaml
+k8s-manifestlens check deploy.yaml --rules ./team-rules/   # every .yaml file in the folder
 ```
 
 ## Example
@@ -75,7 +75,7 @@ Add `[]` to a key to look at every item of a list: `present: volumes[].hostPath`
 
 ## Letting a rule fix itself
 
-A rule can also carry an `autofix`: a structured change that `manifestlens fix` can preview and apply.
+A rule can also carry an `autofix`: a structured change that `k8s-manifestlens fix` can preview and apply.
 It is optional. Rules without it behave exactly as before. See [auto-fix.md](auto-fix.md) for the
 fields, risk levels and the checks every fix goes through.
 

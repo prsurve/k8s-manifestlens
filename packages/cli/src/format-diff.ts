@@ -1,5 +1,5 @@
-import { formatValue as show } from '@manifestlens/core';
-import type { DiffResult, DocumentDiff, FieldChange, Finding } from '@manifestlens/core';
+import { formatValue as show } from '@k8s-manifestlens/core';
+import type { DiffResult, DocumentDiff, FieldChange, Finding } from '@k8s-manifestlens/core';
 
 const SIGN = { added: '+', removed: '-', changed: '~' } as const;
 

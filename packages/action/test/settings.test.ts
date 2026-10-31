@@ -17,7 +17,7 @@ const inputs = (raw: Record<string, string>) => {
 };
 const config = (data: unknown) => {
   const p = new Problems();
-  const layer = parseConfig(data, '.github/manifestlens.yml', p);
+  const layer = parseConfig(data, '.github/k8s-manifestlens.yml', p);
   return { layer, problems: p.items };
 };
 
@@ -175,7 +175,7 @@ describe('reading the config file', () => {
   it('rejects unknown settings and suggests the likely typo', () => {
     const { problems } = config({ 'fail-onn': 'error', mod: 'report', bogus: 1 });
     expect(problems).toContain(
-      '.github/manifestlens.yml: unknown setting "fail-onn" (did you mean "fail-on"?).',
+      '.github/k8s-manifestlens.yml: unknown setting "fail-onn" (did you mean "fail-on"?).',
     );
     expect(problems.some((p) => p.includes('"mod"') && p.includes('"mode"'))).toBe(true);
     expect(problems.some((p) => p.includes('"bogus"') && !p.includes('did you mean'))).toBe(true);

@@ -25,8 +25,8 @@ import {
   parseCrds,
   parseRules,
   unifiedDiff,
-} from '@manifestlens/core';
-import type { FixOptions, FixRisk, Rule, Severity } from '@manifestlens/core';
+} from '@k8s-manifestlens/core';
+import type { FixOptions, FixRisk, Rule, Severity } from '@k8s-manifestlens/core';
 import { formatFixReport } from './format-fix.js';
 import { formatExplanation } from './format.js';
 import { formatDiff } from './format-diff.js';
@@ -38,13 +38,13 @@ export interface Io {
 }
 
 const USAGE = `Usage:
-  manifestlens explain <file> [--crd <file-or-dir>]...
-  manifestlens check <file> [--rules <file-or-dir>]... [--crd <file-or-dir>]...
-                   [--fail-on error|warning|info|none]
-  manifestlens diff <old-file> <new-file> [--rules <file-or-dir>]... [--crd <file-or-dir>]...
-                   [--fail-on ...]
-  manifestlens fix <file> [--rules <file-or-dir>]... [--crd <file-or-dir>]... [--policy <file>] [--max-risk low|medium|high]
-                   [--only <rule-id>]... [--write] [--no-backup]
+  k8s-manifestlens explain <file> [--crd <file-or-dir>]...
+  k8s-manifestlens check <file> [--rules <file-or-dir>]... [--crd <file-or-dir>]...
+                     [--fail-on error|warning|info|none]
+  k8s-manifestlens diff <old-file> <new-file> [--rules <file-or-dir>]... [--crd <file-or-dir>]...
+                     [--fail-on ...]
+  k8s-manifestlens fix <file> [--rules <file-or-dir>]... [--crd <file-or-dir>]... [--policy <file>] [--max-risk low|medium|high]
+                     [--only <rule-id>]... [--write] [--no-backup]
 
 explain  Explain a Kubernetes manifest in plain English, line by line.
 check    Flag risky or non-best-practice settings using the built-in rules.
@@ -316,7 +316,7 @@ function writeFixed(
       writeFileSync(path, result.original, { mode });
       io.stdout(`Original saved to ${path}\n`);
     }
-    const temp = `${file}.manifestlens-${process.pid}.tmp`;
+    const temp = `${file}@@DOT@@{process.pid}.tmp`;
     writeFileSync(temp, result.fixed, { mode });
     chmodSync(temp, mode);
     renameSync(temp, file);

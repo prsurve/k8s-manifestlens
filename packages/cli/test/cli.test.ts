@@ -18,7 +18,7 @@ function cli(...args: string[]) {
   return { code, stdout, stderr };
 }
 
-describe('manifestlens explain', () => {
+describe('k8s-manifestlens explain', () => {
   it('prints each source line with its explanation', () => {
     const { code, stdout } = cli('explain', fixture);
     expect(code).toBe(0);
@@ -31,7 +31,7 @@ describe('manifestlens explain', () => {
   it('prints help and exits 0', () => {
     const { code, stdout } = cli('--help');
     expect(code).toBe(0);
-    expect(stdout).toContain('manifestlens explain <file>');
+    expect(stdout).toContain('k8s-manifestlens explain <file>');
   });
 
   it('exits 2 with usage when the command or file is missing', () => {
@@ -54,7 +54,7 @@ describe('manifestlens explain', () => {
   });
 });
 
-describe('manifestlens check', () => {
+describe('k8s-manifestlens check', () => {
   const risky = fileURLToPath(new URL('../../../examples/risky.yaml', import.meta.url));
   const hardened = fileURLToPath(new URL('../../../examples/hardened.yaml', import.meta.url));
 
@@ -144,7 +144,7 @@ spec:
   });
 });
 
-describe('manifestlens diff', () => {
+describe('k8s-manifestlens diff', () => {
   const cli = (...args: string[]) => {
     let stdout = '';
     let stderr = '';
@@ -199,7 +199,7 @@ describe('explain docs links', () => {
   });
 });
 
-describe('manifestlens fix', () => {
+describe('k8s-manifestlens fix', () => {
   const dir = mkdtempSync(join(tmpdir(), 'manifestlens-fix-'));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 

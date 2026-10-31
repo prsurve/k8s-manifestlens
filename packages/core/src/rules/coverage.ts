@@ -44,7 +44,7 @@ export function checkedKinds(rules: Rule[]): string[] {
 }
 
 /**
- * Whether ManifestLens actually looked at a document. A kind with no rules gets no findings, which
+ * Whether k8s-manifestlens actually looked at a document. A kind with no rules gets no findings, which
  * reads as "all clear" when the truth is "nobody checked", so say so.
  */
 export function kindCoverage(
@@ -56,7 +56,7 @@ export function kindCoverage(
     return describe(
       'unchecked',
       'No "kind" field',
-      'Without a kind ManifestLens cannot tell what this is, so nothing was checked.',
+      'Without a kind k8s-manifestlens cannot tell what this is, so nothing was checked.',
     );
   }
   if (Object.hasOwn(POD_SPEC_PATH, kind) || rules.some((r) => r.kinds.includes(kind))) {
@@ -66,20 +66,20 @@ export function kindCoverage(
     return describe(
       'explain-only',
       `No rules for ${kind}`,
-      `ManifestLens explains ${kind} fields, but no rule checks it.`,
+      `k8s-manifestlens explains ${kind} fields, but no rule checks it.`,
     );
   }
   if (isCustomResource(apiVersion)) {
     return describe(
       'unchecked',
       `Custom resource ${kind} (${apiVersion})`,
-      'ManifestLens has no rules for custom resources, so it was not checked.',
+      'k8s-manifestlens has no rules for custom resources, so it was not checked.',
     );
   }
   return describe(
     'unchecked',
     `Unknown kind "${kind}"`,
-    'ManifestLens has no rules for it, so it was not checked.',
+    'k8s-manifestlens has no rules for it, so it was not checked.',
     suggestKind(kind, rules),
   );
 }

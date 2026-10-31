@@ -1,6 +1,6 @@
 # Custom resources
 
-ManifestLens knows the built-in Kubernetes kinds. For a custom resource (cert-manager's `Certificate`,
+k8s-manifestlens knows the built-in Kubernetes kinds. For a custom resource (cert-manager's `Certificate`,
 an Argo CD `Application`, your own operator's kind) give it the CustomResourceDefinition (CRD) and it will:
 
 - explain the fields, using the descriptions in the CRD;
@@ -16,11 +16,11 @@ A file may hold several CRDs separated by `---`, or the `items` of a `kind: List
 
 ## Using it
 
-| Where         | How                                                                                                          |
-| ------------- | ------------------------------------------------------------------------------------------------------------ |
-| Web page      | Paste the YAML into "Custom resources: paste a CRD". It stays local.                                         |
-| CLI           | `manifestlens check app.yaml --crd certificate-crd.yaml` (also `explain`, `diff`, `fix`; a folder works too) |
-| GitHub Action | `crds: k8s/crds` (files or folders inside the repository)                                                    |
+| Where         | How                                                                                                              |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Web page      | Paste the YAML into "Custom resources: paste a CRD". It stays local.                                             |
+| CLI           | `k8s-manifestlens check app.yaml --crd certificate-crd.yaml` (also `explain`, `diff`, `fix`; a folder works too) |
+| GitHub Action | `crds: k8s/crds` (files or folders inside the repository)                                                        |
 
 The Load button only accepts `github.com/.../blob/...`, `raw.githubusercontent.com` and
 `gist.githubusercontent.com` links over https. The browser downloads the file itself. For any other
@@ -56,7 +56,7 @@ Only the key's own text changes. The value, comments and quoting stay as written
 
 ## Limits
 
-- A CRD describes the shape of a resource, not good practice. ManifestLens does not judge whether
+- A CRD describes the shape of a resource, not good practice. k8s-manifestlens does not judge whether
   the values are risky. Write [rules](writing-rules.md) for that, using the custom kind in `kinds`.
 - The only automatic fix is renaming a mistyped field (see below). Nothing else is guessed.
 - Parts of a schema that need a full validator (`oneOf`, `anyOf`, `allOf`, `not`, and CEL

@@ -1,4 +1,4 @@
-import type { AppliedFix, FixResult, SkippedFix } from '@manifestlens/core';
+import type { AppliedFix, FixResult, SkippedFix } from '@k8s-manifestlens/core';
 
 /** The "not checked" note as short lines: what, why, the likely typo, and what an empty result means. */
 export function coverageLines(
@@ -31,7 +31,7 @@ function skippedLine(s: SkippedFix): string[] {
   return [`  line ${s.line}  ${s.ruleId}  [${s.risk}]  ${s.reason}`, `    ${s.detail}`];
 }
 
-/** The human-readable report for `manifestlens fix`. The diff itself is printed separately. */
+/** The human-readable report for `k8s-manifestlens fix`. The diff itself is printed separately. */
 export function formatFixReport(
   file: string,
   result: FixResult,

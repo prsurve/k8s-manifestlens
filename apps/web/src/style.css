@@ -900,7 +900,7 @@ textarea.short {
   flex: 0 0 auto;
 }
 
-/* Documents ManifestLens could not fully check */
+/* Documents k8s-manifestlens could not fully check */
 .coverage {
   padding: 8px 12px;
   border-left: 3px solid var(--warning);

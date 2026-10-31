@@ -100,7 +100,7 @@ export const CRD_ISSUES: Record<CrdIssueCode, { title: string; severity: Severit
     'not-validated': {
       title: 'Part of the schema cannot be checked',
       severity: 'info',
-      why: 'ManifestLens does not evaluate oneOf, anyOf, allOf, not or CEL rules, so this part was not validated. "No findings" here does not mean it is valid.',
+      why: 'k8s-manifestlens does not evaluate oneOf, anyOf, allOf, not or CEL rules, so this part was not validated. "No findings" here does not mean it is valid.',
     },
     'unknown-version': {
       title: 'apiVersion is not in the CustomResourceDefinition',
@@ -156,7 +156,7 @@ function walk(
     issues.push({
       code: 'not-validated',
       path,
-      message: `${where} uses schema rules (oneOf, anyOf, allOf, not or CEL) that ManifestLens cannot check, so it was only partly validated.`,
+      message: `${where} uses schema rules (oneOf, anyOf, allOf, not or CEL) that k8s-manifestlens cannot check, so it was only partly validated.`,
     });
     if (schema.oneOf || schema.anyOf || schema.allOf || schema.not) return;
   }

@@ -64,7 +64,7 @@ export interface CrdSchema {
   not?: unknown;
 }
 
-/** What a CustomResourceDefinition teaches ManifestLens about one version of a custom kind. */
+/** What a CustomResourceDefinition teaches k8s-manifestlens about one version of a custom kind. */
 export interface CrdInfo {
   group: string;
   version: string;
@@ -109,7 +109,7 @@ export interface Finding {
 /**
  * How much of a document the rules looked at. `checked`: rules exist for its kind. `explain-only`:
  * the kind is known and explained but no rule checks it. `unchecked`: the kind is unknown to
- * ManifestLens (a custom resource, a newer API, or no `kind` at all).
+ * k8s-manifestlens (a custom resource, a newer API, or no `kind` at all).
  */
 export interface Coverage {
   level: 'checked' | 'explain-only' | 'unchecked';

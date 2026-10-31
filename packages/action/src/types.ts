@@ -1,4 +1,4 @@
-import type { FixRisk, Severity } from '@manifestlens/core';
+import type { FixRisk, Severity } from '@k8s-manifestlens/core';
 
 export type Scope = 'all' | 'changed' | 'new';
 export type Mode = 'enforce' | 'report';
@@ -98,7 +98,7 @@ export interface ChangedObject {
   effects: string[];
 }
 
-/** An object ManifestLens read but has no rules for, so "no findings" says nothing about it. */
+/** An object k8s-manifestlens read but has no rules for, so "no findings" says nothing about it. */
 export interface NotChecked {
   file: string;
   line: number;

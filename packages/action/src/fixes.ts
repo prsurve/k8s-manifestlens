@@ -1,5 +1,5 @@
-import { fixManifest, unifiedDiff } from '@manifestlens/core';
-import type { AppliedFix, FixPolicy, Rule, SkippedFix } from '@manifestlens/core';
+import { fixManifest, unifiedDiff } from '@k8s-manifestlens/core';
+import type { AppliedFix, FixPolicy, Rule, SkippedFix } from '@k8s-manifestlens/core';
 import type { FileToAnalyze } from './analyze.js';
 import type { Analysis, Settings } from './types.js';
 

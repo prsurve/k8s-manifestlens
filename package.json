@@ -1,5 +1,5 @@
 {
-  "name": "manifestlens-monorepo",
+  "name": "k8s-manifestlens-monorepo",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
@@ -13,15 +13,15 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build -w @manifestlens/core && npm run build -w manifestlens && npm run build -w @manifestlens/web && npm run build -w manifestlens-vscode && npm run build -w @manifestlens/action",
+    "build": "npm run build -w @k8s-manifestlens/core && npm run build -w k8s-manifestlens && npm run build -w @k8s-manifestlens/web && npm run build -w k8s-manifestlens-vscode && npm run build -w @k8s-manifestlens/action",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "dev:web": "npm run dev -w @manifestlens/web",
-    "generate-schema": "npm run generate-schema -w @manifestlens/core --",
-    "check-links": "npm run check-links -w @manifestlens/core",
+    "dev:web": "npm run dev -w @k8s-manifestlens/web",
+    "generate-schema": "npm run generate-schema -w @k8s-manifestlens/core --",
+    "check-links": "npm run check-links -w @k8s-manifestlens/core",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
   },
   "devDependencies": {

@@ -1,8 +1,8 @@
 // Runs the built action on your machine the way GitHub does: inputs arrive as INPUT_* environment
 // variables, outputs and the job summary are written to files. Nothing is sent anywhere.
 //
-//   npm run build -w @manifestlens/action
-//   npm run local -w @manifestlens/action -- --workspace . --paths examples/risky.yaml --fail-on warning
+//   npm run build -w @k8s-manifestlens/action
+//   npm run local -w @k8s-manifestlens/action -- --workspace . --paths examples/risky.yaml --fail-on warning
 //
 // Every --name value pair becomes the input of that name. --workspace sets the folder to check.
 import { spawnSync } from 'node:child_process';
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const dist = fileURLToPath(new URL('../dist/index.js', import.meta.url));
 if (!existsSync(dist)) {
-  console.error('dist/index.js is missing. Run: npm run build -w @manifestlens/action');
+  console.error('dist/index.js is missing. Run: npm run build -w @k8s-manifestlens/action');
   process.exit(2);
 }
 

@@ -9,11 +9,14 @@ import type {
   Source,
 } from './types.js';
 
+/** The config file location before the project was renamed. Still read when the new default is absent. */
+export const LEGACY_CONFIG_FILE = '.github/manifestlens.yml';
+
 /** Level 1: what you get with no input and no config file. */
 export const DEFAULTS: Settings = {
   paths: ['**/*.yaml', '**/*.yml'],
   workingDirectory: '.',
-  configFile: '.github/manifestlens.yml',
+  configFile: '.github/k8s-manifestlens.yml',
   scope: 'all',
   baseRef: '',
   failOn: 'error',

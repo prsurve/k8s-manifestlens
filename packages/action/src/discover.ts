@@ -1,7 +1,7 @@
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import * as glob from '@actions/glob';
-import { looksLikeKubernetes } from '@manifestlens/core';
+import { looksLikeKubernetes } from '@k8s-manifestlens/core';
 import { ConfigError } from './coerce.js';
 import type { Settings } from './types.js';
 

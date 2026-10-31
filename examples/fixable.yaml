@@ -1,4 +1,4 @@
-# Try: manifestlens fix examples/fixable.yaml --policy examples/fix-policy.yaml --max-risk medium
+# Try: k8s-manifestlens fix examples/fixable.yaml --policy examples/fix-policy.yaml --max-risk medium
 # The comments and layout below are kept when fixes are applied.
 apiVersion: apps/v1
 kind: Deployment

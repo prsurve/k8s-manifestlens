@@ -4,7 +4,7 @@
 
 ### Added
 
-- **Custom resources from a CRD.** Give ManifestLens a CustomResourceDefinition and documents of that
+- **Custom resources from a CRD.** Give k8s-manifestlens a CustomResourceDefinition and documents of that
   kind are explained from the CRD's descriptions and checked against its schema: unknown fields (with
   a "did you mean"), wrong types, missing required fields, enum, pattern and range violations, and an
   `apiVersion` the CRD does not define. Web page: a "Custom resources" box that also loads a GitHub link. CLI: `--crd`. GitHub
@@ -14,6 +14,21 @@
   `fix` also lists the findings it cannot fix under "Needs a manual fix", and a clicked finding in the
   web page scrolls to its line even when long lines wrap.
   See [docs/custom-resources.md](docs/custom-resources.md).
+
+## 1.1.0 (2026-10-31)
+
+### Changed
+
+- **Renamed to k8s-manifestlens**, so the Kubernetes focus is clear. The GitHub repo, Action, CLI
+  command, docs and web page use the new name; the site moves to k8s-manifestlens.k8ssimplified.in.
+  Nothing breaks for existing users: the `manifestlens` command is kept as an alias, the config file is
+  still read from `.github/manifestlens.yml` when `.github/k8s-manifestlens.yml` is absent, and
+  `# manifestlens-ignore:` comments still work. Existing `@v1` workflows keep running.
+- VS Code: the extension is now `prsurve.k8s-manifestlens-vscode` and its settings start with
+  `k8sManifestlens.` instead of `manifestlens.`. The old extension is deprecated.
+
+### Added
+
 - **Automatic fixes.** Rules can carry a structured `autofix`. `manifestlens fix <file>` previews
   validated fixes as a unified diff and writes them only with `--write` (a `.bak` copy is kept). Options:
   `--policy`, `--max-risk`, `--only`, `--no-backup`, plus `--rules` as for `check`.

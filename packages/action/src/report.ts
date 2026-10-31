@@ -1,4 +1,4 @@
-import type { Rule, Severity } from '@manifestlens/core';
+import type { Rule, Severity } from '@k8s-manifestlens/core';
 import type { Base } from './base.js';
 import type { Verdict } from './evaluate.js';
 import type { FixSuggestions } from './fixes.js';
@@ -22,7 +22,7 @@ export interface RunInfo {
   fixPatchPath?: string;
 }
 
-const REPO_URL = 'https://github.com/prsurve/manifestlens';
+const REPO_URL = 'https://github.com/prsurve/k8s-manifestlens';
 const MAX_SUMMARY_ROWS = 300;
 const MAX_COMMENT_ROWS = 15;
 const MAX_COMMENT_CHARS = 60000;
@@ -109,7 +109,7 @@ function notCheckedSection(a: Analysis): string[] {
   return [
     '### Not checked',
     '',
-    '_ManifestLens has no rules for these kinds. "No findings" says nothing about them._',
+    '_k8s-manifestlens has no rules for these kinds. "No findings" says nothing about them._',
     '',
     '| Kind | apiVersion | Objects | Why | Files |',
     '| --- | --- | --- | --- | --- |',
@@ -153,7 +153,7 @@ export function buildSummary(info: RunInfo): string {
   const { analysis: a, verdict: v, settings: s } = info;
   const limit = thresholds(s);
   const out: string[] = [
-    `## ManifestLens${s.label ? ` · ${md(s.label)}` : ''}`,
+    `## k8s-manifestlens${s.label ? ` · ${md(s.label)}` : ''}`,
     '',
     `> ${headline(info)}`,
     '',
@@ -232,7 +232,7 @@ export function buildSummary(info: RunInfo): string {
   out.push(
     configurationTable(info),
     '',
-    `<sub>ManifestLens ${md(info.version)} · <a href="${REPO_URL}">${REPO_URL.replace('https://', '')}</a></sub>`,
+    `<sub>k8s-manifestlens ${md(info.version)} · <a href="${REPO_URL}">${REPO_URL.replace('https://', '')}</a></sub>`,
   );
   return out.join('\n');
 }
@@ -337,7 +337,7 @@ export function buildComment(info: RunInfo, marker: string, runUrl: string | nul
   const { analysis: a, verdict: v, settings: s } = info;
   const out: string[] = [
     marker,
-    `### ManifestLens${s.label ? ` · ${md(s.label)}` : ''}`,
+    `### k8s-manifestlens${s.label ? ` · ${md(s.label)}` : ''}`,
     '',
     headline(info),
     '',
@@ -396,7 +396,12 @@ export function buildSarif(info: RunInfo): object {
     runs: [
       {
         tool: {
-          driver: { name: 'ManifestLens', version: info.version, informationUri: REPO_URL, rules },
+          driver: {
+            name: 'k8s-manifestlens',
+            version: info.version,
+            informationUri: REPO_URL,
+            rules,
+          },
         },
         results: [
           ...a.findings.map((f) => ({

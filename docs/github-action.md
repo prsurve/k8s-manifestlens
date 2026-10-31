@@ -1,4 +1,4 @@
-# ManifestLens GitHub Action
+# k8s-manifestlens GitHub Action
 
 Checks your Kubernetes manifests for risky settings and passes or fails the build. It uses the same rules
 and explanations as the CLI, the web page and the VS Code extension, runs entirely on the runner, and
@@ -6,7 +6,7 @@ sends nothing anywhere.
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: prsurve/manifestlens@v1
+- uses: prsurve/k8s-manifestlens@v1
 ```
 
 That is a working setup: it checks every Kubernetes manifest in the repository and fails the build if any
@@ -53,12 +53,12 @@ Settings can be given in three places. When the same setting appears in more tha
 wins:
 
 ```
-built-in defaults   <   .github/manifestlens.yml   <   workflow inputs (with:)
+built-in defaults   <   .github/k8s-manifestlens.yml   <   workflow inputs (with:)
    (lowest)                 (your project)              (this job; highest)
 ```
 
 - **Built-in defaults** are in the code. Every input is optional.
-- **The config file** (`.github/manifestlens.yml`, or the path in `config-file`) holds your team's policy,
+- **The config file** (`.github/k8s-manifestlens.yml`, or the path in `config-file`) holds your team's policy,
   reviewed like any other file. Every input has a key of the same name, plus `ignore`. A missing file at the
   default location is fine; a missing file you named is an error.
 - **Workflow inputs** override the file for one job, which is what you want for a matrix leg or a one-off.
@@ -77,39 +77,39 @@ ends with a "Configuration used" table showing the value and the level each sett
 
 All are optional.
 
-| Input                 | Default                    | Meaning                                                                                                                                                      |
-| --------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `paths`               | `**/*.yaml`, `**/*.yml`    | Globs, one per line; `!` excludes. Only files with `apiVersion` and `kind` are checked.                                                                      |
-| `working-directory`   | repository root            | What `paths` is relative to (monorepos, matrix jobs).                                                                                                        |
-| `config-file`         | `.github/manifestlens.yml` | Project settings file.                                                                                                                                       |
-| `scope`               | `all`                      | `all`, `changed` (files this change touches) or `new` (only findings this change introduces).                                                                |
-| `base-ref`            | from the event             | What to compare with for `changed` and `new`.                                                                                                                |
-| `fail-on`             | `error`                    | `error`, `warning`, `info` or `none`.                                                                                                                        |
-| `max-errors`          | from `fail-on`             | Most errors allowed.                                                                                                                                         |
-| `max-warnings`        | from `fail-on`             | Most warnings allowed.                                                                                                                                       |
-| `max-info`            | from `fail-on`             | Most info findings allowed.                                                                                                                                  |
-| `max-total`           | no limit                   | Most findings of any severity.                                                                                                                               |
-| `fail-on-parse-error` | `true`                     | Fail on a manifest that is not valid YAML.                                                                                                                   |
-| `mode`                | `enforce`                  | `enforce` or `report`.                                                                                                                                       |
-| `dry-run`             | `false`                    | Compute and log only.                                                                                                                                        |
-| `rules`               | none                       | Extra rule files or folders in the repository ([how to write rules](writing-rules.md)).                                                                      |
-| `crds`                | none                       | CustomResourceDefinition files or folders in the repository, so custom resources are checked against their schema ([custom resources](custom-resources.md)). |
-| `disable-rules`       | none                       | Rule ids to turn off.                                                                                                                                        |
-| `severity-overrides`  | none                       | `rule-id=severity` per line (`error`, `warning`, `info`, `off`).                                                                                             |
-| `annotations`         | `true`                     | Mark findings on the changed lines in pull requests.                                                                                                         |
-| `max-annotations`     | `30`                       | Most annotations in total; GitHub shows 10 of each severity.                                                                                                 |
-| `comment`             | `auto`                     | `auto`: comment when there is something to say. `always`. `never`.                                                                                           |
-| `summary`             | `true`                     | Write the job summary.                                                                                                                                       |
-| `sarif-file`          | none                       | Write SARIF here for code scanning.                                                                                                                          |
-| `suggest-fixes`       | `false`                    | List validated automatic fixes in the summary and report. Nothing is changed.                                                                                |
-| `fix-patch-file`      | none                       | Write all suggested fixes as one unified diff for `git apply`. Implies `suggest-fixes`.                                                                      |
-| `fix-max-risk`        | `low`                      | Highest fix risk to suggest: `low`, `medium` or `high`.                                                                                                      |
-| `fix-policy`          | none                       | YAML file in the repository with values fixes cannot guess ([auto-fix.md](auto-fix.md)).                                                                     |
-| `report-file`         | `manifestlens-report.json` | Where to write the JSON report.                                                                                                                              |
-| `label`               | none                       | Names the run: separate summary heading and pull request comment per matrix leg.                                                                             |
-| `max-files`           | `2000`                     | Safety limit on files matched.                                                                                                                               |
-| `max-file-size-kb`    | `1024`                     | Larger files are skipped.                                                                                                                                    |
-| `github-token`        | `${{ github.token }}`      | Used only for the pull request comment.                                                                                                                      |
+| Input                 | Default                        | Meaning                                                                                                                                                      |
+| --------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `paths`               | `**/*.yaml`, `**/*.yml`        | Globs, one per line; `!` excludes. Only files with `apiVersion` and `kind` are checked.                                                                      |
+| `working-directory`   | repository root                | What `paths` is relative to (monorepos, matrix jobs).                                                                                                        |
+| `config-file`         | `.github/k8s-manifestlens.yml` | Project settings file.                                                                                                                                       |
+| `scope`               | `all`                          | `all`, `changed` (files this change touches) or `new` (only findings this change introduces).                                                                |
+| `base-ref`            | from the event                 | What to compare with for `changed` and `new`.                                                                                                                |
+| `fail-on`             | `error`                        | `error`, `warning`, `info` or `none`.                                                                                                                        |
+| `max-errors`          | from `fail-on`                 | Most errors allowed.                                                                                                                                         |
+| `max-warnings`        | from `fail-on`                 | Most warnings allowed.                                                                                                                                       |
+| `max-info`            | from `fail-on`                 | Most info findings allowed.                                                                                                                                  |
+| `max-total`           | no limit                       | Most findings of any severity.                                                                                                                               |
+| `fail-on-parse-error` | `true`                         | Fail on a manifest that is not valid YAML.                                                                                                                   |
+| `mode`                | `enforce`                      | `enforce` or `report`.                                                                                                                                       |
+| `dry-run`             | `false`                        | Compute and log only.                                                                                                                                        |
+| `rules`               | none                           | Extra rule files or folders in the repository ([how to write rules](writing-rules.md)).                                                                      |
+| `crds`                | none                           | CustomResourceDefinition files or folders in the repository, so custom resources are checked against their schema ([custom resources](custom-resources.md)). |
+| `disable-rules`       | none                           | Rule ids to turn off.                                                                                                                                        |
+| `severity-overrides`  | none                           | `rule-id=severity` per line (`error`, `warning`, `info`, `off`).                                                                                             |
+| `annotations`         | `true`                         | Mark findings on the changed lines in pull requests.                                                                                                         |
+| `max-annotations`     | `30`                           | Most annotations in total; GitHub shows 10 of each severity.                                                                                                 |
+| `comment`             | `auto`                         | `auto`: comment when there is something to say. `always`. `never`.                                                                                           |
+| `summary`             | `true`                         | Write the job summary.                                                                                                                                       |
+| `sarif-file`          | none                           | Write SARIF here for code scanning.                                                                                                                          |
+| `suggest-fixes`       | `false`                        | List validated automatic fixes in the summary and report. Nothing is changed.                                                                                |
+| `fix-patch-file`      | none                           | Write all suggested fixes as one unified diff for `git apply`. Implies `suggest-fixes`.                                                                      |
+| `fix-max-risk`        | `low`                          | Highest fix risk to suggest: `low`, `medium` or `high`.                                                                                                      |
+| `fix-policy`          | none                           | YAML file in the repository with values fixes cannot guess ([auto-fix.md](auto-fix.md)).                                                                     |
+| `report-file`         | `manifestlens-report.json`     | Where to write the JSON report.                                                                                                                              |
+| `label`               | none                           | Names the run: separate summary heading and pull request comment per matrix leg.                                                                             |
+| `max-files`           | `2000`                         | Safety limit on files matched.                                                                                                                               |
+| `max-file-size-kb`    | `1024`                         | Larger files are skipped.                                                                                                                                    |
+| `github-token`        | `${{ github.token }}`          | Used only for the pull request comment.                                                                                                                      |
 
 ## Outputs
 
@@ -144,18 +144,18 @@ A repository with hundreds of findings stays readable:
 
 ## Config file
 
-See [`examples/manifestlens.config.yml`](../examples/manifestlens.config.yml) for a commented example
+See [`examples/k8s-manifestlens.config.yml`](../examples/k8s-manifestlens.config.yml) for a commented example
 that uses every kind of setting. A typo is caught with a hint:
 
 ```
-.github/manifestlens.yml: unknown setting "fail-onn" (did you mean "fail-on"?).
+.github/k8s-manifestlens.yml: unknown setting "fail-onn" (did you mean "fail-on"?).
 ```
 
 ## Ignoring things
 
 - **By path or rule, in the config file:** `ignore: [{ path: 'k8s/jobs/**', rules: [missing-readiness-probe] }]`.
   Leave out `rules` to silence everything under the path.
-- **On one line, in the manifest:** a `# manifestlens-ignore: rule-id, other-rule` comment on the line a
+- **On one line, in the manifest:** a `# k8s-manifestlens-ignore: rule-id, other-rule` comment on the line a
   finding points at, or on a comment line directly above it. `all` silences every rule there.
 - **Switch a rule off or change its severity everywhere:** `disable-rules`, `severity-overrides`.
 
@@ -173,7 +173,7 @@ names the value you changed.
 
 Give each leg a `label`. It becomes part of the summary heading and of the comment marker, so legs do not
 overwrite each other's pull request comment. Combine with `working-directory` to check one folder per leg.
-See [`examples/workflows/manifestlens.yml`](../examples/workflows/manifestlens.yml).
+See [`examples/workflows/k8s-manifestlens.yml`](../examples/workflows/k8s-manifestlens.yml).
 
 ## Security notes
 
@@ -194,16 +194,16 @@ See [`examples/workflows/manifestlens.yml`](../examples/workflows/manifestlens.y
 
 ```sh
 npm ci
-npm run build -w @manifestlens/action
+npm run build -w @k8s-manifestlens/action
 npm test                      # unit tests plus end-to-end runs of the whole action
 ```
 
 Run the built action on any folder the way GitHub would, with inputs as `--name value`:
 
 ```sh
-npm run local -w @manifestlens/action -- --workspace . --paths examples/risky.yaml --fail-on warning
-npm run local -w @manifestlens/action -- --workspace . --paths examples/risky.yaml --mode report
-npm run local -w @manifestlens/action -- --workspace . --paths examples/risky.yaml --dry-run true
+npm run local -w @k8s-manifestlens/action -- --workspace . --paths examples/risky.yaml --fail-on warning
+npm run local -w @k8s-manifestlens/action -- --workspace . --paths examples/risky.yaml --mode report
+npm run local -w @k8s-manifestlens/action -- --workspace . --paths examples/risky.yaml --dry-run true
 ```
 
 It prints the log, the outputs, the job summary as markdown, and the exit code ("the build would fail").
@@ -213,7 +213,7 @@ To run a whole workflow locally, [`act`](https://github.com/nektos/act) works wi
 
 1. Push the branch. The **Action self-test** workflow runs the action from that exact commit on the sample
    manifests and checks that it passes, fails, reports and rejects bad input as designed.
-2. In a test repository, reference the branch: `uses: prsurve/manifestlens@your-branch`, set
+2. In a test repository, reference the branch: `uses: prsurve/k8s-manifestlens@your-branch`, set
    `mode: report` first and read the job summary, then switch to `enforce`.
 3. Open a pull request that breaks a rule to see the annotations, the comment and the failing check.
 

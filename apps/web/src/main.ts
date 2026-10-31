@@ -10,8 +10,8 @@ import {
   parseCrds,
   parseRules,
   unifiedDiff,
-} from '@manifestlens/core';
-import type { FixPolicy, FixRisk, Rule } from '@manifestlens/core';
+} from '@k8s-manifestlens/core';
+import type { FixPolicy, FixRisk, Rule } from '@k8s-manifestlens/core';
 import { inject } from '@vercel/analytics';
 import './style.css';
 import { fetchCrdText, toRawUrl } from './crd-url.js';
