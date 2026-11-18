@@ -70,6 +70,10 @@ export interface CrdInfo {
   version: string;
   kind: string;
   schema: CrdSchema;
+  /** Whether the kind is namespaced; absent when the source did not say. */
+  scope?: 'Namespaced' | 'Cluster';
+  /** Where the schema came from; a CRD unless stated. */
+  source?: 'crd' | 'openapi';
 }
 
 export interface Rule {

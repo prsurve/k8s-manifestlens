@@ -46,8 +46,14 @@ export function buildRegistry(rules: Rule[] = []): KindEntry[] {
   }));
   for (const rule of rules) {
     if (rule.crd === undefined) continue;
-    const { group, version, kind } = rule.crd;
-    entries.push({ group, version, kind, source: 'imported-crd', datasetVersion: 'imported' });
+    const { group, version, kind, source } = rule.crd;
+    entries.push({
+      group,
+      version,
+      kind,
+      source: source === 'openapi' ? 'imported-openapi' : 'imported-crd',
+      datasetVersion: 'imported',
+    });
   }
   return entries;
 }

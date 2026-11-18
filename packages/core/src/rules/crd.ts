@@ -51,7 +51,20 @@ function fromCrd(crd: Record<string, unknown>, origin: string): Rule[] {
     if (!isRecord(v) || typeof v.name !== 'string') continue;
     const schema = isRecord(v.schema) ? v.schema.openAPIV3Schema : legacy;
     if (!isRecord(schema)) continue;
-    rules.push(crdRule({ group, version: v.name, kind, schema: schema as CrdSchema }, origin));
+    const scope = spec.scope === 'Cluster' || spec.scope === 'Namespaced' ? spec.scope : undefined;
+    rules.push(
+      crdRule(
+        {
+          group,
+          version: v.name,
+          kind,
+          schema: schema as CrdSchema,
+          source: 'crd',
+          ...(scope ? { scope } : {}),
+        },
+        origin,
+      ),
+    );
   }
   if (rules.length === 0) {
     throw new RuleError(`${origin}: ${kind} has no openAPIV3Schema, so there is nothing to check.`);
@@ -59,7 +72,7 @@ function fromCrd(crd: Record<string, unknown>, origin: string): Rule[] {
   return rules;
 }
 
-function crdRule(crd: CrdInfo, origin: string): Rule {
+export function crdRule(crd: CrdInfo, origin: string): Rule {
   return {
     id: `crd-${crd.kind}-${crd.version}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     title: `${crd.kind} matches its CustomResourceDefinition`,
