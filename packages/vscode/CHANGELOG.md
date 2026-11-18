@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - **Add support for kinds ManifestLens does not cover.** A quick fix on the "unsupported kind" message and the
   commands `Add a custom resource or kind schema…` and `Manage imported kinds` import a CRD or an OpenAPI schema,
