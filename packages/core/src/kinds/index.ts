@@ -31,6 +31,7 @@ export {
   MemoryKindStorage,
   isStoredKindSet,
   loadStoredKinds,
+  parseKindBundle,
 } from './storage/registry-store.js';
 export type {
   AddResult,

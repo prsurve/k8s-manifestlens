@@ -16,8 +16,11 @@ import {
   parseFixPolicy,
   parseCrds,
   parseRules,
+  loadStoredKinds,
+  parseKindBundle,
+  previewRules,
 } from '@k8s-manifestlens/core';
-import type { FixPolicy, Rule } from '@k8s-manifestlens/core';
+import type { FixPolicy, Rule, StoredKindSet } from '@k8s-manifestlens/core';
 import { analyze, prepareRules } from './analyze.js';
 import type { FileToAnalyze } from './analyze.js';
 import { determineBase } from './base.js';
@@ -177,6 +180,7 @@ function warnIfUntrusted(s: Settings, configPath: string | null): void {
     configPath ? `the config file (${configPath})` : '',
     s.rules.length > 0 ? 'custom rules' : '',
     s.crds.length > 0 ? 'custom resource definitions' : '',
+    s.kinds.length > 0 ? 'the kind registry' : '',
     s.fixPolicy !== '' ? 'the fix policy' : '',
   ].filter(Boolean);
   if (sources.length === 0) return;
@@ -198,34 +202,44 @@ function logConfiguration(s: Settings, configPath: string | null): void {
   core.endGroup();
 }
 
-/** Read extra rule and CRD files, keeping them inside the repository and their ids unique. */
+/** A path from the settings, resolved and checked to be inside the repository. */
+function insideRepo(root: string, workspace: string, setting: string, path: string): string {
+  let real: string;
+  try {
+    real = realpathSync(join(workspace, path));
+  } catch {
+    throw new ConfigError([`${setting}: "${path}" does not exist.`]);
+  }
+  if (real !== root && !real.startsWith(root + sep))
+    throw new ConfigError([`${setting}: "${path}" points outside the repository.`]);
+  return real;
+}
+
+/** The files a setting names: the file itself, or the matching files directly inside a folder. */
+function filesOf(real: string, pattern: RegExp): string[] {
+  return statSync(real).isDirectory()
+    ? readdirSync(real)
+        .filter((f) => pattern.test(f))
+        .sort()
+        .map((f) => join(real, f))
+    : [real];
+}
+
+/** Read extra rule, CRD and kind-registry files, keeping them inside the repository and their ids unique. */
 function loadRules(workspace: string, s: Settings): Rule[] {
   const rules = loadBundledRules();
   const root = realpathSync(workspace);
+  const registry = loadKindRegistry(root, workspace, s);
   const sources: [string, string[], (text: string, origin: string) => Rule[]][] = [
     ['rules', s.rules, parseRules],
     ['crds', s.crds, parseCrds],
   ];
+  const fromFiles: Rule[] = [];
   for (const [setting, paths, parse] of sources) {
     for (const path of paths) {
-      const abs = join(workspace, path);
-      let real: string;
-      try {
-        real = realpathSync(abs);
-      } catch {
-        throw new ConfigError([`${setting}: "${path}" does not exist.`]);
-      }
-      if (real !== root && !real.startsWith(root + sep))
-        throw new ConfigError([`${setting}: "${path}" points outside the repository.`]);
-      const files = statSync(real).isDirectory()
-        ? readdirSync(real)
-            .filter((f) => /\.ya?ml$/.test(f))
-            .sort()
-            .map((f) => join(real, f))
-        : [real];
-      for (const file of files) {
+      for (const file of filesOf(insideRepo(root, workspace, setting, path), /\.ya?ml$/)) {
         try {
-          rules.push(...parse(readFileSync(file, 'utf8'), file.slice(root.length + 1)));
+          fromFiles.push(...parse(readFileSync(file, 'utf8'), file.slice(root.length + 1)));
         } catch (err) {
           if (err instanceof RuleError) throw new ConfigError([err.message]);
           throw err;
@@ -233,6 +247,8 @@ function loadRules(workspace: string, s: Settings): Rule[] {
       }
     }
   }
+  // A CRD file named in `crds` is read directly, so it wins over the registry's copy of the same kind.
+  rules.push(...registry.filter((r) => !fromFiles.some((f) => f.id === r.id)), ...fromFiles);
   const seen = new Set<string>();
   for (const rule of rules) {
     if (seen.has(rule.id))
@@ -242,6 +258,58 @@ function loadRules(workspace: string, s: Settings): Rule[] {
     seen.add(rule.id);
   }
   return rules;
+}
+
+/**
+ * Kind registry files (the JSON `k8s-manifestlens kinds export` writes). A build must not pass
+ * because a schema was quietly skipped, so anything unreadable, malformed or refused is an error.
+ */
+function loadKindRegistry(root: string, workspace: string, s: Settings): Rule[] {
+  const sets: StoredKindSet[] = [];
+  for (const path of s.kinds) {
+    for (const file of filesOf(insideRepo(root, workspace, 'kinds', path), /\.json$/)) {
+      const origin = file.slice(root.length + 1);
+      try {
+        const read = parseKindBundle(readFileSync(file, 'utf8'), origin);
+        if (read.malformed > 0)
+          throw new RuleError(
+            `${origin}: ${read.malformed} entr(ies) are not valid saved schemas.`,
+          );
+        sets.push(...read.sets);
+      } catch (err) {
+        if (err instanceof RuleError) throw new ConfigError([err.message]);
+        throw err;
+      }
+    }
+  }
+  if (sets.length === 0) return [];
+  const loaded = loadStoredKinds(sets);
+  const errors = [
+    ...loaded.problems.map((p) => `kinds: ${p.id} could not be loaded: ${p.message}`),
+    ...loaded.rejected.map((r) => `kinds: ${r.kind} ${r.version} was not registered: ${r.reason}`),
+  ];
+  if (errors.length > 0) throw new ConfigError(errors);
+  logKindSchemas(loaded.rules);
+  return loaded.rules;
+}
+
+/** What each registered schema can and cannot check, so a green build is read for what it covers. */
+function logKindSchemas(rules: Rule[]): void {
+  core.startGroup('Kind schemas');
+  for (const p of previewRules(rules)) {
+    for (const v of p.versions) {
+      const c = v.capabilities;
+      core.info(
+        `${p.kind} ${v.version}: ${c.level === 'basic' ? 'basic (no fields to check)' : `schema-backed, ${c.fields.length} fields`}`,
+      );
+      for (const u of c.unsupported) {
+        core.info(
+          `  not checked: ${u.keyword} (${u.count}x, first at ${u.firstPath}). No findings does not mean it is valid.`,
+        );
+      }
+    }
+  }
+  core.endGroup();
 }
 
 /** Read the fix policy file, keeping it inside the repository. */

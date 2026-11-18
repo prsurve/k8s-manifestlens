@@ -89,6 +89,31 @@ export function loadStoredKinds(all: StoredKindSet[]): LoadedKinds {
   return { rules, rejected, problems };
 }
 
+/**
+ * Read a kind registry file (the format `KindStore.export` writes) without a store. The text is
+ * untrusted: only entries with the right shape are returned, and `malformed` counts the others so
+ * a caller can ignore them (the CLI) or refuse them (CI).
+ */
+export function parseKindBundle(
+  text: string,
+  origin: string,
+): { sets: StoredKindSet[]; malformed: number } {
+  if (text.length > MAX_BUNDLE_BYTES) throw new RuleError(`${origin}: the file is too large.`);
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    throw new RuleError(
+      `Cannot read the kind registry ${origin}: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  if (!isRecord(data) || data.format !== BUNDLE_FORMAT || !Array.isArray(data.sets)) {
+    throw new RuleError(`${origin} is not a k8s-manifestlens kind registry.`);
+  }
+  const sets = data.sets.filter(isStoredKindSet);
+  return { sets, malformed: data.sets.length - sets.length };
+}
+
 /** True when untrusted JSON has the shape of a saved set. The text is still compiled before use. */
 export function isStoredKindSet(v: unknown): v is StoredKindSet {
   return (

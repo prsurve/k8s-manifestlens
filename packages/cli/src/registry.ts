@@ -1,11 +1,10 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { RuleError, isStoredKindSet } from '@k8s-manifestlens/core';
+import { RuleError, parseKindBundle } from '@k8s-manifestlens/core';
 import type { KindStorage, StoredKindSet } from '@k8s-manifestlens/core';
 
 const FORMAT = 'k8s-manifestlens-kinds';
-const MAX_BYTES = 64 * 1024 * 1024;
 
 /** Where the registry lives: `--registry`, then K8S_MANIFESTLENS_REGISTRY, then the user config folder. */
 export function registryPath(
@@ -22,22 +21,16 @@ export function registryPath(
 /** Read the sets in a registry file synchronously. A missing file is an empty registry. */
 export function readRegistry(path: string): StoredKindSet[] {
   if (!existsSync(path)) return [];
-  let data: unknown;
+  let text: string;
   try {
-    const text = readFileSync(path, 'utf8');
-    if (text.length > MAX_BYTES) throw new Error('the file is too large');
-    data = JSON.parse(text);
+    text = readFileSync(path, 'utf8');
   } catch (err) {
     throw new RuleError(
       `Cannot read the kind registry ${path}: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
-  const sets = (data as { format?: unknown; sets?: unknown } | null)?.sets;
-  if ((data as { format?: unknown } | null)?.format !== FORMAT || !Array.isArray(sets)) {
-    throw new RuleError(`${path} is not a k8s-manifestlens kind registry.`);
-  }
   // A malformed entry is ignored here; `kinds list` and `kinds import` report problems.
-  return sets.filter(isStoredKindSet);
+  return parseKindBundle(text, path).sets;
 }
 
 /**

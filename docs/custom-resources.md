@@ -27,6 +27,17 @@ The Load button only accepts `github.com/.../blob/...`, `raw.githubusercontent.c
 site, copy the text and paste it. The CLI and the Action read files only: use `curl -o crd.yaml <url>`
 first.
 
+## A kind registry
+
+`k8s-manifestlens kinds add <file>` saves CRDs and OpenAPI schemas to a local registry (a JSON file), and
+`explain`, `check`, `diff` and `fix` use it automatically. `kinds preview <file>` first shows what a schema can
+check and what it cannot. Pass `--no-registry` for a reproducible run.
+
+To use the same registry in CI, commit the file (`k8s-manifestlens kinds export --out .github/kinds.json`) and
+point the Action at it with `kinds: .github/kinds.json`. The Action fails the build if the file is unreadable,
+has an invalid entry, or claims a built-in kind, and it logs which constraints a schema does not check. A CRD in
+`crds` wins over the registry's copy of the same kind.
+
 ## What is checked
 
 | Finding                | Severity | When                                                                                |

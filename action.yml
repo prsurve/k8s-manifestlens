@@ -66,6 +66,9 @@ inputs:
   crds:
     description: CustomResourceDefinition files or folders (YAML), one per line, inside the repository. Custom resources of those kinds are checked against their schema.
     required: false
+  kinds:
+    description: Kind registry files or folders (JSON, as written by "k8s-manifestlens kinds export"), one per line, inside the repository. Adds CRDs and OpenAPI schemas, including built-in kinds ManifestLens does not cover yet.
+    required: false
   disable-rules:
     description: Rule ids to turn off, separated by commas or new lines.
     required: false
