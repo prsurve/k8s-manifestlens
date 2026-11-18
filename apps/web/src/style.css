@@ -1872,3 +1872,17 @@ ul.plain {
   border-left-color: var(--ok);
   background: var(--ok-bg);
 }
+
+/* Kind dialogs: layout fixes found in a real browser */
+#kinds-open {
+  white-space: nowrap;
+  min-height: 34px;
+  padding: 2px 12px;
+}
+.kind-form select {
+  min-width: 270px;
+}
+.kind-card h3 .meta {
+  margin-left: 8px;
+  font-weight: normal;
+}
