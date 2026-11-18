@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Kind intelligence.** A manifest whose kind is not explained is now told apart as a built-in Kubernetes
+  kind that is not covered yet, a custom resource, a likely typo, or a malformed identity, instead of a
+  single "unsupported" message. See [docs/kind-intelligence.md](docs/kind-intelligence.md).
+- **Add a kind without a release.** Import a CRD or an OpenAPI schema, see a preview of what it can and
+  cannot check, and register it. Constraints we see but do not evaluate (`oneOf`, CEL, `format`,
+  `minItems` and others) are listed as not checked and are never reported as valid.
+- **Web page:** an onboarding dialog and a **Manage kinds** page (built-in, missing built-in, imported CRDs,
+  imported OpenAPI schemas; search, view, test, update, export, disable, remove). Imported kinds are kept
+  in IndexedDB and the open manifest is re-analyzed automatically.
+- **CLI:** `k8s-manifestlens kinds list | preview | add | remove | enable | disable | export | import | path`,
+  and `--registry` / `--no-registry` on the other commands. Saved kinds are used by `explain`, `check`,
+  `diff` and `fix`.
+- **GitHub Action:** a `kinds` input that loads committed registry files. An unreadable, malformed or
+  refused file fails the build, and the log lists what each schema does not check.
+- **VS Code:** a quick fix and two commands to add and manage kinds, and a `k8sManifestlens.kinds` setting.
+- **Guide for contributors** to add a kind permanently: [docs/adding-a-built-in-kind.md](docs/adding-a-built-in-kind.md).
+
+### Security
+
+- CRD `pattern`s that can take exponential time (for example `^(a+)+$`) are no longer evaluated. They are
+  reported as not checked. Previously such a pattern could hang `check`, the Action or the editor.
+- Schemas that grow too large when `$ref`s are resolved, or nest too deeply, are refused.
+- The Action now refuses a `rules`, `crds` or `kinds` file that is a symbolic link pointing outside the
+  repository.
+- An imported schema can never replace a built-in kind.
+
+### Notes
+
+- Existing behaviour is unchanged: the 25 built-in kinds, hand-written explanations and the bundled
+  dataset are as before, and `--crd` / `crds` work as they did. The new registry is additive.
+- The CLI loads saved kinds automatically when the registry file exists. Use `--no-registry` for a run
+  that must not depend on your machine.
+- Not in this release: ecosystem packs and cross-resource checks.
+
 ## 1.3.0 (2026-10-31)
 
 ### Changed

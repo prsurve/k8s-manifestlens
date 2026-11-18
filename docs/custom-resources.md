@@ -16,11 +16,11 @@ A file may hold several CRDs separated by `---`, or the `items` of a `kind: List
 
 ## Using it
 
-| Where         | How                                                                                                              |
-| ------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Web page      | Paste the YAML into "Custom resources: paste a CRD". It stays local.                                             |
-| CLI           | `k8s-manifestlens check app.yaml --crd certificate-crd.yaml` (also `explain`, `diff`, `fix`; a folder works too) |
-| GitHub Action | `crds: k8s/crds` (files or folders inside the repository)                                                        |
+| Where         | How                                                                                                                                                                                           |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web page      | Click **Import schema** on the notice, or open **Manage kinds**, to save a CRD in your browser. Or paste the YAML into "Custom resources: paste a CRD" for this session only. It stays local. |
+| CLI           | `k8s-manifestlens check app.yaml --crd certificate-crd.yaml` (also `explain`, `diff`, `fix`; a folder works too)                                                                              |
+| GitHub Action | `crds: k8s/crds` (files or folders inside the repository)                                                                                                                                     |
 
 The Load button only accepts `github.com/.../blob/...`, `raw.githubusercontent.com` and
 `gist.githubusercontent.com` links over https. The browser downloads the file itself. For any other
@@ -28,6 +28,8 @@ site, copy the text and paste it. The CLI and the Action read files only: use `c
 first.
 
 ## A kind registry
+
+See [kind intelligence](kind-intelligence.md) for the full picture, including OpenAPI schemas and built-in kinds that are not covered yet.
 
 `k8s-manifestlens kinds add <file>` saves CRDs and OpenAPI schemas to a local registry (a JSON file), and
 `explain`, `check`, `diff` and `fix` use it automatically. `kinds preview <file>` first shows what a schema can
