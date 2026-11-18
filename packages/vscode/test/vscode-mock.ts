@@ -33,6 +33,7 @@ export class WorkspaceEdit {
   }
 }
 export class CodeAction {
+  command?: { command: string; title: string; arguments?: unknown[] };
   diagnostics?: Diagnostic[];
   edit?: WorkspaceEdit;
   constructor(
@@ -76,7 +77,7 @@ export const state = {
   hoverProviders: [] as {
     provideHover(doc: FakeDocument, position: Position): Hover | undefined;
   }[],
-  commands: new Map<string, () => unknown>(),
+  commands: new Map<string, (...args: unknown[]) => unknown>(),
   open: [] as Listener<FakeDocument>[],
   change: [] as Listener<{ document: FakeDocument }>[],
   close: [] as Listener<FakeDocument>[],
@@ -98,6 +99,11 @@ export const state = {
   choice: undefined as string | undefined,
   applied: [] as WorkspaceEdit[],
   executed: [] as unknown[][],
+  /** Answers for the next quick picks, input box, open dialog and clipboard. */
+  picks: [] as string[],
+  input: undefined as string | undefined,
+  files: [] as string[],
+  clipboard: '',
 };
 
 export function reset(): void {
@@ -115,6 +121,10 @@ export function reset(): void {
   state.choice = undefined;
   state.applied = [];
   state.executed = [];
+  state.picks = [];
+  state.input = undefined;
+  state.files = [];
+  state.clipboard = '';
 }
 
 export const languages = {
@@ -185,13 +195,22 @@ export const window = {
     return items.includes(state.choice ?? '') ? state.choice : undefined;
   },
   showTextDocument: async () => undefined,
+  /** Picks the next queued answer: by label for strings, or by label of an item object. */
+  showQuickPick: async (items: (string | { label: string })[]) => {
+    const want = state.picks.shift();
+    return items.find((i) => (typeof i === 'string' ? i : i.label) === want);
+  },
+  showInputBox: async () => state.input,
+  showOpenDialog: async () => state.files.map((fsPath) => ({ fsPath })),
 };
+
+export const env = { clipboard: { readText: async () => state.clipboard } };
 
 export const commands = {
   async executeCommand(...args: unknown[]) {
     state.executed.push(args);
   },
-  registerCommand(id: string, fn: () => unknown) {
+  registerCommand(id: string, fn: (...args: unknown[]) => unknown) {
     state.commands.set(id, fn);
     return disposable;
   },

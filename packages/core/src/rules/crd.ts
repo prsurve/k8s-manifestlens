@@ -51,7 +51,20 @@ function fromCrd(crd: Record<string, unknown>, origin: string): Rule[] {
     if (!isRecord(v) || typeof v.name !== 'string') continue;
     const schema = isRecord(v.schema) ? v.schema.openAPIV3Schema : legacy;
     if (!isRecord(schema)) continue;
-    rules.push(crdRule({ group, version: v.name, kind, schema: schema as CrdSchema }, origin));
+    const scope = spec.scope === 'Cluster' || spec.scope === 'Namespaced' ? spec.scope : undefined;
+    rules.push(
+      crdRule(
+        {
+          group,
+          version: v.name,
+          kind,
+          schema: schema as CrdSchema,
+          source: 'crd',
+          ...(scope ? { scope } : {}),
+        },
+        origin,
+      ),
+    );
   }
   if (rules.length === 0) {
     throw new RuleError(`${origin}: ${kind} has no openAPIV3Schema, so there is nothing to check.`);
@@ -59,7 +72,7 @@ function fromCrd(crd: Record<string, unknown>, origin: string): Rule[] {
   return rules;
 }
 
-function crdRule(crd: CrdInfo, origin: string): Rule {
+export function crdRule(crd: CrdInfo, origin: string): Rule {
   return {
     id: `crd-${crd.kind}-${crd.version}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     title: `${crd.kind} matches its CustomResourceDefinition`,
@@ -250,7 +263,13 @@ function checkString(
   if (schema.maxLength !== undefined && s.length > schema.maxLength) {
     bad(`${label} must be at most ${schema.maxLength} characters long.`);
   }
-  if (schema.pattern !== undefined && s.length <= 2000) {
+  if (schema.pattern !== undefined && s.length <= 2000 && isRiskyPattern(schema.pattern)) {
+    issues.push({
+      code: 'not-validated',
+      path,
+      message: `${label} has a pattern that can take exponential time to evaluate, so it was not checked.`,
+    });
+  } else if (schema.pattern !== undefined && s.length <= 2000) {
     let re: RegExp | undefined;
     try {
       re = new RegExp(schema.pattern);
@@ -261,6 +280,41 @@ function checkString(
       bad(`${label} is ${show(s)}, which does not match the pattern ${schema.pattern}.`);
   }
 }
+
+/**
+ * A pattern with a repeated group whose body starts with a variable-length repeat, such as
+ * `(a+)+`, `(\\w+\\s?)*` or `(.*)*`. JavaScript can take exponential time on these, and a schema
+ * may come from a pull request or a shared file, so such a pattern is not evaluated (and the
+ * caller says so). Delimited repeats like the DNS pattern `(\\.[a-z]+)*` are unambiguous and fine.
+ */
+export function isRiskyPattern(pattern: string): boolean {
+  const open: number[] = [];
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i];
+    if (c === '\\') {
+      i++;
+    } else if (c === '[') {
+      i++;
+      if (pattern[i] === '^') i++;
+      if (pattern[i] === ']') i++;
+      while (i < pattern.length && pattern[i] !== ']') i += pattern[i] === '\\' ? 2 : 1;
+    } else if (c === '(') {
+      open.push(i);
+    } else if (c === ')') {
+      const start = open.pop();
+      if (start === undefined) continue;
+      const after = pattern.slice(i + 1);
+      const repeated = /^(?:[+*]|\{\d+,\d*\})/.test(after);
+      const body = pattern.slice(start + 1, i).replace(/^\?:/, '');
+      if (repeated && LEADING_REPEAT.test(body)) return true;
+    }
+  }
+  return false;
+}
+
+/** The first thing in a group body is a character, escape, class or simple group, repeated with + * or {n,}. */
+const LEADING_REPEAT =
+  /^(?:\\.|\[(?:\\.|[^\]\\])*\]|\((?:[^()\\]|\\.)*\)|[^()\\|*+?{[])(?:[+*]|\{\d+,\d*\})/;
 
 function checkNumber(
   n: number,

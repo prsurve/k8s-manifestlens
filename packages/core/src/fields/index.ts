@@ -59,6 +59,11 @@ function lookupPodSpec(kind: string, pattern: string): string | undefined {
     : undefined;
 }
 
+/** Kinds that have hand-written explanations; they win over the generated ones. */
+export function handWrittenKinds(): string[] {
+  return Object.keys(docsByKind).sort();
+}
+
 export function supportedKinds(): string[] {
   return [...new Set([...Object.keys(docsByKind), ...schemaKinds()])].sort();
 }

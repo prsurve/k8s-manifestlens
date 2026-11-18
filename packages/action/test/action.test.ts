@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { KindStore, MemoryKindStorage } from '@k8s-manifestlens/core';
 import { run } from '../src/main.js';
 import { POD, commitAll, example, gitRepo, tempDir } from './helpers.js';
 
@@ -367,6 +368,125 @@ describe('extra rules', () => {
       inputs: { crds: 'crds' },
     });
     expect(bad.log).toContain('expected a CustomResourceDefinition');
+  });
+
+  describe('kind registry', () => {
+    const crd = (maximum: number): string =>
+      [
+        'apiVersion: apiextensions.k8s.io/v1',
+        'kind: CustomResourceDefinition',
+        'spec:',
+        '  group: example.com',
+        '  names: { kind: Widget }',
+        '  versions:',
+        '    - name: v1',
+        '      schema:',
+        '        openAPIV3Schema:',
+        '          type: object',
+        '          properties:',
+        '            spec:',
+        '              type: object',
+        '              properties:',
+        `                size: { type: integer, maximum: ${maximum} }`,
+        '                tags: { type: array, minItems: 1, items: { type: string } }',
+        '',
+      ].join('\n');
+    const bundle = async (...crds: string[]): Promise<string> => {
+      const store = new KindStore(new MemoryKindStorage());
+      for (const text of crds) await store.add('crd', text);
+      return store.export();
+    };
+    const widget = 'apiVersion: example.com/v1\nkind: Widget\nspec:\n  size: 9\n';
+
+    it('checks custom resources against a committed registry, and says what is not checked', async () => {
+      const r = await runAction({
+        files: { 'w.yaml': widget, 'kinds/kinds.json': await bundle(crd(5)) },
+        inputs: { kinds: 'kinds', 'fail-on': 'error' },
+      });
+      expect(r.exitCode).toBe(1);
+      expect(r.log).toContain('above the maximum of 5');
+      expect(r.log).toContain('not checked: minItems');
+    });
+
+    it('lets a file in `crds` win over the registry copy of the same kind', async () => {
+      const r = await runAction({
+        files: {
+          'w.yaml': widget,
+          'kinds/kinds.json': await bundle(crd(5)),
+          'crds/widget.yaml': crd(50),
+        },
+        inputs: { kinds: 'kinds', crds: 'crds' },
+      });
+      expect(r.exitCode).toBeUndefined();
+      expect(r.log).not.toContain('above the maximum');
+    });
+
+    it('fails the build for a registry it cannot trust instead of skipping it', async () => {
+      const ingress = crd(5)
+        .replace('example.com', 'networking.k8s.io')
+        .replace('Widget', 'Ingress');
+      for (const [file, text, message] of [
+        ['bad.json', '{nope', 'Cannot read the kind registry'],
+        ['other.json', '{"format":"x"}', 'not a k8s-manifestlens kind registry'],
+        ['builtin.json', await bundleRaw(ingress), 'was not registered'],
+      ] as const) {
+        const r = await runAction({
+          files: { 'w.yaml': widget, [`kinds/${file}`]: text },
+          inputs: { kinds: `kinds/${file}` },
+        });
+        expect(r.exitCode, file).toBe(1);
+        expect(r.log, file).toContain(message);
+      }
+    });
+
+    it('does not follow a symbolic link inside a folder out of the repository', async () => {
+      const outside = tempDir({
+        'secret.json': 'root:x:0:0:SECRET-CONTENT',
+        'secret.yaml': 'kind: Pod\n',
+      });
+      const workspace = tempDir({
+        'w.yaml': widget,
+        'kinds/ok.json': await bundle(crd(5)),
+        'rules/.keep': '',
+      });
+      for (const [dir, name, target] of [
+        ['kinds', 'link.json', 'secret.json'],
+        ['crds', 'link.yaml', 'secret.yaml'],
+        ['rules', 'link.yaml', 'secret.yaml'],
+      ] as const) {
+        mkdirSync(join(workspace, dir), { recursive: true });
+        symlinkSync(join(outside, target), join(workspace, dir, name));
+        const r = await runAction({ workspace, inputs: { [dir]: dir } });
+        expect(r.exitCode, dir).toBe(1);
+        expect(r.log, dir).toContain('points outside the repository');
+        expect(r.log, dir).not.toContain('SECRET-CONTENT');
+        rmSync(join(workspace, dir, name));
+      }
+    });
+
+    it('keeps the registry inside the repository', async () => {
+      const r = await runAction({
+        files: { 'w.yaml': widget },
+        inputs: { kinds: '../outside.json' },
+      });
+      expect(r.exitCode).toBe(1);
+      expect(r.log).toContain('kinds');
+    });
+
+    /** A bundle that skips the store's built-in check, as a hand-edited file could. */
+    async function bundleRaw(text: string): Promise<string> {
+      const sets = [
+        {
+          id: 'crd:networking.k8s.io/Ingress',
+          format: 'crd',
+          text,
+          kinds: [{ group: 'networking.k8s.io', kind: 'Ingress', versions: ['v1'] }],
+          enabled: true,
+          importedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ];
+      return JSON.stringify({ format: 'k8s-manifestlens-kinds', version: 1, sets });
+    }
   });
 
   it('names the file and the rule when a rule is invalid', async () => {
