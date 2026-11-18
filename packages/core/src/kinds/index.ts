@@ -26,7 +26,12 @@ export { importOpenApi } from './onboarding/schema-importer.js';
 export type { SchemaIdentity } from './onboarding/schema-importer.js';
 export { registerKinds } from './onboarding/kind-registration.js';
 export type { RegistrationResult, RejectedKind } from './onboarding/kind-registration.js';
-export { KindStore, MemoryKindStorage } from './storage/registry-store.js';
+export {
+  KindStore,
+  MemoryKindStorage,
+  isStoredKindSet,
+  loadStoredKinds,
+} from './storage/registry-store.js';
 export type {
   AddResult,
   KindStorage,
