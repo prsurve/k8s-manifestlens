@@ -30254,6 +30254,9 @@ var BUILT_IN_INVENTORY = [
 var import_yaml6 = __toESM(require_dist(), 1);
 var MAX_BYTES = 8 * 1024 * 1024;
 
+// ../core/src/kinds/storage/registry-store.ts
+var MAX_BUNDLE_BYTES = 64 * 1024 * 1024;
+
 // ../../node_modules/balanced-match/dist/esm/index.js
 var balanced = (a, b, str) => {
   const ma = a instanceof RegExp ? maybeMatch(a, str) : a;

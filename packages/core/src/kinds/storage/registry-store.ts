@@ -34,7 +34,7 @@ export class MemoryKindStorage implements KindStorage {
     return Promise.resolve([...this.sets.values()]);
   }
   put(set: StoredKindSet): Promise<void> {
-    this.sets.set(set.id, structuredClone(set));
+    this.sets.set(set.id, JSON.parse(JSON.stringify(set)) as StoredKindSet);
     return Promise.resolve();
   }
   remove(id: string): Promise<void> {
