@@ -1,3 +1,4 @@
+import { isRiskyPattern } from '../../rules/crd.js';
 import type { CrdSchema } from '../../rules/types.js';
 
 /** Constraints that `validateAgainst` really checks. Keep in step with rules/crd.ts. */
@@ -87,9 +88,21 @@ export function analyzeSchema(schema: CrdSchema): SchemaCapabilities {
       if (seen) seen.count++;
       else unsupported.set(kw, { keyword: kw, count: 1, firstPath: path || '(root)' });
     }
+    if (typeof node.pattern === 'string' && isRiskyPattern(node.pattern)) {
+      const seen = unsupported.get('pattern (unsafe, skipped)');
+      if (seen) seen.count++;
+      else
+        unsupported.set('pattern (unsafe, skipped)', {
+          keyword: 'pattern (unsafe, skipped)',
+          count: 1,
+          firstPath: path || '(root)',
+        });
+    }
     if (node.type !== undefined) supported.add('type');
     for (const c of ['enum', 'pattern', 'minimum', 'maximum', 'minLength', 'maxLength'] as const) {
-      if (node[c] !== undefined) supported.add(c);
+      if (node[c] !== undefined && !(c === 'pattern' && isRiskyPattern(String(node.pattern)))) {
+        supported.add(c);
+      }
     }
     if (node.properties && node['x-kubernetes-preserve-unknown-fields'] !== true) {
       supported.add('unknown-fields');

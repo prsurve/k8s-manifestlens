@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { KindStore, MemoryKindStorage } from '@k8s-manifestlens/core';
@@ -436,6 +436,31 @@ describe('extra rules', () => {
         });
         expect(r.exitCode, file).toBe(1);
         expect(r.log, file).toContain(message);
+      }
+    });
+
+    it('does not follow a symbolic link inside a folder out of the repository', async () => {
+      const outside = tempDir({
+        'secret.json': 'root:x:0:0:SECRET-CONTENT',
+        'secret.yaml': 'kind: Pod\n',
+      });
+      const workspace = tempDir({
+        'w.yaml': widget,
+        'kinds/ok.json': await bundle(crd(5)),
+        'rules/.keep': '',
+      });
+      for (const [dir, name, target] of [
+        ['kinds', 'link.json', 'secret.json'],
+        ['crds', 'link.yaml', 'secret.yaml'],
+        ['rules', 'link.yaml', 'secret.yaml'],
+      ] as const) {
+        mkdirSync(join(workspace, dir), { recursive: true });
+        symlinkSync(join(outside, target), join(workspace, dir, name));
+        const r = await runAction({ workspace, inputs: { [dir]: dir } });
+        expect(r.exitCode, dir).toBe(1);
+        expect(r.log, dir).toContain('points outside the repository');
+        expect(r.log, dir).not.toContain('SECRET-CONTENT');
+        rmSync(join(workspace, dir, name));
       }
     });
 

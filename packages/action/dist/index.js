@@ -28021,7 +28021,13 @@ function checkString(s, schema2, path6, label2, issues) {
   if (schema2.maxLength !== void 0 && s.length > schema2.maxLength) {
     bad(`${label2} must be at most ${schema2.maxLength} characters long.`);
   }
-  if (schema2.pattern !== void 0 && s.length <= 2e3) {
+  if (schema2.pattern !== void 0 && s.length <= 2e3 && isRiskyPattern(schema2.pattern)) {
+    issues.push({
+      code: "not-validated",
+      path: path6,
+      message: `${label2} has a pattern that can take exponential time to evaluate, so it was not checked.`
+    });
+  } else if (schema2.pattern !== void 0 && s.length <= 2e3) {
     let re;
     try {
       re = new RegExp(schema2.pattern);
@@ -28031,6 +28037,31 @@ function checkString(s, schema2, path6, label2, issues) {
       bad(`${label2} is ${show(s)}, which does not match the pattern ${schema2.pattern}.`);
   }
 }
+function isRiskyPattern(pattern) {
+  const open2 = [];
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i];
+    if (c === "\\") {
+      i++;
+    } else if (c === "[") {
+      i++;
+      if (pattern[i] === "^") i++;
+      if (pattern[i] === "]") i++;
+      while (i < pattern.length && pattern[i] !== "]") i += pattern[i] === "\\" ? 2 : 1;
+    } else if (c === "(") {
+      open2.push(i);
+    } else if (c === ")") {
+      const start = open2.pop();
+      if (start === void 0) continue;
+      const after = pattern.slice(i + 1);
+      const repeated = /^(?:[+*]|\{\d+,\d*\})/.test(after);
+      const body = pattern.slice(start + 1, i).replace(/^\?:/, "");
+      if (repeated && LEADING_REPEAT.test(body)) return true;
+    }
+  }
+  return false;
+}
+var LEADING_REPEAT = /^(?:\\.|\[(?:\\.|[^\]\\])*\]|\((?:[^()\\]|\\.)*\)|[^()\\|*+?{[])(?:[+*]|\{\d+,\d*\})/;
 function checkNumber(n, schema2, path6, label2, issues) {
   if (schema2.minimum !== void 0 && n < schema2.minimum) {
     issues.push({
@@ -30290,6 +30321,9 @@ function buildRegistry(rules = []) {
   return entries;
 }
 
+// ../core/src/kinds/registry/kind-classifier.ts
+var MAX_API_VERSION = 253 + 1 + 63;
+
 // ../core/src/kinds/schema/schema-capabilities.ts
 var SUPPORTED_CONSTRAINTS = [
   "required",
@@ -30338,9 +30372,21 @@ function analyzeSchema(schema2) {
       if (seen) seen.count++;
       else unsupported2.set(kw, { keyword: kw, count: 1, firstPath: path6 || "(root)" });
     }
+    if (typeof node.pattern === "string" && isRiskyPattern(node.pattern)) {
+      const seen = unsupported2.get("pattern (unsafe, skipped)");
+      if (seen) seen.count++;
+      else
+        unsupported2.set("pattern (unsafe, skipped)", {
+          keyword: "pattern (unsafe, skipped)",
+          count: 1,
+          firstPath: path6 || "(root)"
+        });
+    }
     if (node.type !== void 0) supported.add("type");
     for (const c of ["enum", "pattern", "minimum", "maximum", "minLength", "maxLength"]) {
-      if (node[c] !== void 0) supported.add(c);
+      if (node[c] !== void 0 && !(c === "pattern" && isRiskyPattern(String(node.pattern)))) {
+        supported.add(c);
+      }
     }
     if (node.properties && node["x-kubernetes-preserve-unknown-fields"] !== true) {
       supported.add("unknown-fields");
@@ -30406,6 +30452,8 @@ function importCrds(text2, origin = "crd") {
 var import_yaml6 = __toESM(require_dist(), 1);
 var MAX_BYTES = 8 * 1024 * 1024;
 var MAX_DEPTH3 = 40;
+var MAX_NODES = 2e5;
+var MAX_NESTING = 2e3;
 var isRecord2 = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 function importOpenApi(text2, identity2, origin = "openapi") {
   if (text2.length > MAX_BYTES) throw new RuleError(`${origin}: the schema text is too large.`);
@@ -30445,25 +30493,37 @@ function build(id2, schema2, pool, origin) {
   const rule = crdRule(
     {
       ...id2,
-      schema: inline(schema2, pool, [], 0),
+      schema: inline(schema2, pool, [], 0, { nodes: 0 }, origin),
       source: "openapi"
     },
     origin
   );
   return rule;
 }
-function inline(node, pool, stack, depth) {
-  if (Array.isArray(node)) return node.map((n) => inline(n, pool, stack, depth + 1));
+function inline(node, pool, stack, depth, budget, origin) {
+  if (++budget.nodes > MAX_NODES) {
+    throw new RuleError(
+      `${origin}: the schema is too large once its references are resolved (more than ${MAX_NODES} nodes).`
+    );
+  }
+  if (depth > MAX_NESTING) {
+    throw new RuleError(`${origin}: the schema is nested too deeply.`);
+  }
+  if (Array.isArray(node)) {
+    return node.map((n) => inline(n, pool, stack, depth + 1, budget, origin));
+  }
   if (!isRecord2(node)) return node;
   const ref = node.$ref;
   if (typeof ref === "string") {
     const name = ref.replace(/^#\/(?:components\/schemas|definitions)\//, "");
     const target2 = pool[name];
     if (!isRecord2(target2) || stack.includes(name) || depth > MAX_DEPTH3 || ref === name) return node;
-    return inline(target2, pool, [...stack, name], depth + 1);
+    return inline(target2, pool, [...stack, name], depth + 1, budget, origin);
   }
   const out = {};
-  for (const [k2, v] of Object.entries(node)) out[k2] = inline(v, pool, stack, depth + 1);
+  for (const [k2, v] of Object.entries(node)) {
+    out[k2] = inline(v, pool, stack, depth + 1, budget, origin);
+  }
   return out;
 }
 
@@ -34469,8 +34529,21 @@ function insideRepo(root, workspace, setting, path6) {
     throw new ConfigError([`${setting}: "${path6}" points outside the repository.`]);
   return real;
 }
-function filesOf(real, pattern) {
-  return (0, import_node_fs3.statSync)(real).isDirectory() ? (0, import_node_fs3.readdirSync)(real).filter((f) => pattern.test(f)).sort().map((f) => (0, import_node_path3.join)(real, f)) : [real];
+function filesOf(real, pattern, root, setting) {
+  const files = (0, import_node_fs3.statSync)(real).isDirectory() ? (0, import_node_fs3.readdirSync)(real).filter((f) => pattern.test(f)).sort().map((f) => (0, import_node_path3.join)(real, f)) : [real];
+  return files.map((file) => {
+    let target2;
+    try {
+      target2 = (0, import_node_fs3.realpathSync)(file);
+    } catch {
+      throw new ConfigError([`${setting}: "${file.slice(root.length + 1)}" cannot be read.`]);
+    }
+    if (target2 !== root && !target2.startsWith(root + import_node_path3.sep))
+      throw new ConfigError([
+        `${setting}: "${file.slice(root.length + 1)}" points outside the repository.`
+      ]);
+    return target2;
+  });
 }
 function loadRules(workspace, s) {
   const rules = loadBundledRules();
@@ -34483,7 +34556,12 @@ function loadRules(workspace, s) {
   const fromFiles = [];
   for (const [setting, paths, parse3] of sources) {
     for (const path6 of paths) {
-      for (const file of filesOf(insideRepo(root, workspace, setting, path6), /\.ya?ml$/)) {
+      for (const file of filesOf(
+        insideRepo(root, workspace, setting, path6),
+        /\.ya?ml$/,
+        root,
+        setting
+      )) {
         try {
           fromFiles.push(...parse3((0, import_node_fs3.readFileSync)(file, "utf8"), file.slice(root.length + 1)));
         } catch (err) {
@@ -34507,7 +34585,12 @@ function loadRules(workspace, s) {
 function loadKindRegistry(root, workspace, s) {
   const sets = [];
   for (const path6 of s.kinds) {
-    for (const file of filesOf(insideRepo(root, workspace, "kinds", path6), /\.json$/)) {
+    for (const file of filesOf(
+      insideRepo(root, workspace, "kinds", path6),
+      /\.json$/,
+      root,
+      "kinds"
+    )) {
       const origin = file.slice(root.length + 1);
       try {
         const read = parseKindBundle((0, import_node_fs3.readFileSync)(file, "utf8"), origin);

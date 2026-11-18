@@ -26,6 +26,9 @@ export interface KindClassification {
   reason?: string;
 }
 
+/** Kubernetes limits: a group is at most 253 characters, a version 63 and a kind 63. */
+const MAX_KIND = 63;
+const MAX_API_VERSION = 253 + 1 + 63;
 const KIND = /^[A-Za-z][A-Za-z0-9]*$/;
 const API_VERSION = /^(?:[a-z0-9]([-a-z0-9.]*[a-z0-9])?\/)?v[0-9]+(?:(?:alpha|beta)[0-9]+)?$/;
 
@@ -40,11 +43,15 @@ export function classifyKind(
   rules: Rule[] = [],
 ): KindClassification {
   if (kind === undefined || kind === '') return malformed('The manifest has no "kind".');
-  if (!KIND.test(kind)) return malformed(`"${kind}" is not a valid kind name.`);
+  if (kind.length > MAX_KIND || !KIND.test(kind)) {
+    return malformed(`"${kind.slice(0, 40)}" is not a valid kind name.`);
+  }
   if (apiVersion === undefined || apiVersion === '') {
     return malformed('The manifest has no "apiVersion".');
   }
-  if (!API_VERSION.test(apiVersion)) return malformed(`"${apiVersion}" is not a valid apiVersion.`);
+  if (apiVersion.length > MAX_API_VERSION || !API_VERSION.test(apiVersion)) {
+    return malformed(`"${apiVersion.slice(0, 40)}" is not a valid apiVersion.`);
+  }
 
   const { group, version } = splitApiVersion(apiVersion);
   const sameKind = buildRegistry(rules).filter((e) => e.group === group && e.kind === kind);

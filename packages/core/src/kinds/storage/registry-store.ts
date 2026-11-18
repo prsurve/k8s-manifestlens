@@ -132,9 +132,12 @@ export class KindStore {
   constructor(private readonly storage: KindStorage) {}
 
   list(): Promise<StoredKindSet[]> {
+    // Whatever a backend returns is untrusted: an entry with the wrong shape is skipped, not crashed on.
     return this.storage
       .list()
-      .then((all) => all.sort((a, b) => a.importedAt.localeCompare(b.importedAt)));
+      .then((all) =>
+        all.filter(isStoredKindSet).sort((a, b) => a.importedAt.localeCompare(b.importedAt)),
+      );
   }
 
   /** Compile, register and save a CRD or OpenAPI schema. Throws `RuleError` if the text is invalid. */

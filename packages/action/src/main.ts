@@ -215,14 +215,30 @@ function insideRepo(root: string, workspace: string, setting: string, path: stri
   return real;
 }
 
-/** The files a setting names: the file itself, or the matching files directly inside a folder. */
-function filesOf(real: string, pattern: RegExp): string[] {
-  return statSync(real).isDirectory()
+/**
+ * The files a setting names: the file itself, or the matching files directly inside a folder. A
+ * file inside the folder can be a symbolic link, so each one is checked to still be in the repository.
+ */
+function filesOf(real: string, pattern: RegExp, root: string, setting: string): string[] {
+  const files = statSync(real).isDirectory()
     ? readdirSync(real)
         .filter((f) => pattern.test(f))
         .sort()
         .map((f) => join(real, f))
     : [real];
+  return files.map((file) => {
+    let target: string;
+    try {
+      target = realpathSync(file);
+    } catch {
+      throw new ConfigError([`${setting}: "${file.slice(root.length + 1)}" cannot be read.`]);
+    }
+    if (target !== root && !target.startsWith(root + sep))
+      throw new ConfigError([
+        `${setting}: "${file.slice(root.length + 1)}" points outside the repository.`,
+      ]);
+    return target;
+  });
 }
 
 /** Read extra rule, CRD and kind-registry files, keeping them inside the repository and their ids unique. */
@@ -237,7 +253,12 @@ function loadRules(workspace: string, s: Settings): Rule[] {
   const fromFiles: Rule[] = [];
   for (const [setting, paths, parse] of sources) {
     for (const path of paths) {
-      for (const file of filesOf(insideRepo(root, workspace, setting, path), /\.ya?ml$/)) {
+      for (const file of filesOf(
+        insideRepo(root, workspace, setting, path),
+        /\.ya?ml$/,
+        root,
+        setting,
+      )) {
         try {
           fromFiles.push(...parse(readFileSync(file, 'utf8'), file.slice(root.length + 1)));
         } catch (err) {
@@ -267,7 +288,12 @@ function loadRules(workspace: string, s: Settings): Rule[] {
 function loadKindRegistry(root: string, workspace: string, s: Settings): Rule[] {
   const sets: StoredKindSet[] = [];
   for (const path of s.kinds) {
-    for (const file of filesOf(insideRepo(root, workspace, 'kinds', path), /\.json$/)) {
+    for (const file of filesOf(
+      insideRepo(root, workspace, 'kinds', path),
+      /\.json$/,
+      root,
+      'kinds',
+    )) {
       const origin = file.slice(root.length + 1);
       try {
         const read = parseKindBundle(readFileSync(file, 'utf8'), origin);

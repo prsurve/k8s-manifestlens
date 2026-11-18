@@ -130,3 +130,25 @@ describe('renderPreview', () => {
     expect(checked?.textContent).not.toMatch(/minItems/);
   });
 });
+
+describe('hostile schema text', () => {
+  it('shows kind names, groups and keywords as text, never as markup', async () => {
+    const evil = CRD.replace('group: w.io', 'group: "<img src=x onerror=alert(1)>.io"').replace(
+      'kind: Widget',
+      'kind: "<script>alert(1)</script>"',
+    );
+    const store = new KindStore(new MemoryKindStorage());
+    openOnboarding(
+      { store, onChange: () => Promise.resolve() },
+      { kind: 'X', apiVersion: 'a.io/v1' },
+    );
+    const box = document.querySelector<HTMLTextAreaElement>('.kind-text');
+    if (!box) throw new Error('no box');
+    box.value = evil;
+    click('Preview');
+    await tick();
+    const dialog = document.getElementById('kind-dialog');
+    expect(dialog?.querySelector('img, script')).toBeNull();
+    expect(dialog?.textContent).toContain('<script>alert(1)</script>');
+  });
+});
