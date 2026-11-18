@@ -1,4 +1,6 @@
 import {
+  KindStore,
+  MemoryKindStorage,
   RuleError,
   checkManifest,
   diffManifests,
@@ -24,6 +26,11 @@ import {
   fixExamples,
   quickStarts,
 } from './examples.js';
+import { openManager, openOnboarding } from './kind-dialog.js';
+import type { KindUiContext } from './kind-dialog.js';
+import { IndexedDbKindStorage } from './kind-storage.js';
+import { ONBOARD_EVENT } from './kind-notice.js';
+import type { OnboardDetail } from './kind-notice.js';
 import { initTheme } from './theme.js';
 import {
   createView,
@@ -50,6 +57,22 @@ const input = (id: string): HTMLTextAreaElement => $<HTMLTextAreaElement>(id);
 inject();
 
 const bundled = loadBundledRules();
+
+/** Kinds imported through the wizard, kept across sessions. Falls back to memory if storage is blocked. */
+const kindStore = new KindStore(
+  typeof indexedDB === 'undefined' ? new MemoryKindStorage() : new IndexedDbKindStorage(),
+);
+let savedRules: Rule[] = [];
+/** Reload the saved kinds and re-analyze what is on screen. The editors are never touched. */
+async function reloadSavedKinds(): Promise<void> {
+  try {
+    savedRules = (await kindStore.load()).rules;
+  } catch {
+    savedRules = [];
+  }
+  update(active);
+}
+const kindUi: KindUiContext = { store: kindStore, onChange: reloadSavedKinds };
 
 /** Show a message under a text box, or hide the box's error line when there is none. */
 function setError(id: string, message: string | undefined): void {
@@ -82,7 +105,7 @@ function setCount(id: string, text: string, bad = false): void {
  * Shows the error under the box that caused it and leaves that box's contribution out.
  */
 function currentRules(): Rule[] {
-  const rules = [...bundled];
+  const rules = [...bundled, ...savedRules];
   const ids = new Set(rules.map((r) => r.id));
   customRuleIds = new Set();
   const add = (
@@ -97,6 +120,17 @@ function currentRules(): Rule[] {
     if (input(boxId).value.trim() === '') return;
     try {
       const extra = parse();
+      if (boxId === 'extra-crds') {
+        // A CRD pasted in the box is newer than the saved copy of the same kind, so it wins.
+        const pasted = new Set(extra.map((r) => r.id));
+        for (let i = rules.length - 1; i >= 0; i--) {
+          const id = rules[i]?.id ?? '';
+          if (pasted.has(id) && savedRules.includes(rules[i] as Rule)) {
+            rules.splice(i, 1);
+            ids.delete(id);
+          }
+        }
+      }
       const clash = extra.find((r) => ids.has(r.id));
       if (clash) throw new RuleError(`Rule id "${clash.id}" is already used by a built-in rule.`);
       for (const r of extra) {
@@ -671,6 +705,10 @@ function init(): void {
 
   const refresh = debounce(() => update(active), 150);
   initSideBoxes(refresh);
+  document.addEventListener(ONBOARD_EVENT, (e) => {
+    openOnboarding(kindUi, (e as CustomEvent<OnboardDetail>).detail);
+  });
+  $('kinds-open').addEventListener('click', () => openManager(kindUi));
   $('crd-load').addEventListener('click', () => {
     void loadCrdFromUrl().then(() => update(active));
   });
@@ -728,6 +766,7 @@ function init(): void {
     if (fromHash() !== active) select(fromHash());
   });
   select(fromHash());
+  void reloadSavedKinds();
 }
 
 init();
