@@ -8,7 +8,17 @@ const example = (name: string) =>
   readFileSync(new URL(`../../../examples/${name}`, import.meta.url), 'utf8');
 const risky = example('risky.yaml');
 
-const context = () => ({ subscriptions: [] as { dispose(): void }[] });
+const memento = () => {
+  const data = new Map<string, unknown>();
+  return {
+    get: <T>(k: string) => data.get(k) as T | undefined,
+    update: async (k: string, v: unknown) => void data.set(k, v),
+  };
+};
+const context = (globalState = memento()) => ({
+  subscriptions: [] as { dispose(): void }[],
+  globalState,
+});
 const diagnosticsFor = (name: string) =>
   state.collections.get('k8s-manifestlens')?.get(`file:///${name}`);
 
@@ -244,5 +254,157 @@ spec:
     expect(state.openedDocuments).toHaveLength(0);
     expect(state.applied).toHaveLength(0);
     expect(state.infos.at(-1)).toContain('need review or input');
+  });
+});
+
+describe('kinds', () => {
+  const CRD = `apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+spec:
+  group: w.io
+  names: { kind: Widget }
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                size: { type: integer, maximum: 5 }
+                tags: { type: array, minItems: 1, items: { type: string } }
+`;
+  const widget = 'apiVersion: w.io/v1\nkind: Widget\nspec:\n  size: 9\n';
+  const messages = (name: string) => (diagnosticsFor(name) ?? []).map((d) => d.message).join('\n');
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+
+  it('offers "Add support" on an unsupported kind, and not on a malformed one', () => {
+    activate(context() as never);
+    const doc = fakeDocument('w.yaml', 'yaml', widget);
+    state.textDocuments = [doc];
+    state.open.forEach((l) => l(doc));
+    const diagnostics = (diagnosticsFor('w.yaml') ?? []).filter(
+      (d) => d.code === 'unsupported-kind',
+    );
+    expect(diagnostics).toHaveLength(1);
+    const first = diagnostics[0];
+    if (!first) throw new Error('no diagnostic');
+    const actions =
+      state.codeActionProviders[0]?.provideCodeActions(doc, first.range, { diagnostics }) ?? [];
+    expect(actions[0]?.title).toContain('Add support for Widget');
+    expect(actions[0]?.command?.command).toBe('k8sManifestlens.addKind');
+    expect(actions[0]?.command?.arguments?.[0]).toEqual({ kind: 'Widget', apiVersion: 'w.io/v1' });
+  });
+
+  it('previews, registers on confirmation, re-checks open files and survives a restart', async () => {
+    const shared = memento();
+    const doc = fakeDocument('w.yaml', 'yaml', widget);
+    state.textDocuments = [doc];
+    activate(context(shared) as never);
+    expect(messages('w.yaml')).not.toContain('above the maximum');
+
+    state.picks = ['Paste from the clipboard'];
+    state.clipboard = CRD;
+    state.choice = undefined;
+    await state.commands.get('k8sManifestlens.addKind')?.({
+      kind: 'Widget',
+      apiVersion: 'w.io/v1',
+    });
+    expect(state.openedDocuments.at(-1)?.content).toContain('NOT checked');
+    expect(messages('w.yaml')).not.toContain('above the maximum'); // declined: nothing registered
+
+    state.picks = ['Paste from the clipboard'];
+    state.choice = 'Register';
+    await state.commands.get('k8sManifestlens.addKind')?.({
+      kind: 'Widget',
+      apiVersion: 'w.io/v1',
+    });
+    expect(messages('w.yaml')).toContain('above the maximum of 5');
+    expect(doc.getText()).toBe(widget); // the user's text is never touched
+
+    reset();
+    state.textDocuments = [doc];
+    activate(context(shared) as never);
+    await tick();
+    expect(messages('w.yaml')).toContain('above the maximum of 5');
+  });
+
+  it('asks which kind an OpenAPI schema describes when it does not say', async () => {
+    const lease = fakeDocument(
+      'l.yaml',
+      'yaml',
+      'apiVersion: coordination.k8s.io/v1\nkind: Lease\nspec:\n  holderIdentity: 5\n',
+    );
+    state.textDocuments = [lease];
+    const shared = memento();
+    activate(context(shared) as never);
+    state.picks = ['Paste from the clipboard'];
+    state.clipboard =
+      'type: object\nproperties:\n  spec:\n    type: object\n    properties:\n      holderIdentity: { type: string }\n';
+    state.input = 'coordination.k8s.io/v1 Lease';
+    state.choice = 'Register';
+    await state.commands.get('k8sManifestlens.addKind')?.();
+    expect(messages('l.yaml')).toMatch(/holderIdentity/);
+    expect(state.infos.at(-1)).toContain('coordination.k8s.io/v1/Lease');
+  });
+
+  it('refuses a schema that claims a built-in kind', async () => {
+    activate(context() as never);
+    state.picks = ['Paste from the clipboard'];
+    state.clipboard = CRD.replace('w.io', 'networking.k8s.io').replace('Widget', 'Ingress');
+    state.choice = 'Register';
+    await state.commands.get('k8sManifestlens.addKind')?.();
+    expect(state.warnings.at(-1)).toContain('built-in');
+  });
+
+  it('manages saved kinds: disable, enable and remove', async () => {
+    const doc = fakeDocument('w.yaml', 'yaml', widget);
+    state.textDocuments = [doc];
+    const shared = memento();
+    activate(context(shared) as never);
+    state.picks = ['Paste from the clipboard'];
+    state.clipboard = CRD;
+    state.choice = 'Register';
+    await state.commands.get('k8sManifestlens.addKind')?.();
+    expect(messages('w.yaml')).toContain('above the maximum');
+
+    state.picks = ['Widget', 'Disable'];
+    await state.commands.get('k8sManifestlens.manageKinds')?.();
+    expect(messages('w.yaml')).not.toContain('above the maximum');
+    state.picks = ['Widget', 'Enable'];
+    await state.commands.get('k8sManifestlens.manageKinds')?.();
+    expect(messages('w.yaml')).toContain('above the maximum');
+    state.picks = ['Widget', 'Remove'];
+    state.choice = 'Remove';
+    await state.commands.get('k8sManifestlens.manageKinds')?.();
+    expect(messages('w.yaml')).not.toContain('above the maximum');
+    await state.commands.get('k8sManifestlens.manageKinds')?.();
+    expect(state.infos.at(-1)).toContain('no imported kinds');
+  });
+
+  it('loads registry files from the kinds setting, and warns once about a bad one', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { KindStore, MemoryKindStorage } = await import('@k8s-manifestlens/core');
+    const store = new KindStore(new MemoryKindStorage());
+    await store.add('crd', CRD);
+    const dir = mkdtempSync(join(tmpdir(), 'ml-vscode-'));
+    const file = join(dir, 'kinds.json');
+    writeFileSync(file, await store.export());
+    const doc = fakeDocument('w.yaml', 'yaml', widget);
+    state.textDocuments = [doc];
+    state.settings = { kinds: [file] };
+    activate(context() as never);
+    expect(messages('w.yaml')).toContain('above the maximum of 5');
+
+    reset();
+    writeFileSync(file, '{nope');
+    state.settings = { kinds: [file] };
+    state.textDocuments = [doc];
+    activate(context() as never);
+    expect(state.warnings).toHaveLength(1);
+    expect(state.warnings[0]).toContain('Cannot read the kind registry');
   });
 });

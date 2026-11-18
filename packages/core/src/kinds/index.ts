@@ -39,3 +39,4 @@ export type {
   LoadedKinds,
   StoredKindSet,
 } from './storage/registry-store.js';
+export { formatPreview } from './onboarding/preview-text.js';

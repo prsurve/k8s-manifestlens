@@ -46,6 +46,14 @@
       {
         "command": "k8sManifestlens.fixFile",
         "title": "k8s-manifestlens: Fix this manifest (preview first)"
+      },
+      {
+        "command": "k8sManifestlens.addKind",
+        "title": "k8s-manifestlens: Add a custom resource or kind schema\u2026"
+      },
+      {
+        "command": "k8sManifestlens.manageKinds",
+        "title": "k8s-manifestlens: Manage imported kinds"
       }
     ],
     "configuration": {
@@ -88,6 +96,14 @@
           "type": "string",
           "default": "",
           "description": "YAML file with values for fixes that cannot guess them, for example params: { memoryLimit: 256Mi }. Relative paths are resolved from the workspace folder."
+        },
+        "k8sManifestlens.kinds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Kind registry files or folders (JSON, as written by \"k8s-manifestlens kinds export\"). Adds CRDs and OpenAPI schemas. Relative paths are resolved from the workspace folder."
         }
       }
     }

@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { KindStore, RuleError, importCrds, importOpenApi } from '@k8s-manifestlens/core';
-import type { KindPreview, SchemaIdentity } from '@k8s-manifestlens/core';
+import {
+  KindStore,
+  RuleError,
+  formatPreview,
+  importCrds,
+  importOpenApi,
+} from '@k8s-manifestlens/core';
+import type { SchemaIdentity } from '@k8s-manifestlens/core';
 import type { Io } from './main.js';
 import { FileKindStorage, registryPath } from './registry.js';
 
@@ -27,30 +33,6 @@ Options:
 `;
 
 const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
-
-/** A plain-text version of the web preview: what a schema can check, and what it cannot. */
-export function formatPreview(previews: KindPreview[]): string {
-  const out: string[] = [];
-  for (const p of previews) {
-    out.push(`${p.kind} (${p.group === '' ? 'core' : p.group}), scope: ${p.scope ?? 'not stated'}`);
-    for (const v of p.versions) {
-      const c = v.capabilities;
-      out.push(
-        c.level === 'basic'
-          ? `  ${v.version}: basic. The kind is recognised, but the schema lists no fields, so nothing inside it is checked.`
-          : `  ${v.version}: schema-backed, ${c.fields.length}${c.fieldsTruncated ? '+' : ''} fields, ${c.requiredFields.length} required`,
-      );
-      if (c.supported.length > 0) out.push(`    checked: ${c.supported.join(', ')}`);
-      if (c.unsupported.length > 0) {
-        out.push('    NOT checked (no findings does not mean these parts are valid):');
-        for (const u of c.unsupported) {
-          out.push(`      ${u.keyword} (${u.count}x, first at ${u.firstPath})`);
-        }
-      }
-    }
-  }
-  return out.join('\n');
-}
 
 /** `k8s-manifestlens kinds ...`. Async because the store is; the other commands stay synchronous. */
 export async function runKinds(argv: string[], io: Io): Promise<number> {

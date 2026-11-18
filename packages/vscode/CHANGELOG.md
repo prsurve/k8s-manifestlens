@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Add support for kinds ManifestLens does not cover.** A quick fix on the "unsupported kind" message and the
+  commands `Add a custom resource or kind schema…` and `Manage imported kinds` import a CRD or an OpenAPI schema,
+  preview what it can and cannot check, and re-check open files. Imported kinds persist.
+- New setting `k8sManifestlens.kinds`: kind registry files or folders (JSON), for example one committed to the repository.
+
 ## 0.2.0
 
 - **Renamed to k8s-manifestlens.** This is a new extension, `prsurve.k8s-manifestlens-vscode`. The old
