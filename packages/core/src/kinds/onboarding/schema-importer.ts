@@ -7,6 +7,9 @@ import type { KindPreview } from './crd-importer.js';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_DEPTH = 40;
+/** Most nodes one schema may grow to once its references are inlined, so a fan-out cannot exhaust memory. */
+const MAX_NODES = 200_000;
+const MAX_NESTING = 2000;
 
 export interface SchemaIdentity {
   group: string;
@@ -80,7 +83,7 @@ function build(
   const rule = crdRule(
     {
       ...id,
-      schema: inline(schema, pool, [], 0) as CrdSchema,
+      schema: inline(schema, pool, [], 0, { nodes: 0 }, origin) as CrdSchema,
       source: 'openapi',
     },
     origin,
@@ -93,8 +96,20 @@ function inline(
   pool: Record<string, unknown>,
   stack: string[],
   depth: number,
+  budget: { nodes: number },
+  origin: string,
 ): unknown {
-  if (Array.isArray(node)) return node.map((n) => inline(n, pool, stack, depth + 1));
+  if (++budget.nodes > MAX_NODES) {
+    throw new RuleError(
+      `${origin}: the schema is too large once its references are resolved (more than ${MAX_NODES} nodes).`,
+    );
+  }
+  if (depth > MAX_NESTING) {
+    throw new RuleError(`${origin}: the schema is nested too deeply.`);
+  }
+  if (Array.isArray(node)) {
+    return node.map((n) => inline(n, pool, stack, depth + 1, budget, origin));
+  }
   if (!isRecord(node)) return node;
   const ref = node.$ref;
   if (typeof ref === 'string') {
@@ -102,9 +117,11 @@ function inline(
     const target = pool[name];
     // Unresolvable, cyclic or too deep: keep the $ref so the preview reports it as unchecked.
     if (!isRecord(target) || stack.includes(name) || depth > MAX_DEPTH || ref === name) return node;
-    return inline(target, pool, [...stack, name], depth + 1);
+    return inline(target, pool, [...stack, name], depth + 1, budget, origin);
   }
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(node)) out[k] = inline(v, pool, stack, depth + 1);
+  for (const [k, v] of Object.entries(node)) {
+    out[k] = inline(v, pool, stack, depth + 1, budget, origin);
+  }
   return out;
 }

@@ -29,6 +29,7 @@ export const DEFAULTS: Settings = {
   dryRun: false,
   rules: [],
   crds: [],
+  kinds: [],
   disableRules: [],
   severityOverrides: {},
   ignore: [],
@@ -81,6 +82,7 @@ const FIELDS: Fields = {
   dryRun: { name: 'dry-run', parse: (v, n, p) => asBool(v, n, p) },
   rules: { name: 'rules', parse: (v, n, p) => asList(v, n, p, false) },
   crds: { name: 'crds', parse: (v, n, p) => asList(v, n, p, false) },
+  kinds: { name: 'kinds', parse: (v, n, p) => asList(v, n, p, false) },
   disableRules: { name: 'disable-rules', parse: (v, n, p) => asList(v, n, p, true) },
   severityOverrides: { name: 'severity-overrides', parse: parseSeverityOverrides },
   ignore: { name: 'ignore', parse: parseIgnore },
@@ -223,7 +225,14 @@ export function parseConfig(data: unknown, origin: string, p: Problems): Layer {
   return readLayer(values, false, p);
 }
 
-const UNION_KEYS: SettingKey[] = ['rules', 'crds', 'disableRules', 'ignore', 'severityOverrides'];
+const UNION_KEYS: SettingKey[] = [
+  'rules',
+  'crds',
+  'kinds',
+  'disableRules',
+  'ignore',
+  'severityOverrides',
+];
 
 /**
  * Combine the levels: defaults, then the config file, then workflow inputs. A setting given at a
@@ -304,6 +313,7 @@ export function validateSettings(s: Settings): string[] {
   for (const [name, list] of [
     ['rules', s.rules],
     ['crds', s.crds],
+    ['kinds', s.kinds],
   ] as const) {
     for (const path of list) {
       if (unsafePath(path))

@@ -42,6 +42,7 @@ export interface Settings {
   rules: string[];
   /** CustomResourceDefinition files or folders (YAML), so custom resources are explained and checked. */
   crds: string[];
+  kinds: string[];
   disableRules: string[];
   severityOverrides: Record<string, RuleSeverity>;
   ignore: IgnoreEntry[];

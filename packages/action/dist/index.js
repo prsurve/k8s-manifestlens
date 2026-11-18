@@ -7023,8 +7023,8 @@ var require_client_h2 = __commonJS({
       this[kSocket][kError] = err;
       this[kClient][kOnError](err);
     }
-    function onHttp2FrameError(type, code2, id) {
-      if (id === 0) {
+    function onHttp2FrameError(type, code2, id2) {
+      if (id2 === 0) {
         const err = new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code2}`);
         this[kSocket][kError] = err;
         this[kClient][kOnError](err);
@@ -27317,6 +27317,9 @@ var MAP_OF_OBJECTS = 5;
 function schemaKinds() {
   return Object.keys(schema.kinds);
 }
+function schemaKindVersions() {
+  return Object.fromEntries(Object.entries(schema.kinds).map(([k2, v]) => [k2, v.gv]));
+}
 var schemaVersion = schema.version;
 var META = {
   metadata: "Identifying information about the object: its name, namespace, labels and annotations.",
@@ -27419,6 +27422,9 @@ function lookupPodSpec(kind, pattern) {
   const dot = key.lastIndexOf(".");
   const wildcard = dot === -1 ? "" : `${key.slice(0, dot)}.*`;
   return wildcard !== "" && Object.hasOwn(podSpecDocs, wildcard) ? podSpecDocs[wildcard] : void 0;
+}
+function handWrittenKinds() {
+  return Object.keys(docsByKind).sort();
 }
 function supportedKinds() {
   return [.../* @__PURE__ */ new Set([...Object.keys(docsByKind), ...schemaKinds()])].sort();
@@ -27646,8 +27652,8 @@ function toRule(raw, origin, position) {
   for (const key of Object.keys(raw)) {
     if (!RULE_KEYS.includes(key)) fail(`unknown key "${key}".`);
   }
-  const id = requiredString(raw, "id", fail);
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) fail('"id" must be lowercase words joined by dashes.');
+  const id2 = requiredString(raw, "id", fail);
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id2)) fail('"id" must be lowercase words joined by dashes.');
   const title = requiredString(raw, "title", fail);
   const message = requiredString(raw, "message", fail);
   const severity = raw.severity;
@@ -27665,7 +27671,7 @@ function toRule(raw, origin, position) {
   if (raw.when === void 0) fail('"when" is required.');
   const when = toCondition(raw.when, fail);
   const rule = {
-    id,
+    id: id2,
     title,
     severity,
     kinds,
@@ -28015,7 +28021,13 @@ function checkString(s, schema2, path6, label2, issues) {
   if (schema2.maxLength !== void 0 && s.length > schema2.maxLength) {
     bad(`${label2} must be at most ${schema2.maxLength} characters long.`);
   }
-  if (schema2.pattern !== void 0 && s.length <= 2e3) {
+  if (schema2.pattern !== void 0 && s.length <= 2e3 && isRiskyPattern(schema2.pattern)) {
+    issues.push({
+      code: "not-validated",
+      path: path6,
+      message: `${label2} has a pattern that can take exponential time to evaluate, so it was not checked.`
+    });
+  } else if (schema2.pattern !== void 0 && s.length <= 2e3) {
     let re;
     try {
       re = new RegExp(schema2.pattern);
@@ -28025,6 +28037,31 @@ function checkString(s, schema2, path6, label2, issues) {
       bad(`${label2} is ${show(s)}, which does not match the pattern ${schema2.pattern}.`);
   }
 }
+function isRiskyPattern(pattern) {
+  const open2 = [];
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i];
+    if (c === "\\") {
+      i++;
+    } else if (c === "[") {
+      i++;
+      if (pattern[i] === "^") i++;
+      if (pattern[i] === "]") i++;
+      while (i < pattern.length && pattern[i] !== "]") i += pattern[i] === "\\" ? 2 : 1;
+    } else if (c === "(") {
+      open2.push(i);
+    } else if (c === ")") {
+      const start = open2.pop();
+      if (start === void 0) continue;
+      const after = pattern.slice(i + 1);
+      const repeated = /^(?:[+*]|\{\d+,\d*\})/.test(after);
+      const body = pattern.slice(start + 1, i).replace(/^\?:/, "");
+      if (repeated && LEADING_REPEAT.test(body)) return true;
+    }
+  }
+  return false;
+}
+var LEADING_REPEAT = /^(?:\\.|\[(?:\\.|[^\]\\])*\]|\((?:[^()\\]|\\.)*\)|[^()\\|*+?{[])(?:[+*]|\{\d+,\d*\})/;
 function checkNumber(n, schema2, path6, label2, issues) {
   if (schema2.minimum !== void 0 && n < schema2.minimum) {
     issues.push({
@@ -30022,12 +30059,12 @@ function diffManifests(oldSource, newSource, rules = loadBundledRules()) {
   const oldSide = index(oldSource, "old", rules, issues);
   const newSide = index(newSource, "new", rules, issues);
   const documents = [];
-  for (const [id, now] of newSide) {
-    const before = oldSide.get(id);
+  for (const [id2, now] of newSide) {
+    const before = oldSide.get(id2);
     documents.push(before ? compare(before, now) : added(now));
   }
-  for (const [id, before] of oldSide) {
-    if (!newSide.has(id)) documents.push(removed(before));
+  for (const [id2, before] of oldSide) {
+    if (!newSide.has(id2)) documents.push(removed(before));
   }
   return { documents, issues };
 }
@@ -30043,8 +30080,8 @@ function index(source, side, rules, issues) {
     for (const issue2 of doc.issues) {
       issues.push({ side, message: issue2.message, ...issue2.line ? { line: issue2.line } : {} });
     }
-    const id = identity(doc);
-    if (!id) {
+    const id2 = identity(doc);
+    if (!id2) {
       if (doc.data) {
         issues.push({
           side,
@@ -30054,15 +30091,15 @@ function index(source, side, rules, issues) {
       }
       continue;
     }
-    if (map.has(id)) {
+    if (map.has(id2)) {
       issues.push({
         side,
         line: doc.startLine,
-        message: `Duplicate object ${id}; ignoring the later one.`
+        message: `Duplicate object ${id2}; ignoring the later one.`
       });
       continue;
     }
-    map.set(id, { doc, findings: checked[doc.index]?.findings ?? [] });
+    map.set(id2, { doc, findings: checked[doc.index]?.findings ?? [] });
   }
   return map;
 }
@@ -30249,13 +30286,330 @@ var BUILT_IN_INVENTORY = [
   k("FlowSchema", "flowcontrol.apiserver.k8s.io", "v1", false),
   k("PriorityLevelConfiguration", "flowcontrol.apiserver.k8s.io", "v1", false)
 ];
+function splitApiVersion(apiVersion) {
+  const slash = apiVersion.indexOf("/");
+  return slash === -1 ? { group: "", version: apiVersion } : { group: apiVersion.slice(0, slash), version: apiVersion.slice(slash + 1) };
+}
+
+// ../core/src/kinds/registry/kind-registry.ts
+var SOURCE_PRECEDENCE = [
+  "handwritten",
+  "generated",
+  "imported-crd",
+  "imported-openapi",
+  "ecosystem-pack"
+];
+function buildRegistry(rules = []) {
+  const hand = new Set(handWrittenKinds());
+  const entries = Object.entries(schemaKindVersions()).map(([kind, gv]) => ({
+    ...splitApiVersion(gv),
+    kind,
+    source: hand.has(kind) ? "handwritten" : "generated",
+    datasetVersion: schemaVersion
+  }));
+  for (const rule of rules) {
+    if (rule.crd === void 0) continue;
+    const { group, version, kind, source } = rule.crd;
+    entries.push({
+      group,
+      version,
+      kind,
+      source: source === "openapi" ? "imported-openapi" : "imported-crd",
+      datasetVersion: "imported"
+    });
+  }
+  return entries;
+}
+
+// ../core/src/kinds/registry/kind-classifier.ts
+var MAX_API_VERSION = 253 + 1 + 63;
+
+// ../core/src/kinds/schema/schema-capabilities.ts
+var SUPPORTED_CONSTRAINTS = [
+  "required",
+  "type",
+  "enum",
+  "pattern",
+  "minimum",
+  "maximum",
+  "minLength",
+  "maxLength",
+  "unknown-fields"
+];
+var UNSUPPORTED_KEYWORDS = [
+  "oneOf",
+  "anyOf",
+  "allOf",
+  "not",
+  "x-kubernetes-validations",
+  "format",
+  "minItems",
+  "maxItems",
+  "uniqueItems",
+  "minProperties",
+  "maxProperties",
+  "multipleOf",
+  "exclusiveMinimum",
+  "exclusiveMaximum",
+  "x-kubernetes-preserve-unknown-fields",
+  "$ref"
+];
+var MAX_FIELDS = 500;
+var MAX_DEPTH2 = 40;
+var ENVELOPE2 = /* @__PURE__ */ new Set(["apiVersion", "kind", "metadata"]);
+function analyzeSchema(schema2) {
+  const fields = [];
+  const supported = /* @__PURE__ */ new Set();
+  const unsupported2 = /* @__PURE__ */ new Map();
+  let truncated = false;
+  const walk4 = (node, path6, depth) => {
+    if (depth > MAX_DEPTH2) return;
+    const rec = node;
+    for (const kw of UNSUPPORTED_KEYWORDS) {
+      if (rec[kw] === void 0 || kw === "x-kubernetes-preserve-unknown-fields" && rec[kw] !== true)
+        continue;
+      const seen = unsupported2.get(kw);
+      if (seen) seen.count++;
+      else unsupported2.set(kw, { keyword: kw, count: 1, firstPath: path6 || "(root)" });
+    }
+    if (typeof node.pattern === "string" && isRiskyPattern(node.pattern)) {
+      const seen = unsupported2.get("pattern (unsafe, skipped)");
+      if (seen) seen.count++;
+      else
+        unsupported2.set("pattern (unsafe, skipped)", {
+          keyword: "pattern (unsafe, skipped)",
+          count: 1,
+          firstPath: path6 || "(root)"
+        });
+    }
+    if (node.type !== void 0) supported.add("type");
+    for (const c of ["enum", "pattern", "minimum", "maximum", "minLength", "maxLength"]) {
+      if (node[c] !== void 0 && !(c === "pattern" && isRiskyPattern(String(node.pattern)))) {
+        supported.add(c);
+      }
+    }
+    if (node.properties && node["x-kubernetes-preserve-unknown-fields"] !== true) {
+      supported.add("unknown-fields");
+    }
+    const required = new Set(node.required ?? []);
+    if (required.size > 0) supported.add("required");
+    for (const [name, child] of Object.entries(node.properties ?? {})) {
+      if (depth === 0 && ENVELOPE2.has(name)) continue;
+      const p = path6 ? `${path6}.${name}` : name;
+      if (fields.length < MAX_FIELDS) {
+        fields.push({
+          path: p,
+          ...child.type !== void 0 ? { type: child.type } : {},
+          required: required.has(name),
+          ...child.description !== void 0 ? { description: child.description } : {}
+        });
+      } else truncated = true;
+      walk4(child, p, depth + 1);
+    }
+    if (node.items) walk4(node.items, `${path6}[]`, depth + 1);
+    if (typeof node.additionalProperties === "object") {
+      walk4(node.additionalProperties, `${path6}.*`, depth + 1);
+    }
+  };
+  walk4(schema2, "", 0);
+  return {
+    level: fields.length > 0 ? "schema-backed" : "basic",
+    fields,
+    fieldsTruncated: truncated,
+    requiredFields: fields.filter((f) => f.required).map((f) => f.path),
+    supported: SUPPORTED_CONSTRAINTS.filter((c) => supported.has(c)),
+    unsupported: [...unsupported2.values()]
+  };
+}
+
+// ../core/src/kinds/onboarding/crd-importer.ts
+function previewRules(rules) {
+  const previews = /* @__PURE__ */ new Map();
+  for (const { crd } of rules) {
+    if (crd === void 0) continue;
+    const id2 = `${crd.group}/${crd.kind}`;
+    let preview = previews.get(id2);
+    if (preview === void 0) {
+      preview = {
+        group: crd.group,
+        kind: crd.kind,
+        ...crd.scope ? { scope: crd.scope } : {},
+        source: crd.source ?? "crd",
+        versions: []
+      };
+      previews.set(id2, preview);
+    }
+    preview.versions.push({ version: crd.version, capabilities: analyzeSchema(crd.schema) });
+  }
+  return [...previews.values()];
+}
+function importCrds(text2, origin = "crd") {
+  const rules = parseCrds(text2, origin);
+  return { rules, previews: previewRules(rules) };
+}
 
 // ../core/src/kinds/onboarding/schema-importer.ts
 var import_yaml6 = __toESM(require_dist(), 1);
 var MAX_BYTES = 8 * 1024 * 1024;
+var MAX_DEPTH3 = 40;
+var MAX_NODES = 2e5;
+var MAX_NESTING = 2e3;
+var isRecord2 = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+function importOpenApi(text2, identity2, origin = "openapi") {
+  if (text2.length > MAX_BYTES) throw new RuleError(`${origin}: the schema text is too large.`);
+  let doc;
+  try {
+    doc = (0, import_yaml6.parse)(text2);
+  } catch (e) {
+    throw new RuleError(
+      `${origin}: ${e.message.split("\n")[0] ?? "invalid YAML or JSON"}`
+    );
+  }
+  if (!isRecord2(doc)) throw new RuleError(`${origin}: expected an OpenAPI schema object.`);
+  const components = isRecord2(doc.components) && isRecord2(doc.components.schemas) ? doc.components.schemas : isRecord2(doc.definitions) ? doc.definitions : void 0;
+  const pool = components ?? {};
+  const rules = [];
+  for (const raw of Object.values(pool)) {
+    if (!isRecord2(raw)) continue;
+    const gvks = raw["x-kubernetes-group-version-kind"];
+    if (!Array.isArray(gvks)) continue;
+    for (const g of gvks) {
+      if (!isRecord2(g) || typeof g.kind !== "string" || typeof g.version !== "string") continue;
+      const group = typeof g.group === "string" ? g.group : "";
+      rules.push(build({ group, version: g.version, kind: g.kind }, raw, pool, origin));
+    }
+  }
+  if (rules.length === 0) {
+    if (identity2 === void 0) {
+      throw new RuleError(
+        `${origin}: no schema declares x-kubernetes-group-version-kind, so say which kind this describes (group, version and kind).`
+      );
+    }
+    rules.push(build(identity2, doc, pool, origin));
+  }
+  return { rules, previews: previewRules(rules) };
+}
+function build(id2, schema2, pool, origin) {
+  const rule = crdRule(
+    {
+      ...id2,
+      schema: inline(schema2, pool, [], 0, { nodes: 0 }, origin),
+      source: "openapi"
+    },
+    origin
+  );
+  return rule;
+}
+function inline(node, pool, stack, depth, budget, origin) {
+  if (++budget.nodes > MAX_NODES) {
+    throw new RuleError(
+      `${origin}: the schema is too large once its references are resolved (more than ${MAX_NODES} nodes).`
+    );
+  }
+  if (depth > MAX_NESTING) {
+    throw new RuleError(`${origin}: the schema is nested too deeply.`);
+  }
+  if (Array.isArray(node)) {
+    return node.map((n) => inline(n, pool, stack, depth + 1, budget, origin));
+  }
+  if (!isRecord2(node)) return node;
+  const ref = node.$ref;
+  if (typeof ref === "string") {
+    const name = ref.replace(/^#\/(?:components\/schemas|definitions)\//, "");
+    const target2 = pool[name];
+    if (!isRecord2(target2) || stack.includes(name) || depth > MAX_DEPTH3 || ref === name) return node;
+    return inline(target2, pool, [...stack, name], depth + 1, budget, origin);
+  }
+  const out = {};
+  for (const [k2, v] of Object.entries(node)) {
+    out[k2] = inline(v, pool, stack, depth + 1, budget, origin);
+  }
+  return out;
+}
+
+// ../core/src/kinds/onboarding/kind-registration.ts
+var id = (r) => `${r.group}/${r.version}/${r.kind}`;
+var sourceOf = (r) => r.crd?.source === "openapi" ? "imported-openapi" : "imported-crd";
+var rank = (s) => SOURCE_PRECEDENCE.indexOf(s);
+function registerKinds(current, incoming) {
+  const builtIn = new Set(buildRegistry().map(id));
+  let rules = [...current];
+  const added2 = [];
+  const updated = [];
+  const rejected = [];
+  for (const rule of incoming) {
+    if (rule.crd === void 0) {
+      rules.push(rule);
+      continue;
+    }
+    const crd = rule.crd;
+    const key = id(crd);
+    const reject = (reason) => {
+      rejected.push({ group: crd.group, kind: crd.kind, version: crd.version, reason });
+    };
+    if (builtIn.has(key)) {
+      reject(
+        "This is a built-in kind, and an imported schema never overrides a built-in definition."
+      );
+      continue;
+    }
+    const existing = rules.find((r) => r.crd !== void 0 && id(r.crd) === key);
+    if (existing === void 0) {
+      rules.push(rule);
+      added2.push(key);
+    } else if (sourceOf(existing) === sourceOf(rule)) {
+      rules = rules.map((r) => r === existing ? rule : r);
+      updated.push(key);
+    } else if (rank(sourceOf(rule)) < rank(sourceOf(existing))) {
+      rules = rules.map((r) => r === existing ? rule : r);
+      updated.push(key);
+    } else {
+      reject(`A ${sourceOf(existing)} definition already covers this kind and takes precedence.`);
+    }
+  }
+  return { rules, added: added2, updated, rejected };
+}
 
 // ../core/src/kinds/storage/registry-store.ts
+var BUNDLE_FORMAT = "k8s-manifestlens-kinds";
 var MAX_BUNDLE_BYTES = 64 * 1024 * 1024;
+var compile = (set, origin) => set.format === "crd" ? importCrds(set.text, origin) : importOpenApi(set.text, set.identity, origin);
+function loadStoredKinds(all) {
+  let rules = [];
+  const rejected = [];
+  const problems = [];
+  for (const set of [...all].sort((a, b) => a.importedAt.localeCompare(b.importedAt))) {
+    if (!set.enabled) continue;
+    try {
+      const result = registerKinds(rules, compile(set, set.id).rules);
+      rules = result.rules;
+      rejected.push(...result.rejected);
+    } catch (e) {
+      problems.push({ id: set.id, message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return { rules, rejected, problems };
+}
+function parseKindBundle(text2, origin) {
+  if (text2.length > MAX_BUNDLE_BYTES) throw new RuleError(`${origin}: the file is too large.`);
+  let data;
+  try {
+    data = JSON.parse(text2);
+  } catch (e) {
+    throw new RuleError(
+      `Cannot read the kind registry ${origin}: ${e instanceof Error ? e.message : String(e)}`
+    );
+  }
+  if (!isRecord3(data) || data.format !== BUNDLE_FORMAT || !Array.isArray(data.sets)) {
+    throw new RuleError(`${origin} is not a k8s-manifestlens kind registry.`);
+  }
+  const sets = data.sets.filter(isStoredKindSet);
+  return { sets, malformed: data.sets.length - sets.length };
+}
+function isStoredKindSet(v) {
+  return isRecord3(v) && typeof v.id === "string" && (v.format === "crd" || v.format === "openapi") && typeof v.text === "string" && typeof v.enabled === "boolean" && typeof v.importedAt === "string" && Array.isArray(v.kinds);
+}
+var isRecord3 = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 // ../../node_modules/balanced-match/dist/esm/index.js
 var balanced = (a, b, str) => {
@@ -32137,7 +32491,7 @@ function prepareRules(all, s) {
     ...Object.keys(s.severityOverrides),
     ...s.ignore.flatMap((i) => i.rules ?? [])
   ];
-  const unknown = [...new Set(named.filter((id) => id !== "all" && !known.has(id)))];
+  const unknown = [...new Set(named.filter((id2) => id2 !== "all" && !known.has(id2)))];
   const off = new Set(s.disableRules);
   const rules = [];
   for (const rule of all) {
@@ -32397,6 +32751,7 @@ var DEFAULTS = {
   dryRun: false,
   rules: [],
   crds: [],
+  kinds: [],
   disableRules: [],
   severityOverrides: {},
   ignore: [],
@@ -32435,6 +32790,7 @@ var FIELDS = {
   dryRun: { name: "dry-run", parse: (v, n, p) => asBool(v, n, p) },
   rules: { name: "rules", parse: (v, n, p) => asList(v, n, p, false) },
   crds: { name: "crds", parse: (v, n, p) => asList(v, n, p, false) },
+  kinds: { name: "kinds", parse: (v, n, p) => asList(v, n, p, false) },
   disableRules: { name: "disable-rules", parse: (v, n, p) => asList(v, n, p, true) },
   severityOverrides: { name: "severity-overrides", parse: parseSeverityOverrides },
   ignore: { name: "ignore", parse: parseIgnore },
@@ -32483,9 +32839,9 @@ function parseSeverityOverrides(value, name, p) {
     return void 0;
   }
   const out = {};
-  for (const [id, level] of pairs) {
-    const sev = asEnum(level, SEVERITIES2, `${name}.${id}`, p);
-    if (sev) out[id] = sev;
+  for (const [id2, level] of pairs) {
+    const sev = asEnum(level, SEVERITIES2, `${name}.${id2}`, p);
+    if (sev) out[id2] = sev;
   }
   return out;
 }
@@ -32562,7 +32918,14 @@ function parseConfig(data, origin, p) {
   }
   return readLayer(values, false, p);
 }
-var UNION_KEYS = ["rules", "crds", "disableRules", "ignore", "severityOverrides"];
+var UNION_KEYS = [
+  "rules",
+  "crds",
+  "kinds",
+  "disableRules",
+  "ignore",
+  "severityOverrides"
+];
 function resolveSettings(config, inputs) {
   const settings = { ...DEFAULTS };
   const sources = {};
@@ -32579,8 +32942,8 @@ function resolveSettings(config, inputs) {
       ];
       const seen = /* @__PURE__ */ new Set();
       settings[key] = merged.filter((item) => {
-        const id = JSON.stringify(item);
-        return seen.has(id) ? false : (seen.add(id), true);
+        const id2 = JSON.stringify(item);
+        return seen.has(id2) ? false : (seen.add(id2), true);
       });
     } else if (inInputs) {
       settings[key] = inputs[key];
@@ -32617,7 +32980,8 @@ function validateSettings(s) {
   }
   for (const [name, list] of [
     ["rules", s.rules],
-    ["crds", s.crds]
+    ["crds", s.crds],
+    ["kinds", s.kinds]
   ]) {
     for (const path6 of list) {
       if (unsafePath(path6))
@@ -34136,6 +34500,7 @@ function warnIfUntrusted(s, configPath) {
     configPath ? `the config file (${configPath})` : "",
     s.rules.length > 0 ? "custom rules" : "",
     s.crds.length > 0 ? "custom resource definitions" : "",
+    s.kinds.length > 0 ? "the kind registry" : "",
     s.fixPolicy !== "" ? "the fix policy" : ""
   ].filter(Boolean);
   if (sources.length === 0) return;
@@ -34153,28 +34518,52 @@ function logConfiguration(s, configPath) {
   );
   endGroup();
 }
+function insideRepo(root, workspace, setting, path6) {
+  let real;
+  try {
+    real = (0, import_node_fs3.realpathSync)((0, import_node_path3.join)(workspace, path6));
+  } catch {
+    throw new ConfigError([`${setting}: "${path6}" does not exist.`]);
+  }
+  if (real !== root && !real.startsWith(root + import_node_path3.sep))
+    throw new ConfigError([`${setting}: "${path6}" points outside the repository.`]);
+  return real;
+}
+function filesOf(real, pattern, root, setting) {
+  const files = (0, import_node_fs3.statSync)(real).isDirectory() ? (0, import_node_fs3.readdirSync)(real).filter((f) => pattern.test(f)).sort().map((f) => (0, import_node_path3.join)(real, f)) : [real];
+  return files.map((file) => {
+    let target2;
+    try {
+      target2 = (0, import_node_fs3.realpathSync)(file);
+    } catch {
+      throw new ConfigError([`${setting}: "${file.slice(root.length + 1)}" cannot be read.`]);
+    }
+    if (target2 !== root && !target2.startsWith(root + import_node_path3.sep))
+      throw new ConfigError([
+        `${setting}: "${file.slice(root.length + 1)}" points outside the repository.`
+      ]);
+    return target2;
+  });
+}
 function loadRules(workspace, s) {
   const rules = loadBundledRules();
   const root = (0, import_node_fs3.realpathSync)(workspace);
+  const registry = loadKindRegistry(root, workspace, s);
   const sources = [
     ["rules", s.rules, parseRules],
     ["crds", s.crds, parseCrds]
   ];
+  const fromFiles = [];
   for (const [setting, paths, parse3] of sources) {
     for (const path6 of paths) {
-      const abs = (0, import_node_path3.join)(workspace, path6);
-      let real;
-      try {
-        real = (0, import_node_fs3.realpathSync)(abs);
-      } catch {
-        throw new ConfigError([`${setting}: "${path6}" does not exist.`]);
-      }
-      if (real !== root && !real.startsWith(root + import_node_path3.sep))
-        throw new ConfigError([`${setting}: "${path6}" points outside the repository.`]);
-      const files = (0, import_node_fs3.statSync)(real).isDirectory() ? (0, import_node_fs3.readdirSync)(real).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => (0, import_node_path3.join)(real, f)) : [real];
-      for (const file of files) {
+      for (const file of filesOf(
+        insideRepo(root, workspace, setting, path6),
+        /\.ya?ml$/,
+        root,
+        setting
+      )) {
         try {
-          rules.push(...parse3((0, import_node_fs3.readFileSync)(file, "utf8"), file.slice(root.length + 1)));
+          fromFiles.push(...parse3((0, import_node_fs3.readFileSync)(file, "utf8"), file.slice(root.length + 1)));
         } catch (err) {
           if (err instanceof RuleError) throw new ConfigError([err.message]);
           throw err;
@@ -34182,6 +34571,7 @@ function loadRules(workspace, s) {
       }
     }
   }
+  rules.push(...registry.filter((r) => !fromFiles.some((f) => f.id === r.id)), ...fromFiles);
   const seen = /* @__PURE__ */ new Set();
   for (const rule of rules) {
     if (seen.has(rule.id))
@@ -34191,6 +34581,56 @@ function loadRules(workspace, s) {
     seen.add(rule.id);
   }
   return rules;
+}
+function loadKindRegistry(root, workspace, s) {
+  const sets = [];
+  for (const path6 of s.kinds) {
+    for (const file of filesOf(
+      insideRepo(root, workspace, "kinds", path6),
+      /\.json$/,
+      root,
+      "kinds"
+    )) {
+      const origin = file.slice(root.length + 1);
+      try {
+        const read = parseKindBundle((0, import_node_fs3.readFileSync)(file, "utf8"), origin);
+        if (read.malformed > 0)
+          throw new RuleError(
+            `${origin}: ${read.malformed} entr(ies) are not valid saved schemas.`
+          );
+        sets.push(...read.sets);
+      } catch (err) {
+        if (err instanceof RuleError) throw new ConfigError([err.message]);
+        throw err;
+      }
+    }
+  }
+  if (sets.length === 0) return [];
+  const loaded = loadStoredKinds(sets);
+  const errors = [
+    ...loaded.problems.map((p) => `kinds: ${p.id} could not be loaded: ${p.message}`),
+    ...loaded.rejected.map((r) => `kinds: ${r.kind} ${r.version} was not registered: ${r.reason}`)
+  ];
+  if (errors.length > 0) throw new ConfigError(errors);
+  logKindSchemas(loaded.rules);
+  return loaded.rules;
+}
+function logKindSchemas(rules) {
+  startGroup("Kind schemas");
+  for (const p of previewRules(rules)) {
+    for (const v of p.versions) {
+      const c = v.capabilities;
+      info(
+        `${p.kind} ${v.version}: ${c.level === "basic" ? "basic (no fields to check)" : `schema-backed, ${c.fields.length} fields`}`
+      );
+      for (const u of c.unsupported) {
+        info(
+          `  not checked: ${u.keyword} (${u.count}x, first at ${u.firstPath}). No findings does not mean it is valid.`
+        );
+      }
+    }
+  }
+  endGroup();
 }
 function loadFixPolicy(workspace, s) {
   if (s.fixPolicy === "") return void 0;

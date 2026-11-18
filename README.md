@@ -38,6 +38,10 @@ settings ([all options](docs/github-action.md), [Marketplace](https://github.com
   Settings come from built-in defaults, a checked-in `.github/k8s-manifestlens.yml`, and workflow inputs, in that
   order. It can gate only on what a pull request introduces, annotates the changed lines, comments on the
   pull request, writes SARIF, and has a report-only mode. See [docs/github-action.md](docs/github-action.md).
+- **Kinds it does not know.** It tells a built-in kind it does not cover yet from a custom resource, a
+  typo and a malformed name. You can add a CRD or an OpenAPI schema in the web page, the CLI
+  (`kinds add`), the GitHub Action (`kinds:`) or VS Code, see what the schema can and cannot check before
+  you register it, and keep it across sessions. See [docs/kind-intelligence.md](docs/kind-intelligence.md).
 - **VS Code extension.** [Install it from the Marketplace](https://marketplace.visualstudio.com/items?itemName=prsurve.k8s-manifestlens-vscode)
   (`packages/vscode`). It shows the findings as warnings in the editor, explains fields on
   hover, adds an "Explain this manifest" command and offers quick fixes.
@@ -84,7 +88,8 @@ curl -fLo /tmp/swagger.json https://raw.githubusercontent.com/kubernetes/kuberne
 npm run generate-schema -- --spec /tmp/swagger.json --version v1.37.1
 ```
 
-To cover another kind, add it to `ROOTS` in `packages/core/scripts/generate-schema.mjs`. The Kubernetes
+To cover another kind, add it to `ROOTS` in `packages/core/scripts/generate-schema.mjs` (see
+[docs/adding-a-built-in-kind.md](docs/adding-a-built-in-kind.md)). The Kubernetes
 documentation is Apache-2.0 licensed; see [NOTICE](NOTICE).
 
 ## Building the VS Code extension

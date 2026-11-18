@@ -68,14 +68,76 @@ const compile = (set: Pick<StoredKindSet, 'format' | 'text' | 'identity'>, origi
     ? importCrds(set.text, origin)
     : importOpenApi(set.text, set.identity, origin);
 
+/**
+ * Recompile saved sets into rules, in import order, skipping disabled ones. Synchronous so callers
+ * that cannot await (the CLI) share the exact logic the web app uses.
+ */
+export function loadStoredKinds(all: StoredKindSet[]): LoadedKinds {
+  let rules: Rule[] = [];
+  const rejected: RejectedKind[] = [];
+  const problems: LoadedKinds['problems'] = [];
+  for (const set of [...all].sort((a, b) => a.importedAt.localeCompare(b.importedAt))) {
+    if (!set.enabled) continue;
+    try {
+      const result = registerKinds(rules, compile(set, set.id).rules);
+      rules = result.rules;
+      rejected.push(...result.rejected);
+    } catch (e) {
+      problems.push({ id: set.id, message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return { rules, rejected, problems };
+}
+
+/**
+ * Read a kind registry file (the format `KindStore.export` writes) without a store. The text is
+ * untrusted: only entries with the right shape are returned, and `malformed` counts the others so
+ * a caller can ignore them (the CLI) or refuse them (CI).
+ */
+export function parseKindBundle(
+  text: string,
+  origin: string,
+): { sets: StoredKindSet[]; malformed: number } {
+  if (text.length > MAX_BUNDLE_BYTES) throw new RuleError(`${origin}: the file is too large.`);
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    throw new RuleError(
+      `Cannot read the kind registry ${origin}: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  if (!isRecord(data) || data.format !== BUNDLE_FORMAT || !Array.isArray(data.sets)) {
+    throw new RuleError(`${origin} is not a k8s-manifestlens kind registry.`);
+  }
+  const sets = data.sets.filter(isStoredKindSet);
+  return { sets, malformed: data.sets.length - sets.length };
+}
+
+/** True when untrusted JSON has the shape of a saved set. The text is still compiled before use. */
+export function isStoredKindSet(v: unknown): v is StoredKindSet {
+  return (
+    isRecord(v) &&
+    typeof v.id === 'string' &&
+    (v.format === 'crd' || v.format === 'openapi') &&
+    typeof v.text === 'string' &&
+    typeof v.enabled === 'boolean' &&
+    typeof v.importedAt === 'string' &&
+    Array.isArray(v.kinds)
+  );
+}
+
 /** Imported kinds, saved across sessions. Everything is recompiled from the saved text on load. */
 export class KindStore {
   constructor(private readonly storage: KindStorage) {}
 
   list(): Promise<StoredKindSet[]> {
+    // Whatever a backend returns is untrusted: an entry with the wrong shape is skipped, not crashed on.
     return this.storage
       .list()
-      .then((all) => all.sort((a, b) => a.importedAt.localeCompare(b.importedAt)));
+      .then((all) =>
+        all.filter(isStoredKindSet).sort((a, b) => a.importedAt.localeCompare(b.importedAt)),
+      );
   }
 
   /** Compile, register and save a CRD or OpenAPI schema. Throws `RuleError` if the text is invalid. */
@@ -133,20 +195,7 @@ export class KindStore {
 
   /** Recompile every enabled set, applying the same conflict rules as when it was imported. */
   async load(): Promise<LoadedKinds> {
-    let rules: Rule[] = [];
-    const rejected: RejectedKind[] = [];
-    const problems: LoadedKinds['problems'] = [];
-    for (const set of await this.list()) {
-      if (!set.enabled) continue;
-      try {
-        const result = registerKinds(rules, compile(set, set.id).rules);
-        rules = result.rules;
-        rejected.push(...result.rejected);
-      } catch (e) {
-        problems.push({ id: set.id, message: e instanceof Error ? e.message : String(e) });
-      }
-    }
-    return { rules, rejected, problems };
+    return loadStoredKinds(await this.list());
   }
 
   /** Saved sets (all, or the given ids) as one JSON file, to back up or move to another browser or machine. */

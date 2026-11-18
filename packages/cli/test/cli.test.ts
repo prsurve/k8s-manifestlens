@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import { run } from '../src/main.js';
 
+// Never read the developer's real kind registry: these tests must not depend on the machine.
+process.env.K8S_MANIFESTLENS_REGISTRY = join(tmpdir(), 'k8s-manifestlens-no-such-registry.json');
+
 const fixture = fileURLToPath(new URL('../../../examples/web.yaml', import.meta.url));
 
 function cli(...args: string[]) {

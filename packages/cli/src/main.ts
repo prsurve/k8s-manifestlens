@@ -21,6 +21,7 @@ import {
   fixManifest,
   isStale,
   loadBundledRules,
+  loadStoredKinds,
   parseFixPolicy,
   parseCrds,
   parseRules,
@@ -31,10 +32,17 @@ import { formatFixReport } from './format-fix.js';
 import { formatExplanation } from './format.js';
 import { formatDiff } from './format-diff.js';
 import { formatFindings } from './format-check.js';
+import { runKinds } from './kinds-command.js';
+import { readRegistry, registryPath } from './registry.js';
 
 export interface Io {
   stdout: (text: string) => void;
   stderr: (text: string) => void;
+}
+
+/** The streams plus the imported kinds in effect for this run (empty when the registry is off). */
+interface Ctx extends Io {
+  registryRules?: Rule[];
 }
 
 const USAGE = `Usage:
@@ -43,6 +51,7 @@ const USAGE = `Usage:
                      [--fail-on error|warning|info|none]
   k8s-manifestlens diff <old-file> <new-file> [--rules <file-or-dir>]... [--crd <file-or-dir>]...
                      [--fail-on ...]
+  k8s-manifestlens kinds list|preview|add|remove|enable|disable|export|import|path   (see: kinds --help)
   k8s-manifestlens fix <file> [--rules <file-or-dir>]... [--crd <file-or-dir>]... [--policy <file>] [--max-risk low|medium|high]
                      [--only <rule-id>]... [--write] [--no-backup]
 
@@ -59,6 +68,10 @@ Options:
   --crd <path>     Also learn custom resources from CustomResourceDefinition YAML (a file, or every
                    .yaml file in a directory, e.g. from kubectl get crd -o yaml). Their fields are
                    explained and checked against the schema (repeatable)
+  --registry <f>   Local kind registry to use (default: $K8S_MANIFESTLENS_REGISTRY, else
+                   ~/.config/k8s-manifestlens/kinds.json). Kinds added with "kinds add" are used
+                   automatically
+  --no-registry    Ignore the local kind registry (for reproducible runs)
   --fail-on <lvl>  Exit 1 if there is a (new) finding at this level or worse (default: error)
   --policy <file>  Values for fixes that cannot guess them (YAML, "params:"), e.g. memoryLimit
   --max-risk <lvl> Highest fix risk to apply: low (default), medium or high
@@ -82,6 +95,8 @@ export function run(argv: string[], io: Io): number {
         help: { type: 'boolean', short: 'h' },
         rules: { type: 'string', multiple: true },
         crd: { type: 'string', multiple: true },
+        registry: { type: 'string' },
+        'no-registry': { type: 'boolean' },
         'fail-on': { type: 'string' },
         policy: { type: 'string' },
         'max-risk': { type: 'string' },
@@ -109,6 +124,21 @@ export function run(argv: string[], io: Io): number {
     io.stderr(USAGE);
     return 2;
   }
+  const ctx: Ctx = { ...io };
+  if (!parsed.values['no-registry']) {
+    const path = registryPath(parsed.values.registry);
+    try {
+      ctx.registryRules = loadStoredKinds(readRegistry(path)).rules;
+    } catch (err) {
+      io.stderr(`${err instanceof Error ? err.message : String(err)}\n`);
+      return 2;
+    }
+    if (parsed.values.registry && !existsSync(path)) {
+      io.stderr(`Kind registry ${path} does not exist.\n`);
+      return 2;
+    }
+  }
+  io = ctx;
   if (command === 'diff') {
     return runDiff(
       file,
@@ -142,7 +172,7 @@ export function run(argv: string[], io: Io): number {
   );
 }
 
-function runExplain(file: string, source: string, crdPaths: string[], io: Io): number {
+function runExplain(file: string, source: string, crdPaths: string[], io: Ctx): number {
   const rules = loadAllRules([], crdPaths, io);
   if (!rules) return 2;
   const result = explainManifest(source, rules);
@@ -155,13 +185,17 @@ function runExplain(file: string, source: string, crdPaths: string[], io: Io): n
 }
 
 /** Load bundled plus extra rules, or explain to the user why that failed. */
-function loadAllRules(rulePaths: string[], crdPaths: string[], io: Io): Rule[] | undefined {
+function loadAllRules(rulePaths: string[], crdPaths: string[], io: Ctx): Rule[] | undefined {
   let rules: Rule[];
   try {
+    const crds = crdPaths.flatMap((p) => loadRuleFiles(p, parseCrds));
+    // A CRD file named on the command line is newer than the registry's copy, so it wins.
+    const fromRegistry = (io.registryRules ?? []).filter((r) => !crds.some((c) => c.id === r.id));
     rules = [
       ...loadBundledRules(),
+      ...fromRegistry,
       ...rulePaths.flatMap((p) => loadRuleFiles(p, parseRules)),
-      ...crdPaths.flatMap((p) => loadRuleFiles(p, parseCrds)),
+      ...crds,
     ];
   } catch (err) {
     io.stderr(`${err instanceof Error ? err.message : String(err)}\n`);
@@ -197,7 +231,7 @@ function runDiff(
   rulePaths: string[],
   crdPaths: string[],
   failOn: string | undefined,
-  io: Io,
+  io: Ctx,
 ): number {
   if (!validFailOn(failOn, io)) return 2;
   const sources: string[] = [];
@@ -239,7 +273,7 @@ interface FixFlags {
 
 const RISKS = ['low', 'medium', 'high'] as const;
 
-function runFix(file: string, source: string, flags: FixFlags, io: Io): number {
+function runFix(file: string, source: string, flags: FixFlags, io: Ctx): number {
   const maxRisk = flags['max-risk'] ?? 'low';
   if (!RISKS.includes(maxRisk as FixRisk)) {
     io.stderr('--max-risk must be one of low, medium, high.\n');
@@ -339,7 +373,7 @@ function runCheck(
   rulePaths: string[],
   crdPaths: string[],
   failOn: string | undefined,
-  io: Io,
+  io: Ctx,
 ): number {
   if (!validFailOn(failOn, io)) return 2;
   const rules = loadAllRules(rulePaths, crdPaths, io);
@@ -389,9 +423,17 @@ function isMain(): boolean {
   }
 }
 
+/** Like `run`, and also handles `kinds`, which is async. */
+export async function runCli(argv: string[], io: Io): Promise<number> {
+  if (argv[0] === 'kinds') return runKinds(argv.slice(1), io);
+  return run(argv, io);
+}
+
 if (isMain()) {
-  process.exitCode = run(process.argv.slice(2), {
+  void runCli(process.argv.slice(2), {
     stdout: (t) => process.stdout.write(t),
     stderr: (t) => process.stderr.write(t),
+  }).then((code) => {
+    process.exitCode = code;
   });
 }
