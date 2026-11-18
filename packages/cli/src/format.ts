@@ -1,5 +1,5 @@
 import type { ExplainResult } from '@k8s-manifestlens/core';
-import { supportedKinds } from '@k8s-manifestlens/core';
+import { classifyKind, supportedKinds } from '@k8s-manifestlens/core';
 
 /** Render an explain result as plain text, one block per source line. */
 export function formatExplanation(result: ExplainResult, source: string): string {
@@ -17,9 +17,7 @@ export function formatExplanation(result: ExplainResult, source: string): string
       out.push(`! ${issue.line ? `line ${issue.line}: ` : ''}${issue.message}`);
     }
     if (doc.unsupportedKind && doc.kind) {
-      out.push(
-        `! No field explanations for kind "${doc.kind}" yet (supported: ${supportedKinds().join(', ')}).`,
-      );
+      out.push(`! ${unsupportedNotice(doc.kind, doc.apiVersion)}`);
     }
 
     const shown = new Set<string>();
@@ -39,4 +37,19 @@ export function formatExplanation(result: ExplainResult, source: string): string
     out.push('');
   }
   return out.join('\n');
+}
+
+/** Why a kind has no explanations, and what to do about it. */
+function unsupportedNotice(kind: string, apiVersion: string | undefined): string {
+  const lead = `No field explanations for kind "${kind}" yet`;
+  const c = classifyKind(kind, apiVersion);
+  if (c.category === 'missing-builtin') {
+    return `${lead}. It is a built-in Kubernetes kind that k8s-manifestlens does not cover yet. Add its schema with: k8s-manifestlens kinds add <openapi-file> --kind ${kind} --version <v> --group <g>`;
+  }
+  if (c.category === 'custom') {
+    return `${lead}. ${apiVersion ?? ''} is a custom resource: pass its CRD with --crd <file>, or save it with: k8s-manifestlens kinds add <crd-file>`;
+  }
+  if (c.category === 'malformed')
+    return `${lead}: ${c.reason ?? 'the resource identity is not valid.'}`;
+  return `${lead} (supported: ${supportedKinds().join(', ')}). It is not a known Kubernetes kind: check the spelling.`;
 }

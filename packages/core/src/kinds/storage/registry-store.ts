@@ -68,6 +68,40 @@ const compile = (set: Pick<StoredKindSet, 'format' | 'text' | 'identity'>, origi
     ? importCrds(set.text, origin)
     : importOpenApi(set.text, set.identity, origin);
 
+/**
+ * Recompile saved sets into rules, in import order, skipping disabled ones. Synchronous so callers
+ * that cannot await (the CLI) share the exact logic the web app uses.
+ */
+export function loadStoredKinds(all: StoredKindSet[]): LoadedKinds {
+  let rules: Rule[] = [];
+  const rejected: RejectedKind[] = [];
+  const problems: LoadedKinds['problems'] = [];
+  for (const set of [...all].sort((a, b) => a.importedAt.localeCompare(b.importedAt))) {
+    if (!set.enabled) continue;
+    try {
+      const result = registerKinds(rules, compile(set, set.id).rules);
+      rules = result.rules;
+      rejected.push(...result.rejected);
+    } catch (e) {
+      problems.push({ id: set.id, message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return { rules, rejected, problems };
+}
+
+/** True when untrusted JSON has the shape of a saved set. The text is still compiled before use. */
+export function isStoredKindSet(v: unknown): v is StoredKindSet {
+  return (
+    isRecord(v) &&
+    typeof v.id === 'string' &&
+    (v.format === 'crd' || v.format === 'openapi') &&
+    typeof v.text === 'string' &&
+    typeof v.enabled === 'boolean' &&
+    typeof v.importedAt === 'string' &&
+    Array.isArray(v.kinds)
+  );
+}
+
 /** Imported kinds, saved across sessions. Everything is recompiled from the saved text on load. */
 export class KindStore {
   constructor(private readonly storage: KindStorage) {}
@@ -133,25 +167,13 @@ export class KindStore {
 
   /** Recompile every enabled set, applying the same conflict rules as when it was imported. */
   async load(): Promise<LoadedKinds> {
-    let rules: Rule[] = [];
-    const rejected: RejectedKind[] = [];
-    const problems: LoadedKinds['problems'] = [];
-    for (const set of await this.list()) {
-      if (!set.enabled) continue;
-      try {
-        const result = registerKinds(rules, compile(set, set.id).rules);
-        rules = result.rules;
-        rejected.push(...result.rejected);
-      } catch (e) {
-        problems.push({ id: set.id, message: e instanceof Error ? e.message : String(e) });
-      }
-    }
-    return { rules, rejected, problems };
+    return loadStoredKinds(await this.list());
   }
 
-  /** All saved sets as one JSON file, to back up or move to another browser or machine. */
-  async export(): Promise<string> {
-    return JSON.stringify({ format: BUNDLE_FORMAT, version: 1, sets: await this.list() }, null, 2);
+  /** Saved sets (all, or the given ids) as one JSON file, to back up or move to another browser or machine. */
+  async export(ids?: string[]): Promise<string> {
+    const sets = (await this.list()).filter((s) => ids === undefined || ids.includes(s.id));
+    return JSON.stringify({ format: BUNDLE_FORMAT, version: 1, sets }, null, 2);
   }
 
   /**
