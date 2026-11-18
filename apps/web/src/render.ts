@@ -1,4 +1,4 @@
-import { formatValue, supportedKinds } from '@k8s-manifestlens/core';
+import { formatValue } from '@k8s-manifestlens/core';
 import type {
   CheckResult,
   DiffResult,
@@ -9,6 +9,7 @@ import type {
   FixResult,
   Severity,
 } from '@k8s-manifestlens/core';
+import { kindNotice } from './kind-notice.js';
 import { docsLink, el } from './dom.js';
 
 const SEVERITIES: Severity[] = ['error', 'warning', 'info'];
@@ -145,12 +146,7 @@ export function renderExplain(
         el('span', { class: 'meta', text: plural(items.length, 'field') }),
       ]),
       ...issues(doc.issues),
-      doc.unsupportedKind &&
-        doc.kind &&
-        el('p', {
-          class: 'issue',
-          text: `No field explanations for kind "${doc.kind}" yet (supported: ${supportedKinds().join(', ')}).`,
-        }),
+      doc.unsupportedKind && doc.kind && kindNotice(doc.kind, doc.apiVersion),
       el('ul', { class: 'rows' }, items),
     ]);
   });

@@ -149,9 +149,10 @@ export class KindStore {
     return { rules, rejected, problems };
   }
 
-  /** All saved sets as one JSON file, to back up or move to another browser or machine. */
-  async export(): Promise<string> {
-    return JSON.stringify({ format: BUNDLE_FORMAT, version: 1, sets: await this.list() }, null, 2);
+  /** Saved sets (all, or the given ids) as one JSON file, to back up or move to another browser or machine. */
+  async export(ids?: string[]): Promise<string> {
+    const sets = (await this.list()).filter((s) => ids === undefined || ids.includes(s.id));
+    return JSON.stringify({ format: BUNDLE_FORMAT, version: 1, sets }, null, 2);
   }
 
   /**
