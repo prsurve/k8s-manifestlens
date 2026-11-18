@@ -9,6 +9,11 @@ export function schemaKinds(): string[] {
   return Object.keys(schema.kinds);
 }
 
+/** The apiVersion (`group/version`) the generated schema uses for each of its kinds. */
+export function schemaKindVersions(): Record<string, string> {
+  return Object.fromEntries(Object.entries(schema.kinds).map(([k, v]) => [k, v.gv]));
+}
+
 /** Kubernetes release the schema was generated from. */
 export const schemaVersion: string = schema.version;
 
