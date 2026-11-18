@@ -231,9 +231,9 @@ var require_tunnel = __commonJS({
         if (typeof overrides === "object") {
           var keys = Object.keys(overrides);
           for (var j = 0, keyLen = keys.length; j < keyLen; ++j) {
-            var k = keys[j];
-            if (overrides[k] !== void 0) {
-              target2[k] = overrides[k];
+            var k2 = keys[j];
+            if (overrides[k2] !== void 0) {
+              target2[k2] = overrides[k2];
             }
           }
         }
@@ -19615,13 +19615,13 @@ var require_applyReviver = __commonJS({
               val[i] = v1;
           }
         } else if (val instanceof Map) {
-          for (const k of Array.from(val.keys())) {
-            const v0 = val.get(k);
-            const v1 = applyReviver(reviver, val, k, v0);
+          for (const k2 of Array.from(val.keys())) {
+            const v0 = val.get(k2);
+            const v1 = applyReviver(reviver, val, k2, v0);
             if (v1 === void 0)
-              val.delete(k);
+              val.delete(k2);
             else if (v1 !== v0)
-              val.set(k, v1);
+              val.set(k2, v1);
           }
         } else if (val instanceof Set) {
           for (const v0 of Array.from(val)) {
@@ -19634,12 +19634,12 @@ var require_applyReviver = __commonJS({
             }
           }
         } else {
-          for (const [k, v0] of Object.entries(val)) {
-            const v1 = applyReviver(reviver, val, k, v0);
+          for (const [k2, v0] of Object.entries(val)) {
+            const v1 = applyReviver(reviver, val, k2, v0);
             if (v1 === void 0)
-              delete val[k];
+              delete val[k2];
             else if (v1 !== v0)
-              val[k] = v1;
+              val[k2] = v1;
           }
         }
       }
@@ -19953,13 +19953,13 @@ var require_Collection = __commonJS({
     function collectionFromPath(schema2, path6, value) {
       let v = value;
       for (let i = path6.length - 1; i >= 0; --i) {
-        const k = path6[i];
-        if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
+        const k2 = path6[i];
+        if (typeof k2 === "number" && Number.isInteger(k2) && k2 >= 0) {
           const a = [];
-          a[k] = v;
+          a[k2] = v;
           v = a;
         } else {
-          v = /* @__PURE__ */ new Map([[k, v]]);
+          v = /* @__PURE__ */ new Map([[k2, v]]);
         }
       }
       return createNode.createNode(v, void 0, {
@@ -20934,9 +20934,9 @@ var require_Pair = __commonJS({
     var addPairToJSMap = require_addPairToJSMap();
     var identity2 = require_identity();
     function createPair(key, value, ctx) {
-      const k = createNode.createNode(key, void 0, ctx);
+      const k2 = createNode.createNode(key, void 0, ctx);
       const v = createNode.createNode(value, void 0, ctx);
-      return new Pair(k, v);
+      return new Pair(k2, v);
     }
     var Pair = class _Pair {
       constructor(key, value = null) {
@@ -21127,12 +21127,12 @@ var require_YAMLMap = __commonJS({
     var Pair = require_Pair();
     var Scalar = require_Scalar();
     function findPair(items, key) {
-      const k = identity2.isScalar(key) ? key.value : key;
+      const k2 = identity2.isScalar(key) ? key.value : key;
       for (const it of items) {
         if (identity2.isPair(it)) {
-          if (it.key === key || it.key === k)
+          if (it.key === key || it.key === k2)
             return it;
-          if (identity2.isScalar(it.key) && it.key.value === k)
+          if (identity2.isScalar(it.key) && it.key.value === k2)
             return it;
         }
       }
@@ -22643,9 +22643,9 @@ var require_Document = __commonJS({
        * recursively wrapping all values as `Scalar` or `Collection` nodes.
        */
       createPair(key, value, options = {}) {
-        const k = this.createNode(key, null, options);
+        const k2 = this.createNode(key, null, options);
         const v = this.createNode(value, null, options);
-        return new Pair.Pair(k, v);
+        return new Pair.Pair(k2, v);
       }
       /**
        * Removes a value from the document.
@@ -26373,7 +26373,7 @@ var require_public_api = __commonJS({
       }
       return doc;
     }
-    function parse2(src, reviver, options) {
+    function parse3(src, reviver, options) {
       let _reviver = void 0;
       if (typeof reviver === "function") {
         _reviver = reviver;
@@ -26414,7 +26414,7 @@ var require_public_api = __commonJS({
         return value.toString(options);
       return new Document.Document(value, _replacer, options).toString(options);
     }
-    exports2.parse = parse2;
+    exports2.parse = parse3;
     exports2.parseAllDocuments = parseAllDocuments4;
     exports2.parseDocument = parseDocument2;
     exports2.stringify = stringify2;
@@ -26995,7 +26995,7 @@ function looksLikeKubernetes(text2) {
 
 // ../core/src/fields/pod.ts
 function withPrefix(prefix, docs) {
-  return Object.fromEntries(Object.entries(docs).map(([k, v]) => [`${prefix}.${k}`, v]));
+  return Object.fromEntries(Object.entries(docs).map(([k2, v]) => [`${prefix}.${k2}`, v]));
 }
 var objectMetaDocs = {
   name: "The name of this object. It must be unique among objects of the same kind in the namespace.",
@@ -27320,7 +27320,7 @@ function schemaKinds() {
 var schemaVersion = schema.version;
 var META = {
   metadata: "Identifying information about the object: its name, namespace, labels and annotations.",
-  ...Object.fromEntries(Object.entries(objectMetaDocs).map(([k, v]) => [`metadata.${k}`, v]))
+  ...Object.fromEntries(Object.entries(objectMetaDocs).map(([k2, v]) => [`metadata.${k2}`, v]))
 };
 function lookupSchema(kind, pattern) {
   if (!Object.hasOwn(schema.kinds, kind)) return void 0;
@@ -27539,10 +27539,10 @@ function distance(a, b) {
 function suggestKind(kind, rules) {
   const known = [.../* @__PURE__ */ new Set([...supportedKinds(), ...checkedKinds(rules)])];
   let best;
-  for (const k of known) {
-    const prefix = k.length >= 3 && kind.toLowerCase().startsWith(k.toLowerCase());
-    const d = prefix ? 1 : distance(kind, k);
-    if (!best || d < best.d) best = { kind: k, d };
+  for (const k2 of known) {
+    const prefix = k2.length >= 3 && kind.toLowerCase().startsWith(k2.toLowerCase());
+    const d = prefix ? 1 : distance(kind, k2);
+    if (!best || d < best.d) best = { kind: k2, d };
   }
   return best && best.d <= Math.max(2, Math.floor(kind.length / 3)) ? best.kind : void 0;
 }
@@ -27856,7 +27856,20 @@ function fromCrd(crd, origin) {
     if (!isRecord(v) || typeof v.name !== "string") continue;
     const schema2 = isRecord(v.schema) ? v.schema.openAPIV3Schema : legacy;
     if (!isRecord(schema2)) continue;
-    rules.push(crdRule({ group, version: v.name, kind, schema: schema2 }, origin));
+    const scope = spec.scope === "Cluster" || spec.scope === "Namespaced" ? spec.scope : void 0;
+    rules.push(
+      crdRule(
+        {
+          group,
+          version: v.name,
+          kind,
+          schema: schema2,
+          source: "crd",
+          ...scope ? { scope } : {}
+        },
+        origin
+      )
+    );
   }
   if (rules.length === 0) {
     throw new RuleError(`${origin}: ${kind} has no openAPIV3Schema, so there is nothing to check.`);
@@ -28066,23 +28079,23 @@ function show(v) {
   return typeof v === "string" ? `"${v}"` : String(v);
 }
 function nearest(key, known) {
-  const lower = known.filter((k) => k.toLowerCase() === key.toLowerCase());
+  const lower = known.filter((k2) => k2.toLowerCase() === key.toLowerCase());
   if (lower.length > 0) return lower;
   const limit = key.length >= 5 ? 2 : 1;
   let best = limit + 1;
   let found = [];
-  for (const k of known) {
-    const d = editDistance(key, k);
+  for (const k2 of known) {
+    const d = editDistance(key, k2);
     if (d < best) {
       best = d;
-      found = [k];
-    } else if (d === best && d <= limit) found.push(k);
+      found = [k2];
+    } else if (d === best && d <= limit) found.push(k2);
   }
   return best <= limit ? found : [];
 }
 function hint(near) {
   if (near.length === 0) return "";
-  const names = near.slice(0, 3).map((k) => `"${k}"`);
+  const names = near.slice(0, 3).map((k2) => `"${k2}"`);
   return ` Did you mean ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`}?`;
 }
 function editDistance(a, b) {
@@ -29428,10 +29441,10 @@ function fixManifest(source, rules, options = {}) {
       if ("skip" in outcome) {
         skipped.set(key, outcome.skip);
       } else {
-        for (const [k, s] of skipped) {
+        for (const [k2, s] of skipped) {
           if (s.reason !== "precondition-failed" && s.reason !== "conflict") continue;
-          skipped.delete(k);
-          attempted.delete(k);
+          skipped.delete(k2);
+          attempted.delete(k2);
         }
         text2 = outcome.text;
         applied.push(outcome.applied);
@@ -29674,7 +29687,7 @@ function stripServerFields(data) {
   delete rest.status;
   if (!isObject(rest.metadata)) return rest;
   const metadata = Object.fromEntries(
-    Object.entries(rest.metadata).filter(([k]) => !SERVER_METADATA.includes(k))
+    Object.entries(rest.metadata).filter(([k2]) => !SERVER_METADATA.includes(k2))
   );
   return { ...rest, metadata };
 }
@@ -30178,6 +30191,69 @@ function deploymentNotes(changes, now) {
   return touchesTemplate ? [] : [UNCHANGED_TEMPLATE];
 }
 
+// ../core/src/kinds/inventory/built-in-inventory.ts
+var k = (kind, group, version, namespaced = true) => ({
+  kind,
+  group,
+  version,
+  namespaced
+});
+var BUILT_IN_INVENTORY = [
+  k("Pod", "", "v1"),
+  k("Service", "", "v1"),
+  k("ConfigMap", "", "v1"),
+  k("Secret", "", "v1"),
+  k("Namespace", "", "v1", false),
+  k("ServiceAccount", "", "v1"),
+  k("PersistentVolumeClaim", "", "v1"),
+  k("PersistentVolume", "", "v1", false),
+  k("ResourceQuota", "", "v1"),
+  k("LimitRange", "", "v1"),
+  k("Node", "", "v1", false),
+  k("Endpoints", "", "v1"),
+  k("Event", "", "v1"),
+  k("ReplicationController", "", "v1"),
+  k("PodTemplate", "", "v1"),
+  k("Deployment", "apps", "v1"),
+  k("StatefulSet", "apps", "v1"),
+  k("DaemonSet", "apps", "v1"),
+  k("ReplicaSet", "apps", "v1"),
+  k("ControllerRevision", "apps", "v1"),
+  k("Job", "batch", "v1"),
+  k("CronJob", "batch", "v1"),
+  k("Ingress", "networking.k8s.io", "v1"),
+  k("IngressClass", "networking.k8s.io", "v1", false),
+  k("NetworkPolicy", "networking.k8s.io", "v1"),
+  k("EndpointSlice", "discovery.k8s.io", "v1"),
+  k("HorizontalPodAutoscaler", "autoscaling", "v2"),
+  k("PodDisruptionBudget", "policy", "v1"),
+  k("Role", "rbac.authorization.k8s.io", "v1"),
+  k("ClusterRole", "rbac.authorization.k8s.io", "v1", false),
+  k("RoleBinding", "rbac.authorization.k8s.io", "v1"),
+  k("ClusterRoleBinding", "rbac.authorization.k8s.io", "v1", false),
+  k("StorageClass", "storage.k8s.io", "v1", false),
+  k("CSIDriver", "storage.k8s.io", "v1", false),
+  k("CSINode", "storage.k8s.io", "v1", false),
+  k("CSIStorageCapacity", "storage.k8s.io", "v1"),
+  k("VolumeAttachment", "storage.k8s.io", "v1", false),
+  k("PriorityClass", "scheduling.k8s.io", "v1", false),
+  k("RuntimeClass", "node.k8s.io", "v1", false),
+  k("Lease", "coordination.k8s.io", "v1"),
+  k("CertificateSigningRequest", "certificates.k8s.io", "v1", false),
+  k("MutatingWebhookConfiguration", "admissionregistration.k8s.io", "v1", false),
+  k("ValidatingWebhookConfiguration", "admissionregistration.k8s.io", "v1", false),
+  k("ValidatingAdmissionPolicy", "admissionregistration.k8s.io", "v1", false),
+  k("ValidatingAdmissionPolicyBinding", "admissionregistration.k8s.io", "v1", false),
+  k("CustomResourceDefinition", "apiextensions.k8s.io", "v1", false),
+  k("APIService", "apiregistration.k8s.io", "v1", false),
+  k("FlowSchema", "flowcontrol.apiserver.k8s.io", "v1", false),
+  k("PriorityLevelConfiguration", "flowcontrol.apiserver.k8s.io", "v1", false)
+];
+
+// ../core/src/kinds/onboarding/schema-importer.ts
+var import_yaml6 = __toESM(require_dist(), 1);
+var MAX_BYTES = 8 * 1024 * 1024;
+
 // ../../node_modules/balanced-match/dist/esm/index.js
 var balanced = (a, b, str) => {
   const ma = a instanceof RegExp ? maybeMatch(a, str) : a;
@@ -30439,8 +30515,8 @@ function expand_(str, max, maxLength, maxDepth, depth, maxRewrites, isTop) {
       let valuesLength = 0;
       outer: for (let j = 0; j < n.length; j++) {
         const expanded = expand_(n[j], max, maxLength, maxDepth, depth + 1, maxRewrites, false);
-        for (let k = 0; k < expanded.length; k++) {
-          const v = expanded[k];
+        for (let k2 = 0; k2 < expanded.length; k2++) {
+          const v = expanded[k2];
           if (dropsEmpties && !v)
             continue;
           if (values.length >= max || valuesLength + v.length > maxLength) {
@@ -32298,7 +32374,7 @@ function distance2(a, b) {
 // src/config.ts
 var import_node_fs = require("node:fs");
 var import_node_path = require("node:path");
-var import_yaml6 = __toESM(require_dist());
+var import_yaml7 = __toESM(require_dist());
 
 // src/settings.ts
 var LEGACY_CONFIG_FILE = ".github/manifestlens.yml";
@@ -32381,8 +32457,8 @@ var FIELDS = {
 };
 var KEYS = Object.keys(FIELDS);
 var SEVERITIES2 = ["error", "warning", "info", "off"];
-var INPUT_NAMES = KEYS.filter((k) => k !== "ignore").map((k) => FIELDS[k].name);
-var CONFIG_NAMES = [...KEYS.map((k) => FIELDS[k].name), "version"];
+var INPUT_NAMES = KEYS.filter((k2) => k2 !== "ignore").map((k2) => FIELDS[k2].name);
+var CONFIG_NAMES = [...KEYS.map((k2) => FIELDS[k2].name), "version"];
 function parseSeverityOverrides(value, name, p) {
   let pairs;
   if (typeof value === "string") {
@@ -32450,10 +32526,10 @@ function parseIgnore(value, name, p) {
 function readLayer(values, skipEmpty, p) {
   const layer = {};
   for (const key of KEYS) {
-    const { name, parse: parse2 } = FIELDS[key];
+    const { name, parse: parse3 } = FIELDS[key];
     const raw = values[name];
     if (raw === void 0 || skipEmpty && raw === "") continue;
-    const parsed = parse2(raw, name, p);
+    const parsed = parse3(raw, name, p);
     if (parsed !== void 0) layer[key] = parsed;
   }
   return layer;
@@ -32592,7 +32668,7 @@ function loadConfig(workspace, file, explicit, p) {
   }
   let data;
   try {
-    data = (0, import_yaml6.parse)((0, import_node_fs.readFileSync)(real, "utf8"));
+    data = (0, import_yaml7.parse)((0, import_node_fs.readFileSync)(real, "utf8"));
   } catch (err) {
     p.add(
       `${file}: not valid YAML. ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`
@@ -33815,7 +33891,7 @@ function configurationTable(info2) {
     "severityOverrides",
     "ignore"
   ];
-  const rows = keys.map((k) => `| ${code(k)} | ${code(value(k))} | ${info2.sources[k]} |`);
+  const rows = keys.map((k2) => `| ${code(k2)} | ${code(value(k2))} | ${info2.sources[k2]} |`);
   return [
     "<details><summary>Configuration used</summary>",
     "",
@@ -34081,7 +34157,7 @@ function loadRules(workspace, s) {
     ["rules", s.rules, parseRules],
     ["crds", s.crds, parseCrds]
   ];
-  for (const [setting, paths, parse2] of sources) {
+  for (const [setting, paths, parse3] of sources) {
     for (const path6 of paths) {
       const abs = (0, import_node_path3.join)(workspace, path6);
       let real;
@@ -34095,7 +34171,7 @@ function loadRules(workspace, s) {
       const files = (0, import_node_fs3.statSync)(real).isDirectory() ? (0, import_node_fs3.readdirSync)(real).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => (0, import_node_path3.join)(real, f)) : [real];
       for (const file of files) {
         try {
-          rules.push(...parse2((0, import_node_fs3.readFileSync)(file, "utf8"), file.slice(root.length + 1)));
+          rules.push(...parse3((0, import_node_fs3.readFileSync)(file, "utf8"), file.slice(root.length + 1)));
         } catch (err) {
           if (err instanceof RuleError) throw new ConfigError([err.message]);
           throw err;
