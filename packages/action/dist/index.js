@@ -26373,7 +26373,7 @@ var require_public_api = __commonJS({
       }
       return doc;
     }
-    function parse2(src, reviver, options) {
+    function parse3(src, reviver, options) {
       let _reviver = void 0;
       if (typeof reviver === "function") {
         _reviver = reviver;
@@ -26414,7 +26414,7 @@ var require_public_api = __commonJS({
         return value.toString(options);
       return new Document.Document(value, _replacer, options).toString(options);
     }
-    exports2.parse = parse2;
+    exports2.parse = parse3;
     exports2.parseAllDocuments = parseAllDocuments4;
     exports2.parseDocument = parseDocument2;
     exports2.stringify = stringify2;
@@ -27856,7 +27856,20 @@ function fromCrd(crd, origin) {
     if (!isRecord(v) || typeof v.name !== "string") continue;
     const schema2 = isRecord(v.schema) ? v.schema.openAPIV3Schema : legacy;
     if (!isRecord(schema2)) continue;
-    rules.push(crdRule({ group, version: v.name, kind, schema: schema2 }, origin));
+    const scope = spec.scope === "Cluster" || spec.scope === "Namespaced" ? spec.scope : void 0;
+    rules.push(
+      crdRule(
+        {
+          group,
+          version: v.name,
+          kind,
+          schema: schema2,
+          source: "crd",
+          ...scope ? { scope } : {}
+        },
+        origin
+      )
+    );
   }
   if (rules.length === 0) {
     throw new RuleError(`${origin}: ${kind} has no openAPIV3Schema, so there is nothing to check.`);
@@ -30237,6 +30250,10 @@ var BUILT_IN_INVENTORY = [
   k("PriorityLevelConfiguration", "flowcontrol.apiserver.k8s.io", "v1", false)
 ];
 
+// ../core/src/kinds/onboarding/schema-importer.ts
+var import_yaml6 = __toESM(require_dist(), 1);
+var MAX_BYTES = 8 * 1024 * 1024;
+
 // ../../node_modules/balanced-match/dist/esm/index.js
 var balanced = (a, b, str) => {
   const ma = a instanceof RegExp ? maybeMatch(a, str) : a;
@@ -32357,7 +32374,7 @@ function distance2(a, b) {
 // src/config.ts
 var import_node_fs = require("node:fs");
 var import_node_path = require("node:path");
-var import_yaml6 = __toESM(require_dist());
+var import_yaml7 = __toESM(require_dist());
 
 // src/settings.ts
 var LEGACY_CONFIG_FILE = ".github/manifestlens.yml";
@@ -32509,10 +32526,10 @@ function parseIgnore(value, name, p) {
 function readLayer(values, skipEmpty, p) {
   const layer = {};
   for (const key of KEYS) {
-    const { name, parse: parse2 } = FIELDS[key];
+    const { name, parse: parse3 } = FIELDS[key];
     const raw = values[name];
     if (raw === void 0 || skipEmpty && raw === "") continue;
-    const parsed = parse2(raw, name, p);
+    const parsed = parse3(raw, name, p);
     if (parsed !== void 0) layer[key] = parsed;
   }
   return layer;
@@ -32651,7 +32668,7 @@ function loadConfig(workspace, file, explicit, p) {
   }
   let data;
   try {
-    data = (0, import_yaml6.parse)((0, import_node_fs.readFileSync)(real, "utf8"));
+    data = (0, import_yaml7.parse)((0, import_node_fs.readFileSync)(real, "utf8"));
   } catch (err) {
     p.add(
       `${file}: not valid YAML. ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`
@@ -34140,7 +34157,7 @@ function loadRules(workspace, s) {
     ["rules", s.rules, parseRules],
     ["crds", s.crds, parseCrds]
   ];
-  for (const [setting, paths, parse2] of sources) {
+  for (const [setting, paths, parse3] of sources) {
     for (const path6 of paths) {
       const abs = (0, import_node_path3.join)(workspace, path6);
       let real;
@@ -34154,7 +34171,7 @@ function loadRules(workspace, s) {
       const files = (0, import_node_fs3.statSync)(real).isDirectory() ? (0, import_node_fs3.readdirSync)(real).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => (0, import_node_path3.join)(real, f)) : [real];
       for (const file of files) {
         try {
-          rules.push(...parse2((0, import_node_fs3.readFileSync)(file, "utf8"), file.slice(root.length + 1)));
+          rules.push(...parse3((0, import_node_fs3.readFileSync)(file, "utf8"), file.slice(root.length + 1)));
         } catch (err) {
           if (err instanceof RuleError) throw new ConfigError([err.message]);
           throw err;
