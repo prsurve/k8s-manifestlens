@@ -99,7 +99,8 @@ npm run package -w k8s-manifestlens-vscode   # writes packages/vscode/dist/k8s-m
 ```
 
 Install the file with `code --install-extension packages/vscode/dist/k8s-manifestlens.vsix`. To publish a new
-version, set `VSCE_PAT` to a Marketplace token and run `npm run publish:marketplace -w k8s-manifestlens-vscode`.
+version, push a `vscode-vX.Y.Z` tag: GitHub Actions publishes it with Marketplace Trusted Publishing (no token).
+See [docs/releasing-the-extension.md](docs/releasing-the-extension.md) for the setup, the steps and the manual fallback.
 
 ## Deploying the web page
 
