@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- Also published on Open VSX, so VSCodium, Cursor, Windsurf and similar editors can install it from their built-in extension view. No functional changes.
+
 ## 0.3.0
 
 - **Add support for kinds ManifestLens does not cover.** A quick fix on the "unsupported kind" message and the
