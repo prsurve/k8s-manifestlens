@@ -54,6 +54,40 @@ in the Marketplace, not in this repository, and has not been done by the change 
 Until step 3 is done the publish job fails at authentication. Nothing else is harmed: the build job has
 already proven the package, and you can re-run the failed job after fixing the policy.
 
+## Open VSX (VSCodium, Cursor, Windsurf)
+
+The same VSIX is also published to [Open VSX](https://open-vsx.org) by the `publish-open-vsx` job, after the
+Marketplace publish and independent of the GitHub Release. It uses Open VSX trusted publishing (OIDC), so
+there is no token in the workflow. The job is off until you finish the one-time setup below and set the
+repository variable `OPEN_VSX_ENABLED` to `true`.
+
+Open VSX requires the extension to exist before a trusted publisher can be added, so the first version is
+uploaded by hand with a token. Do this once:
+
+1. Sign in at open-vsx.org with GitHub, link an Eclipse Foundation account, and sign the Publisher Agreement
+   (Settings, Profile).
+2. Create an access token (Settings, Access Tokens).
+3. Create the namespace and upload the current VSIX (keep the token out of logs and shell history):
+
+   ```sh
+   read -rs OVSX_PAT && export OVSX_PAT
+   npx ovsx create-namespace prsurve
+   npx ovsx publish packages/vscode/dist/k8s-manifestlens.vsix
+   unset OVSX_PAT
+   ```
+
+   Open the namespace claim/verification flow in your Open VSX settings so it shows as verified. Only a
+   verified namespace owner can add a trusted publisher.
+
+4. In Open VSX, go to Settings, Trusted Publishers, choose the `prsurve` namespace, pick GitHub Actions, and
+   enter owner `prsurve`, repository `k8s-manifestlens`, workflow `publish-vscode.yml`. Add no environment
+   unless you add `environment:` to the job. Menu labels may differ; follow the portal.
+5. Delete the access token.
+6. Set the repository variable: `gh variable set OPEN_VSX_ENABLED --body true`
+
+From the next `vscode-v*` tag on, Open VSX is published automatically. A version already on Open VSX cannot
+be uploaded again, so the first automated run needs a new version number.
+
 ## Version strategy
 
 The extension has its own version, independent of the Action (`v1.x`). The workflow never bumps it; you do,

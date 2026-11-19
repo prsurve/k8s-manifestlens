@@ -106,6 +106,35 @@ jobs:
       - name: Publish the exact VSIX that was built and tested
         run: npx --no-install vsce publish --oidc --packagePath "vsix/$VSIX_NAME"
 
+  publish-open-vsx:
+    # Open VSX serves VSCodium, Cursor, Windsurf and similar editors. It runs after the Marketplace
+    # publish, so a problem here never blocks that one or the GitHub Release.
+    # Off until the one-time Open VSX setup is done: set the repository variable OPEN_VSX_ENABLED to
+    # true (Settings, Secrets and variables, Actions, Variables). See docs/releasing-the-extension.md.
+    if: vars.OPEN_VSX_ENABLED == 'true'
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # lets ovsx request a GitHub OIDC token; no OVSX_PAT is set, on purpose
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          cache: npm
+      # Installs the ovsx version pinned in package-lock.json.
+      - run: npm ci
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: vsix
+          path: vsix
+      - name: Publish the same VSIX to Open VSX
+        run: npx --no-install ovsx publish "vsix/$VSIX_NAME" --trusted-publishing
+
   release:
     # Runs only after a successful publish. Re-running a failed release job does not publish again.
     needs: publish
