@@ -118,7 +118,7 @@
     "@k8s-manifestlens/core": "*"
   },
   "devDependencies": {
-    "@types/vscode": "^1.90.0",
+    "@types/vscode": "^1.146.0",
     "@vscode/vsce": "^4.1.1",
     "esbuild": "^0.28.2",
     "ovsx": "^1.4.0"
